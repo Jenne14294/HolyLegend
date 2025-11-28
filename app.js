@@ -8,7 +8,7 @@ import { dirname } from 'path';
 import session from 'express-session';
 import { sequelize } from './models/index.js';
 
-import accountRouter from './routes/Account.js';
+import accountRouter from './routes/account.js';
 
 const app = express();
 
