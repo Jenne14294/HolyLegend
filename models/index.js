@@ -1,7 +1,7 @@
 // models/index.js
 import sequelize from '../database.js';  // 資料庫連線
 import User from './User.js';  // 引入模型
-import Player from './player.js';
+import Player from './Player.js';
 // import Exercise from './Exercise.js';
 // import Dodo_value from './DodoValue.js';
 // import Activity from './Activity.js';
