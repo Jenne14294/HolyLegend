@@ -8,7 +8,6 @@ import { dirname } from 'path';
 import session from 'express-session';
 import { sequelize } from './models/index.js';
 
-import indexRouter from './routes/index.js';
 import accountRouter from './routes/Account.js';
 
 const app = express();
@@ -25,7 +24,6 @@ app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
-app.use('/social', express.static(path.join(__dirname, 'public', 'social')));
 app.use(express.static(path.join(__dirname, 'public')));
 
 
@@ -45,8 +43,7 @@ app.use(session({
   cookie: { secure: false }  // 如果有 https，這裡可以改 true
 }));
 
-app.use('/', indexRouter);
-app.use('/account', accountRouter);
+app.use('/', accountRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {

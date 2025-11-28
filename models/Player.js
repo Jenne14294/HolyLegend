@@ -3,11 +3,6 @@ import { Sequelize, DataTypes } from 'sequelize';
 import sequelize from '../database.js';
 const Player = sequelize.define('Player', {
   // --- 基礎資訊 ---
-  name: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    unique: true // 角色名稱不能重複
-  },
   job: { 
     type: DataTypes.ENUM('warrior', 'mage', 'archer', 'novice'), // 限制只能填這幾種
     defaultValue: 'novice'

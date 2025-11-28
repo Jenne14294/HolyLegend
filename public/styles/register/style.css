@@ -1,17 +1,17 @@
-/* public/css/login.css */
+/* public/styles/register/style.css */
 
-/* --- 全局變數定義 --- */
+/* --- 全局變數 --- */
 :root {
     --pixel-bg: #212529;
     --pixel-border: #000000;
     --pixel-light: #ffffff;
     --pixel-gray: #adb5bd;
-    --pixel-primary: #0d6efd;
+    --pixel-primary: #198754; /* 註冊頁面綠色系 */
     --pixel-accent: #ffc107;
     --pixel-danger: #dc3545;
 }
 
-/* 確保所有元素的寬度包含 padding 和 border，避免手機版破版 */
+/* 關鍵設定：確保寬度計算包含 padding 和 border */
 *, *::before, *::after {
     box-sizing: border-box;
 }
@@ -27,39 +27,38 @@ body {
     background-size: 60px 60px;
     background-position: 0 0, 30px 30px;
     
-    /* 核心佈局：Flex 置中 */
+    /* Flex 置中佈局 */
     display: flex;
     justify-content: center;
     align-items: center;
     
-    /* 改用 dvh，解決手機瀏覽器網址列導致高度不準的問題 */
-    min-height: 100vh; 
-    min-height: 100dvh; 
+    /* 使用 dvh 適應手機動態高度 */
+    min-height: 100vh;
+    min-height: 100dvh;
     
     color: var(--pixel-border);
     image-rendering: pixelated;
     
-    /* 避免手機左右滑動 */
-    overflow-x: hidden; 
+    /* 防止手機版左右滑動 */
+    overflow-x: hidden;
 }
 
-/* --- NES 風格容器 --- */
+/* --- NES 容器 --- */
 .nes-container {
     background-color: var(--pixel-light);
     padding: 2rem;
     position: relative;
-    width: 90%; /* 手機版佔寬 90% */
-    max-width: 400px; /* 電腦版最大 400px */
+    width: 90%;       /* 手機版寬度佔 90% */
+    max-width: 450px; /* 電腦版最大寬度 */
     text-align: center;
     
-    /* 像素邊框陰影 */
     box-shadow: 
         0 4px var(--pixel-border),
         0 -4px var(--pixel-border),
         4px 0 var(--pixel-border),
         -4px 0 var(--pixel-border),
         8px 8px var(--pixel-gray);
-    
+        
     clip-path: polygon(
         0 4px, 4px 4px, 4px 0,
         calc(100% - 4px) 0, calc(100% - 4px) 4px, 100% 4px,
@@ -69,27 +68,28 @@ body {
 }
 
 h1 {
-    font-size: 1.5rem;
+    font-size: 1.2rem;
     color: var(--pixel-border);
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
     text-shadow: 3px 3px var(--pixel-gray);
-    line-height: 1.4;
+    line-height: 1.5;
 }
 
 /* --- 表單元件 --- */
 .form-group {
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.2rem;
     text-align: left;
 }
 
 label {
     display: block;
     margin-bottom: 0.5rem;
-    font-size: 0.8rem;
+    font-size: 0.7rem;
     color: var(--pixel-border);
 }
 
 input[type="text"],
+input[type="email"],
 input[type="password"] {
     width: 100%;
     padding: 10px;
@@ -116,19 +116,19 @@ input:focus {
     border: none;
     cursor: pointer;
     position: relative;
-    box-shadow: inset -4px -4px #004a99, inset 4px 4px #4d94ff, 4px 4px 0 var(--pixel-border);
+    box-shadow: inset -4px -4px rgba(0,0,0,0.2), inset 4px 4px rgba(255,255,255,0.2), 4px 4px 0 var(--pixel-border);
     transition: all 0.1s;
-    /* 確保文字不會折行 */
-    white-space: nowrap; 
+    margin-top: 10px;
+    white-space: nowrap; /* 防止按鈕文字折行 */
 }
 
 .btn-pixel:hover {
-    background-color: #0b5ed7;
+    filter: brightness(1.1);
 }
 
 .btn-pixel:active {
     transform: translate(4px, 4px);
-    box-shadow: inset -4px -4px #004a99, inset 4px 4px #4d94ff, 0 0 0 var(--pixel-border);
+    box-shadow: inset -4px -4px rgba(0,0,0,0.2), inset 4px 4px rgba(255,255,255,0.2), 0 0 0 var(--pixel-border);
 }
 
 .btn-pixel.loading {
@@ -154,75 +154,72 @@ input:focus {
     border-color: var(--pixel-accent);
 }
 
-/* --- 錯誤訊息提示區塊 --- */
+/* --- 錯誤訊息 --- */
 #error-message {
     display: none;
     color: var(--pixel-danger);
-    font-size: 0.8rem;
+    font-size: 0.7rem;
     margin-bottom: 1rem;
     padding: 10px;
     border: 2px dashed var(--pixel-danger);
     background-color: #ffe6e6;
+    text-align: left;
+    line-height: 1.5;
 }
 
-/* --- 裝飾圖示 --- */
-.pixel-icon-sword {
+/* --- 圖示 (卷軸樣式) --- */
+.pixel-icon-scroll {
     display: inline-block;
     width: 20px;
-    height: 20px;
+    height: 14px;
     background: var(--pixel-border);
     margin-right: 10px;
     box-shadow: 
+        2px -2px var(--pixel-light),
         4px -4px var(--pixel-gray),
-        8px -8px var(--pixel-gray),
-        12px -12px var(--pixel-light),
-        4px 4px var(--pixel-border),
-        0 8px var(--pixel-border),
-        -4px 4px var(--pixel-border);
-     transform: rotate(45deg);
+        -2px 2px var(--pixel-gray);
 }
 
 /* =========================================
-   手機版響應式設定 (RWD) - 讓手機也是一頁式
+   手機版響應式設定 (RWD)
    ========================================= */
 @media (max-width: 600px) {
+    /* 因為註冊欄位較多，手機版必須更緊湊 */
+    
     .nes-container {
-        padding: 1.5rem; /* 減少內距 */
-        width: 85%;      /* 左右留一點縫隙 */
+        padding: 1.2rem;  /* 內距縮小 */
+        width: 90%;       /* 寬度拉大 */
     }
 
     h1 {
-        font-size: 1.2rem;   /* 標題縮小 */
-        margin-bottom: 1.5rem;
+        font-size: 1rem;      /* 標題縮小 */
+        margin-bottom: 1rem;  /* 下方留白減少 */
     }
 
     .form-group {
-        margin-bottom: 1rem; /* 減少欄位間距，讓高度縮減 */
+        margin-bottom: 0.8rem; /* 欄位間距大幅縮小 */
+    }
+
+    label {
+        font-size: 0.6rem;    /* 標籤文字縮小 */
+        margin-bottom: 0.3rem;
     }
 
     input[type="text"],
+    input[type="email"],
     input[type="password"] {
-        padding: 8px;        /* 輸入框瘦身 */
-        font-size: 1.2rem;   /* 字體縮小 */
-        border-width: 3px;   /* 邊框稍微變細 */
+        padding: 6px;       /* 輸入框變矮 */
+        font-size: 1.2rem;  /* 字體稍微縮小 */
+        border-width: 3px;  /* 邊框變細 */
     }
 
     .btn-pixel {
-        padding: 12px;       /* 按鈕瘦身 */
+        padding: 12px;
         font-size: 0.8rem;
+        margin-top: 5px;
     }
 
-    .pixel-icon-sword {
-        width: 16px;
-        height: 16px;
-        margin-right: 8px;
-        /* 調整圖示陰影比例 */
-        box-shadow: 
-            3px -3px var(--pixel-gray),
-            6px -6px var(--pixel-gray),
-            9px -9px var(--pixel-light),
-            3px 3px var(--pixel-border),
-            0 6px var(--pixel-border),
-            -3px 3px var(--pixel-border);
+    .links {
+        margin-top: 1rem;
     }
 }
