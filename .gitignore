@@ -1,0 +1,9 @@
+# 敏感設定檔
+.env
+.vscode
+
+# 超大檔案
+node_modules/
+package-lock.json
+
+
