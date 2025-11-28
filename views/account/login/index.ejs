@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>冒險者登入</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="/styles/login/style.css">
+</head>
+<body>
+
+    <div class="nes-container">
+        <h1><span class="pixel-icon-sword"></span>冒險者登入</h1>
+        
+        <div id="error-message"></div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">勇者代號 (USERNAME)</label>
+                <input type="text" id="username" name="username" required autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="password">通關密語 (PASSWORD)</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <button type="submit" class="btn-pixel">START GAME</button>
+        </form>
+
+        <div class="links">
+            <p>還沒註冊? <a href="/auth/register">創建新角色</a></p>
+        </div>
+    </div>
+
+    <script src="/script/login/script.js"></script>
+</body>
+</html>
