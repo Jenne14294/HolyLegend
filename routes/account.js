@@ -9,7 +9,7 @@ router.get('/', (req, res, next) => {
   res.render('account/login/index', { title: 'Express' });
 });
 
-router.get('/holylegend/register', (req, res, next) => {
+router.get('/register', (req, res, next) => {
   res.render('account/register/index', { title: 'Express' });
 });
 

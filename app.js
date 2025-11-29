@@ -43,7 +43,7 @@ app.use(session({
   cookie: { secure: false }  // 如果有 https，這裡可以改 true
 }));
 
-app.use('/holylegend', accountRouter);
+app.use('/', accountRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
