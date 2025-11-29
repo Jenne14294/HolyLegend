@@ -24,7 +24,7 @@ app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use('/holylegend', express.static(path.join(__dirname, 'public')));
 
 
 sequelize.sync()
@@ -43,7 +43,7 @@ app.use(session({
   cookie: { secure: false }  // 如果有 https，這裡可以改 true
 }));
 
-app.use('/', accountRouter);
+app.use('/holylegend', accountRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
