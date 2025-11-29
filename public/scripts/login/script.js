@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             // 2. 用 Fetch API 發送請求給後端
-            const response = await fetch('/auth/login', {
+            const response = await fetch('/holylegend/auth/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 3. 登入成功 -> 跳轉到首頁或遊戲大廳
                 submitBtn.innerText = "SUCCESS!";
                 setTimeout(() => {
-                    window.location.href = '/'; // 這裡填寫你想跳轉的網址
+                    window.location.href = '/holylegend'; // 這裡填寫你想跳轉的網址
                 }, 500);
             } else {
                 // 4. 登入失敗 -> 顯示錯誤訊息

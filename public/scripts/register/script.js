@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             // 4. 發送請求給後端 (POST /auth/register)
-            const response = await fetch('/auth/register', {
+            const response = await fetch('/holylegend/auth/register', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // 1.5秒後跳轉到登入頁面
                 setTimeout(() => {
-                    window.location.href = '/'; 
+                    window.location.href = '/holylegend'; 
                 }, 1500);
             } else {
                 throw new Error(result.msg || '註冊失敗');
