@@ -45,7 +45,11 @@ router.post('/auth/login', async (req, res, next) => {
     return res.status(400).json({ success: false, msg: '帳號或密碼錯誤' });
   }
 
-  return res.status(200).json({ success: true, msg: '登入成功' });
+  return res.status(200).json({ success: true, msg: '登入成功', user: user });
+});
+
+router.get('/select_role', (req, res, next) => {
+  res.render('account/create_player/index', { title: '選擇角色' });
 });
 
 export default router;

@@ -34,8 +34,17 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok) {
                 // 3. 登入成功 -> 跳轉到首頁或遊戲大廳
                 submitBtn.innerText = "SUCCESS!";
+                if (result.user.jobId == -1) 
+                {
+                    herf_location = '/holylegend/select_role';
+                }
+
+                else 
+                {
+                    herf_location = '/holylegend/game_lobby';
+                }
                 setTimeout(() => {
-                    window.location.href = '/holylegend'; // 這裡填寫你想跳轉的網址
+                    window.location.href = herf_location; // 這裡填寫你想跳轉的網址
                 }, 500);
             } else {
                 // 4. 登入失敗 -> 顯示錯誤訊息

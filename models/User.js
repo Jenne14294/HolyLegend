@@ -17,6 +17,10 @@ const User = sequelize.define(
       type: DataTypes.STRING,
       allowNull: true,
     },
+    jobId : {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
   },
   {
     // Other model options go here
