@@ -8,11 +8,7 @@ const router = express.Router();
 
 /* GET home page. */
 router.get('/', (req, res, next) => {
-  res.render('account/login/index', { title: 'Express' });
-});
-
-router.get('/register', (req, res, next) => {
-  res.render('account/register/index', { title: 'Express' });
+  res.render('create_account', { title: 'Express' });
 });
 
 router.post('/auth/register', async (req, res, next) => {
@@ -84,7 +80,7 @@ router.post('/auth/login', async (req, res, next) => {
 });
 
 router.get('/select_role', (req, res, next) => {
-  res.render('account/create_player/index', { title: '選擇角色' });
+  res.render('create_player', { title: '選擇角色' });
 });
 
 router.post('/set_role', verifyToken, async (req, res, next) => {
@@ -108,7 +104,7 @@ router.post('/set_role', verifyToken, async (req, res, next) => {
     return res.status(200).json({
       success: true,
       msg: '職業設定成功',
-      redirectUrl: '/holylegend/game_scene',
+      redirectUrl: '/holylegend/game_lobby',
       // 注意：回傳給前端的 playerId 應該是用戶 ID，讓前端知道要載入誰的存檔
       playerId: req.user.id, 
       tutorial: req.body.tutorial

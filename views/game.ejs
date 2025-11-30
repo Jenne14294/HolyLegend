@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Holy Legend - 冒險主頁</title>
+    <link rel="stylesheet" href="/holylegend/styles/game.css">
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div class="mobile-container">
+        <header class="player-status-panel">
+            <div class="avatar-container">
+                <div class="avatar-frame">
+                    <img id="playerAvatar" src="" alt="Avatar" class="pixel-art">
+                </div>
+                <div class="level-badge">
+                    <span id="playerLevel">1</span>
+                </div>
+            </div>
+
+            <div class="stats-container">
+                <div class="player-name" id="playerName">載入中...</div>
+                
+                <div class="stat-bar-row">
+                    <span class="label">HP</span>
+                    <div class="bar-bg">
+                        <div class="bar-fill hp-fill" id="hpBar" style="width: 100%;"></div>
+                        <span class="bar-text" id="hpText">100/100</span>
+                    </div>
+                </div>
+
+                <div class="stat-bar-row">
+                    <span class="label">MP</span>
+                    <div class="bar-bg">
+                        <div class="bar-fill mp-fill" id="mpBar" style="width: 100%;"></div>
+                        <span class="bar-text" id="mpText">50/50</span>
+                    </div>
+                </div>
+
+                <div class="stat-bar-row">
+                    <span class="label">EXP</span>
+                    <div class="bar-bg">
+                        <div class="bar-fill exp-fill" id="expBar" style="width: 0%;"></div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-actions">
+            
+            <div class="action-card tower-card" onclick="location.href='/game/tower'">
+                <div class="card-content">
+                    <h2>爬塔</h2>
+                    <p>MAIN TOWER</p>
+                    <div class="icon pixel-art">🏰</div>
+                </div>
+            </div>
+
+            <div class="action-card tavern-card" onclick="alert('酒館尚未開放！')">
+                <div class="card-content">
+                    <h2>酒館</h2>
+                    <p>TAVERN</p>
+                    <div class="icon pixel-art">🍺</div>
+                </div>
+            </div>
+
+            <div class="action-card guild-card" onclick="alert('公會尚未開放！')">
+                <div class="card-content">
+                    <h2>公會</h2>
+                    <p>GUILD</p>
+                    <div class="icon pixel-art">🛡️</div>
+                </div>
+            </div>
+
+        </main>
+
+        <footer class="bottom-menu">
+            <button class="menu-btn">
+                <span class="icon">⚔️</span>
+                <span>職業</span>
+            </button>
+            <button class="menu-btn">
+                <span class="icon">📜</span>
+                <span>任務</span>
+            </button>
+            <button class="menu-btn">
+                <span class="icon">⚙️</span>
+                <span>選單</span>
+            </button>
+        </footer>
+    </div>
+
+    <script src="/holylegend/scripts/game.js"></script>
+</body>
+</html>

@@ -9,6 +9,7 @@ import session from 'express-session';
 import { sequelize } from './models/index.js';
 
 import accountRouter from './routes/account.js';
+import gameRouter from './routes/game.js';
 
 const app = express();
 
@@ -44,6 +45,7 @@ app.use(session({
 }));
 
 app.use('/holylegend', accountRouter);
+app.use('/holylegend/game_lobby', gameRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {

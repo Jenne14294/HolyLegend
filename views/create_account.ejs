@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>聖魂傳奇 - 冒險啟程</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="/holylegend/styles/create_account.css">
+    <style>
+        /* 簡單的切換樣式，建議之後移到 style.css */
+        .hidden {
+            display: none !important;
+        }
+        
+        /* 讓切換連結看起來像按鈕或顯眼一點 */
+        .toggle-link {
+            color: #e67e22;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        .toggle-link:hover {
+            color: #d35400;
+        }
+    </style>
+</head>
+<body>
+
+    <audio id="bgMusic" src="/holylegend/audio/main_page.ogg" loop></audio>
+
+    <div id="start-overlay">
+        <div class="title-container">
+            <h1 class="main-title">聖魂傳奇</h1>
+            <h2 class="sub-title">HolyLegend</h2>
+        </div>
+        
+        <div class="cover-art">
+             </div>
+
+        <div class="start-prompt">
+            <p>CLICK TO START</p>
+            <span class="blink">_</span>
+        </div>
+    </div>
+
+    <div id="login-container" class="nes-container">
+        <h1><span class="pixel-icon-sword"></span>冒險者登入</h1>
+        
+        <div id="login-error-message" class="error-message"></div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="login-username">勇者代號 (USERNAME)</label>
+                <input type="text" id="login-username" name="username" required autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="login-password">通關密語 (PASSWORD)</label>
+                <input type="password" id="login-password" name="password" required>
+            </div>
+            <button type="submit" class="btn-pixel">START GAME</button>
+        </form>
+
+        <div class="links">
+            <p>還沒註冊? <a href="#" id="to-register-btn" class="toggle-link">創建新角色</a></p>
+        </div>
+    </div>
+
+    <div id="register-container" class="nes-container hidden">
+        <h1><span class="pixel-icon-scroll"></span>創建新角色</h1>
+        
+        <div id="register-error-message" class="error-message"></div>
+
+        <form id="registerForm">
+            <div class="form-group">
+                <label for="reg-username">設定代號 (USERNAME)</label>
+                <input type="text" id="reg-username" name="username" required autocomplete="off">
+            </div>
+
+            <div class="form-group">
+                <label for="reg-password">設定密碼 (PASSWORD)</label>
+                <input type="password" id="reg-password" name="password" required>
+            </div>
+
+            <div class="form-group">
+                <label for="confirm_password">確認密碼 (CONFIRM)</label>
+                <input type="password" id="confirm_password" name="confirm_password" required>
+            </div>
+
+            <button type="submit" class="btn-pixel">CREATE HERO</button>
+        </form>
+
+        <div class="links">
+            <p>已有帳號? <a href="#" id="to-login-btn" class="toggle-link">直接登入</a></p>
+        </div>
+    </div>
+
+    <script src="/holylegend/scripts/create_account.js"></script>
+</body>
+</html>

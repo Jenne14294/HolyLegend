@@ -1,0 +1,395 @@
+/* =========================================
+   1. 全局變數與基礎設定
+   ========================================= */
+:root {
+    --pixel-bg: #212529;
+    --pixel-border: #000000;
+    --pixel-light: #ffffff;
+    --pixel-gray: #adb5bd;
+    
+    /* 預設主題色 (藍色 - 登入用) */
+    --pixel-primary: #0d6efd; 
+    
+    /* 註冊專用色 (綠色) */
+    --pixel-register: #198754; 
+    
+    --pixel-accent: #ffc107; /* 金色 */
+    --pixel-danger: #dc3545; /* 紅色 */
+}
+
+/* 確保所有元素的寬度包含 padding 和 border */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Press Start 2P', cursive;
+    background-color: #3a3a3a;
+    
+    /* 格狀背景圖案 */
+    background-image: 
+        linear-gradient(45deg, #2b2b2b 25%, transparent 25%, transparent 75%, #2b2b2b 75%, #2b2b2b),
+        linear-gradient(45deg, #2b2b2b 25%, transparent 25%, transparent 75%, #2b2b2b 75%, #2b2b2b);
+    background-size: 60px 60px;
+    background-position: 0 0, 30px 30px;
+    
+    /* 核心佈局：Flex 置中 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    
+    /* 適應手機動態高度 */
+    min-height: 100vh; 
+    min-height: 100dvh; 
+    
+    color: var(--pixel-border);
+    image-rendering: pixelated;
+    
+    /* 避免手機左右滑動 */
+    overflow-x: hidden; 
+}
+
+/* =========================================
+   2. 通用容器 (NES 風格)
+   ========================================= */
+.nes-container {
+    background-color: var(--pixel-light);
+    padding: 2rem;
+    position: relative;
+    width: 90%; 
+    max-width: 400px;
+    text-align: center;
+    
+    /* 像素邊框陰影 */
+    box-shadow: 
+        0 4px var(--pixel-border),
+        0 -4px var(--pixel-border),
+        4px 0 var(--pixel-border),
+        -4px 0 var(--pixel-border),
+        8px 8px var(--pixel-gray);
+    
+    /* CSS Clip-path 製作像素切角 */
+    clip-path: polygon(
+        0 4px, 4px 4px, 4px 0,
+        calc(100% - 4px) 0, calc(100% - 4px) 4px, 100% 4px,
+        100% calc(100% - 4px), calc(100% - 4px) calc(100% - 4px), calc(100% - 4px) 100%,
+        4px 100%, 4px calc(100% - 4px), 0 calc(100% - 4px)
+    );
+
+    /* 淡入淡出動畫 */
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* 用於 JS 切換顯示/隱藏的類別 */
+.hidden {
+    display: none !important;
+}
+
+h1 {
+    font-size: 1.5rem;
+    color: var(--pixel-border);
+    margin-bottom: 2rem;
+    text-shadow: 3px 3px var(--pixel-gray);
+    line-height: 1.4;
+}
+
+/* =========================================
+   3. 表單元件
+   ========================================= */
+.form-group {
+    margin-bottom: 1.5rem;
+    text-align: left;
+}
+
+label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--pixel-border);
+}
+
+input[type="text"],
+input[type="password"],
+input[type="email"] {
+    width: 100%;
+    padding: 10px;
+    font-family: 'VT323', monospace;
+    font-size: 1.5rem;
+    border: 4px solid var(--pixel-border);
+    background-color: #e9ecef;
+    outline: none;
+}
+
+input:focus {
+    background-color: #fff;
+    border-color: var(--pixel-primary);
+}
+
+/* 針對註冊表單，Focus 時變成綠色 */
+#registerForm input:focus {
+    border-color: var(--pixel-register);
+}
+
+/* =========================================
+   4. 按鈕與連結
+   ========================================= */
+.btn-pixel {
+    font-family: 'Press Start 2P', cursive;
+    width: 100%;
+    padding: 15px;
+    font-size: 1rem;
+    background-color: var(--pixel-primary);
+    color: var(--pixel-light);
+    border: none;
+    cursor: pointer;
+    position: relative;
+    box-shadow: inset -4px -4px rgba(0,0,0,0.2), inset 4px 4px rgba(255,255,255,0.2), 4px 4px 0 var(--pixel-border);
+    transition: all 0.1s;
+    white-space: nowrap; 
+}
+
+.btn-pixel:hover {
+    filter: brightness(1.1);
+}
+
+.btn-pixel:active {
+    transform: translate(4px, 4px);
+    box-shadow: inset -4px -4px rgba(0,0,0,0.2), inset 4px 4px rgba(255,255,255,0.2), 0 0 0 var(--pixel-border);
+}
+
+.btn-pixel.loading {
+    background-color: var(--pixel-gray) !important;
+    pointer-events: none;
+    cursor: wait;
+}
+
+/* 特殊處理：註冊按鈕使用綠色 */
+#registerForm .btn-pixel {
+    background-color: var(--pixel-register);
+}
+
+/* 連結樣式 */
+.links {
+    margin-top: 1.5rem;
+    font-size: 0.7rem;
+}
+
+.toggle-link {
+    color: var(--pixel-primary);
+    text-decoration: none;
+    border-bottom: 2px dashed var(--pixel-primary);
+    cursor: pointer;
+}
+
+.toggle-link:hover {
+    color: var(--pixel-accent);
+    border-color: var(--pixel-accent);
+}
+
+/* 註冊頁面的連結顏色 */
+#register-container .toggle-link {
+    color: var(--pixel-register);
+    border-bottom-color: var(--pixel-register);
+}
+
+/* =========================================
+   5. 錯誤訊息與圖示
+   ========================================= */
+.error-message {
+    display: none;
+    color: var(--pixel-danger);
+    font-size: 0.8rem;
+    margin-bottom: 1rem;
+    padding: 10px;
+    border: 2px dashed var(--pixel-danger);
+    background-color: #ffe6e6;
+    text-align: center;
+    line-height: 1.5;
+    font-family: 'VT323', monospace;
+    font-size: 1.2rem;
+}
+
+/* 劍圖示 (登入) */
+.pixel-icon-sword {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    background: var(--pixel-border);
+    margin-right: 10px;
+    box-shadow: 
+        4px -4px var(--pixel-gray),
+        8px -8px var(--pixel-gray),
+        12px -12px var(--pixel-light),
+        4px 4px var(--pixel-border),
+        0 8px var(--pixel-border),
+        -4px 4px var(--pixel-border);
+     transform: rotate(45deg);
+}
+
+/* 卷軸圖示 (註冊) */
+.pixel-icon-scroll {
+    display: inline-block;
+    width: 20px;
+    height: 14px;
+    background: var(--pixel-border);
+    margin-right: 10px;
+    box-shadow: 
+        2px -2px var(--pixel-light),
+        4px -4px var(--pixel-gray),
+        -2px 2px var(--pixel-gray);
+}
+
+/* =========================================
+   6. 開始遮罩層 (Overlay)
+   ========================================= */
+#start-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9999;
+    
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: #fff;
+    text-align: center;
+    cursor: pointer;
+
+    background-color: #000;
+    
+    /* 建議替換成實際圖片路徑 */
+    background: linear-gradient(to bottom, #3498db 0%, #87ceeb 50%, #27ae60 50%, #2ecc71 100%);
+    /* background-image: url('/holylegend/images/login_bg_pixel.png'); */
+    
+    background-size: cover;
+    background-position: center;
+    image-rendering: pixelated;
+    transition: opacity 0.8s ease-out;
+}
+
+#start-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+#start-overlay::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: -1;
+}
+
+/* 標題與動畫 */
+.title-container {
+    margin-bottom: 50px;
+    text-shadow: 4px 4px 0px #000;
+}
+
+.main-title {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 3rem;
+    color: #ffd700;
+    margin: 0;
+    line-height: 1.2;
+}
+
+.sub-title {
+    font-family: 'VT323', monospace;
+    font-size: 2.5rem;
+    color: #ecf0f1;
+    margin-top: 10px;
+    letter-spacing: 2px;
+}
+
+.start-prompt {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 1.2rem;
+    color: #fff;
+    text-shadow: 2px 2px 0px #000;
+    margin-top: auto;
+    margin-bottom: 100px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.cover-art img {
+    width: 120px;
+    height: auto;
+    image-rendering: pixelated;
+    margin: 20px 0;
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+    100% { transform: translateY(0px); }
+}
+
+.blink {
+    animation: blink-animation 0.8s steps(2, start) infinite;
+}
+
+@keyframes blink-animation {
+    to { visibility: hidden; }
+}
+
+/* =========================================
+   7. RWD 手機版響應式
+   ========================================= */
+@media (max-width: 600px) {
+    .nes-container {
+        padding: 1.5rem;
+        width: 85%;
+    }
+
+    h1 {
+        font-size: 1.1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-group {
+        margin-bottom: 1rem;
+    }
+    
+    /* 註冊表單欄位較多，手機上需要更緊湊 */
+    #register-container .form-group {
+        margin-bottom: 0.8rem;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    input[type="email"] {
+        padding: 8px;
+        font-size: 1.2rem;
+        border-width: 3px;
+    }
+
+    .btn-pixel {
+        padding: 12px;
+        font-size: 0.8rem;
+    }
+
+    .pixel-icon-sword {
+        width: 16px;
+        height: 16px;
+        margin-right: 8px;
+        box-shadow: 
+            3px -3px var(--pixel-gray),
+            6px -6px var(--pixel-gray),
+            9px -9px var(--pixel-light),
+            3px 3px var(--pixel-border),
+            0 6px var(--pixel-border),
+            -3px 3px var(--pixel-border);
+    }
+    
+    .main-title { font-size: 2rem; }
+    .sub-title { font-size: 1.8rem; }
+}
