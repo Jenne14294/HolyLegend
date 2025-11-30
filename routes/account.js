@@ -1,6 +1,7 @@
 import express from 'express';
 import bcrypt from 'bcrypt';
 import { getUser, createUser } from '../services/accountAuth.js';
+import { name } from 'ejs';
 
 const router = express.Router();
 
@@ -15,7 +16,7 @@ router.get('/register', (req, res, next) => {
 
 router.post('/auth/register', async (req, res, next) => {
   // Handle registration logic here
-  const user = await getUser({ email: req.body.email });
+  const user = await getUser({ name: req.body.username });
 
   console.log(user);
 
@@ -27,8 +28,9 @@ router.post('/auth/register', async (req, res, next) => {
 
   await createUser({
     name: req.body.username,
-    email: req.body.email,
-    password: hash
+    password: hash,
+    jobId: -1,
+    gameIntro: false
   });
 
   return res.status(200).json({ success: true, msg: '註冊成功' });
@@ -36,7 +38,7 @@ router.post('/auth/register', async (req, res, next) => {
 
 router.post('/auth/login', async (req, res, next) => {
   // Handle login logic here
-  const user = await getUser({ email: req.body.email });
+  const user = await getUser({ name: req.body.username });
   if (!user) {
     return res.status(400).json({ success: false, msg: '帳號或密碼錯誤' });
   }

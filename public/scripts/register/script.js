@@ -29,7 +29,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 body: JSON.stringify({
                     username: data.username,
-                    email: data.email,
                     password: data.password
                     // 不需要傳 confirm_password 給後端
                 })

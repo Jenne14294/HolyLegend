@@ -9,7 +9,7 @@ const User = sequelize.define(
       type: DataTypes.STRING,
       allowNull: true,
     },
-    email: {
+    nickName: {
       type: DataTypes.STRING,
       allowNull: true,
     },
@@ -19,6 +19,10 @@ const User = sequelize.define(
     },
     jobId : {
       type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    gameIntro : {
+      type: DataTypes.BOOLEAN,
       allowNull: true,
     },
   },

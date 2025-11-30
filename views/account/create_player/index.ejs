@@ -3,53 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RPG 職業選擇</title>
+    <title>RPG 角色創建</title>
     <link rel="stylesheet" href="/holylegend/styles/create_player/style.css">
 </head>
 <body>
 
-    <div class="comic-container">
-        <div class="panel warrior" data-role="warrior">
-            <div class="bg-effect"></div>
-            <div class="content">
-                <div class="character">
-                    <svg viewBox="0 0 100 100">
-                        <path d="M50 90 C 20 80, 20 40, 20 20 L 80 20 C 80 40, 80 80, 50 90 Z" fill="#ccc" stroke="#333" stroke-width="3"/>
-                        <path d="M50 90 C 30 80, 30 40, 30 25 L 70 25 C 70 40, 70 80, 50 90 Z" fill="#eee" />
-                        <path d="M50 25 L 50 90" stroke="#333" stroke-width="2"/>
-                        <rect x="45" y="5" width="10" height="90" fill="#ddd" stroke="#333" stroke-width="2" transform="rotate(45 50 50)"/>
-                        <rect x="40" y="70" width="30" height="5" fill="#654321" stroke="#333" stroke-width="2" transform="rotate(45 50 50)"/>
+    <div class="game-container">
+        <h1 class="main-title">選擇你的起始職業</h1>
+
+        <div class="char-selection-row">
+            <div class="char-card" data-role="warrior">
+                <div class="img-container">
+                    <img src="/holylegend/images/Warrior_1.png" alt="戰士" class="character-img">
+                </div>
+                <div class="role-name">戰士</div>
+            </div>
+
+            <div class="char-card" data-role="archer">
+                <div class="img-container">
+                     <svg viewBox="0 0 100 100" class="placeholder-svg">
+                        <path d="M80 20 Q 20 50 80 80" fill="none" stroke="#8B4513" stroke-width="6"/>
+                        <line x1="20" y1="50" x2="90" y2="50" stroke="#333" stroke-width="3"/>
                     </svg>
                 </div>
-                <h2 class="role-name">戰士</h2>
+                <div class="role-name">射手</div>
             </div>
-        </div>
 
-        <div class="panel archer" data-role="archer">
-            <div class="bg-effect"></div>
-            <div class="content reverse">
-                <h2 class="role-name">射手</h2> 
-                <div class="character">
-                    <svg viewBox="0 0 100 100">
-                        <path d="M80 20 Q 20 50 80 80" fill="none" stroke="#8B4513" stroke-width="6" stroke-linecap="round"/>
-                        <line x1="80" y1="20" x2="80" y2="80" stroke="#ddd" stroke-width="1"/>
-                        <line x1="20" y1="50" x2="90" y2="50" stroke="#333" stroke-width="3"/>
-                        <polygon points="90,50 80,45 80,55" fill="#333"/> <path d="M20 50 L 10 45 M 20 50 L 10 55" stroke="#333" stroke-width="2"/> </svg>
-                </div>
-            </div>
-        </div>
-
-        <div class="panel mage" data-role="mage">
-            <div class="bg-effect"></div>
-            <div class="content">
-                <div class="character">
-                    <svg viewBox="0 0 100 100">
+            <div class="char-card" data-role="mage">
+                <div class="img-container">
+                     <svg viewBox="0 0 100 100" class="placeholder-svg">
                         <line x1="80" y1="20" x2="20" y2="90" stroke="#8B4513" stroke-width="4"/>
-                        <circle cx="80" cy="20" r="8" fill="#00FFFF" stroke="#333" stroke-width="2"/> <path d="M20 60 L 80 60 L 50 10 Z" fill="#4B0082" stroke="#333" stroke-width="3"/> <ellipse cx="50" cy="60" rx="35" ry="10" fill="#4B0082" stroke="#333" stroke-width="3"/> <path d="M35 40 Q 50 30 65 40" fill="none" stroke="#FFD700" stroke-width="3"/> </svg>
+                        <circle cx="80" cy="20" r="8" fill="#00FFFF" stroke="#333"/>
+                        <path d="M20 60 L 80 60 L 50 10 Z" fill="#4B0082" stroke="#333" stroke-width="3"/>
+                    </svg>
                 </div>
-                <h2 class="role-name">法師</h2>
+                <div class="role-name">法師</div>
             </div>
         </div>
+
+        <div class="nickname-section">
+            <label for="nicknameInput">輸入暱稱</label>
+            <div class="input-group">
+                <input type="text" id="nicknameInput" placeholder="你的大名..." maxlength="6">
+                <button id="randomBtn" title="隨機名稱">
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                        <rect x="2" y="2" width="20" height="20" rx="4" ry="4" fill="none" stroke="currentColor" stroke-width="2"/>
+                        <circle cx="7" cy="7" r="2" fill="currentColor"/><circle cx="17" cy="7" r="2" fill="currentColor"/>
+                        <circle cx="7" cy="17" r="2" fill="currentColor"/><circle cx="17" cy="17" r="2" fill="currentColor"/>
+                        <circle cx="12" cy="12" r="2" fill="currentColor"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <button id="startBtn" disabled>開始遊戲</button>
     </div>
 
     <script src="/holylegend/scripts/create_player/script.js"></script>
