@@ -11,19 +11,23 @@
 
 body {
     margin: 0;
-    padding: 20px;
+    padding: 0; /* 移除外距，由 container 控制 */
     background-color: var(--bg-color);
-    /* 簡單的網格背景圖案 */
     background-image: 
         linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
         linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
     background-size: 20px 20px;
     color: var(--text-color);
-    font-family: 'Press Start 2P', cursive, sans-serif; /* 使用像素字體 */
+    font-family: 'Press Start 2P', cursive, sans-serif;
+    
+    /* 關鍵修改 1: 鎖定螢幕高度，禁止捲動 */
+    height: 100vh;      /* 相容舊瀏覽器 */
+    height: 100dvh;     /* 新版手機瀏覽器專用 (扣除網址列) */
+    overflow: hidden;   /* 禁止出現捲軸 */
+    
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 100vh;
     box-sizing: border-box;
 }
 
@@ -31,35 +35,38 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 40px; /* 區塊間距 */
+    /* 關鍵修改 2: 讓內容均勻分布，而不是用固定的大 gap */
+    justify-content: space-evenly; 
     width: 100%;
+    height: 100%;       /* 填滿畫面 */
     max-width: 800px;
+    padding: 20px;      /* 內距 */
+    box-sizing: border-box;
 }
 
 .main-title {
-    font-size: 1.5rem;
+    font-size: 1.5rem; /* 手機上可能要小一點，下面有媒體查詢 */
     color: var(--accent-color);
     text-shadow: 2px 2px 0px #000;
-    margin-bottom: 10px;
+    margin: 0;
+    text-align: center;
 }
 
 /* --- 1. 角色選擇區塊 (水平) --- */
 .char-selection-row {
     display: flex;
     justify-content: center;
-    gap: 30px; /* 卡片間距 */
+    align-items: center; /* 確保垂直置中 */
+    gap: 20px;
     width: 100%;
-    flex-wrap: wrap; /* 手機版自動換行 */
+    /* 預設可以換行，但在手機版我們會強制不換行 */
+    flex-wrap: wrap; 
 }
 
-/* 定義跳動動畫：名稱叫 'pixel-jump' */
+/* 定義跳動動畫 */
 @keyframes pixel-jump {
-    0%, 100% {
-        transform: translateY(0); /* 原位 */
-    }
-    50% {
-        transform: translateY(-8px); /* 往上跳 8px */
-    }
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
 }
 
 .char-card {
@@ -72,24 +79,22 @@ body {
     transition: all 0.3s ease;
     width: 150px;
     position: relative;
+    /* 防止卡片被壓得太扁 */
+    flex-shrink: 0; 
 }
 
-/* 滑鼠移過和選中狀態 */
 .char-card:hover {
     transform: translateY(-5px);
 }
 
 .char-card.active {
     border-color: var(--accent-color);
-    box-shadow: 0 0 20px rgba(255, 215, 0, 0.6); /* 金色發光 */
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
     background: #444;
 }
 
 .char-card.active .character-img {
-    /* 動畫名稱 | 持續時間 | 重複次數 | 速度曲線 */
     animation: pixel-jump 0.6s infinite ease-in-out;
-    
-    /* 選用：加上發光濾鏡增加強調感 */
     filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.8));
 }
 
@@ -99,24 +104,22 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    margin-bottom: 15px;
+    margin-bottom: 10px; /* 稍微縮小間距 */
     background: #222;
     border-radius: 4px;
     overflow: hidden;
 }
 
-/* 佔位符 SVG 樣式，放入圖片後這個會被圖片蓋住 */
 .placeholder-svg {
     width: 80%;
     height: 80%;
 }
 
-/* 如果你放入 <img>，確保它填滿容器 */
 .img-container img {
     width: 100%;
     height: 100%;
     object-fit: cover; 
-    image-rendering: pixelated; /* 如果是像素圖 */
+    image-rendering: pixelated;
 }
 
 .role-name {
@@ -129,18 +132,21 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 15px;
+    gap: 10px; /* 縮小間距 */
     font-size: 1rem;
+    width: 100%;
 }
 
 .input-group {
     display: flex;
     gap: 10px;
+    justify-content: center;
+    width: 100%;
 }
 
 #nicknameInput {
-    padding: 10px 15px;
-    font-family: inherit; /* 繼承像素字體 */
+    padding: 10px;
+    font-family: inherit;
     font-size: 1rem;
     background: var(--input-bg);
     border: 3px solid #111;
@@ -148,14 +154,14 @@ body {
     border-radius: 4px;
     outline: none;
     text-align: center;
-    width: 200px;
+    width: 180px; /* 稍微縮小預設寬度 */
+    max-width: 60%;
 }
 
 #nicknameInput:focus {
     border-color: var(--accent-color);
 }
 
-/* 骰子按鈕 */
 #randomBtn {
     background: var(--input-bg);
     border: 3px solid #111;
@@ -167,12 +173,13 @@ body {
     align-items: center;
     justify-content: center;
     transition: all 0.2s;
+    flex-shrink: 0; /* 防止按鈕被壓扁 */
 }
 
 #randomBtn:hover {
     background: #555;
     color: var(--accent-color);
-    transform: rotate(15deg); /* 點擊時旋轉一下 */
+    transform: rotate(15deg);
 }
 
 #randomBtn svg {
@@ -181,7 +188,7 @@ body {
 
 /* --- 3. 開始遊戲按鈕 --- */
 #startBtn {
-    padding: 15px 40px;
+    padding: 15px 30px; /* 稍微調整 padding */
     font-family: inherit;
     font-size: 1.2rem;
     background: var(--accent-color);
@@ -191,6 +198,8 @@ body {
     cursor: pointer;
     box-shadow: 5px 5px 0px #000;
     transition: all 0.2s;
+    /* 避免按鈕太寬 */
+    max-width: 90%; 
 }
 
 #startBtn:hover:not(:disabled) {
@@ -204,7 +213,6 @@ body {
     box-shadow: 1px 1px 0px #000;
 }
 
-/* 禁用狀態 */
 #startBtn:disabled {
     background: #555;
     color: #888;
@@ -214,23 +222,57 @@ body {
     opacity: 0.7;
 }
 
-/* 手機版適配微調 */
+/* --- 關鍵修改 3: 手機版強制適配 --- */
 @media (max-width: 600px) {
+    
+    .game-container {
+        justify-content: space-between; /* 上下撐開，利用空間 */
+        padding: 15px 10px; /* 減少邊距 */
+    }
+
+    .main-title {
+        font-size: 1.2rem; /* 縮小標題 */
+        margin-top: 10px;
+    }
+
     .char-selection-row {
-        gap: 15px;
+        gap: 8px; /* 卡片間距變得很小 */
+        flex-wrap: nowrap; /* 強制不換行！讓三個並排 */
+        width: 100%;
+        /* 允許內容稍微超出容器寬度時不要壞掉 (保險用) */
+        overflow-x: visible; 
     }
+
     .char-card {
-        width: 90px; /* 縮小卡片 */
-        padding: 10px;
+        width: 32%; /* 強制每個卡片佔寬度的 1/3 */
+        padding: 8px 4px; /* 減少內距 */
+        border-width: 2px; /* 邊框變細 */
+        flex-shrink: 1; /* 允許縮小 */
     }
+
     .img-container {
-        height: 80px;
+        height: 70px; /* 圖片變小 */
+        margin-bottom: 5px;
     }
+
     .role-name {
-        font-size: 0.8rem;
+        font-size: 0.7rem; /* 字體變小 */
+        white-space: nowrap; /* 防止文字換行 */
     }
+
+    .nickname-section {
+        gap: 5px;
+    }
+
     #nicknameInput {
-        width: 150px;
+        font-size: 0.9rem;
+        padding: 8px;
+    }
+
+    #startBtn {
+        font-size: 1rem;
+        padding: 12px 0;
+        width: 100%; /* 按鈕滿版 */
+        margin-bottom: 10px;
     }
 }
-

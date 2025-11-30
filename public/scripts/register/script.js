@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // 1.5秒後跳轉到登入頁面
                 setTimeout(() => {
-                    window.location.href = '/holylegend'; 
+                    window.location.href = '/holylegend/'; 
                 }, 1500);
             } else {
                 throw new Error(result.msg || '註冊失敗');
