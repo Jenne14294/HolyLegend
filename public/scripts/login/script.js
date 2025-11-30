@@ -33,8 +33,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (response.ok) {
                 // 3. 登入成功 -> 跳轉到首頁或遊戲大廳
+                
                 submitBtn.innerText = "SUCCESS!";
-                if (result.user.jobId == -1) 
+                if (result.user.dataValues.jobId == -1) 
                 {
                     herf_location = '/holylegend/select_role';
                 }
