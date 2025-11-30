@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const startOverlay = document.getElementById('start-overlay');
     const bgMusic = document.getElementById('bgMusic');
 
-    // 容器 (最外層的框框)
+    // 容器
     const loginContainer = document.getElementById('login-container');
     const registerContainer = document.getElementById('register-container');
 
@@ -16,11 +16,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('loginForm');
     const registerForm = document.getElementById('registerForm');
 
-    // 錯誤訊息區塊 (新增這兩個變數，確保抓對人)
+    // 錯誤訊息區塊
     const loginErrorDiv = document.getElementById('login-error-message');
     const registerErrorDiv = document.getElementById('register-error-message');
 
-    // 切換按鈕 (連結)
+    // 切換按鈕
     const toRegisterBtn = document.getElementById('to-register-btn');
     const toLoginBtn = document.getElementById('to-login-btn');
 
@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // 3. 切換 登入/註冊 介面邏輯 (修正處)
+    // 3. 切換 登入/註冊 介面邏輯 (修正版)
     // ==========================================
 
     // 切換到「註冊頁」
@@ -56,15 +56,16 @@ document.addEventListener('DOMContentLoaded', () => {
         toRegisterBtn.addEventListener('click', (e) => {
             e.preventDefault();
             
-            // 1. 切換容器顯示
+            // UI 切換
             loginContainer.classList.add('hidden');
             registerContainer.classList.remove('hidden');
             
-            // 2. 清除錯誤訊息 (修正：傳入 errorDiv 而不是 form)
+            // 清除錯誤訊息
             hideError(loginErrorDiv); 
             
-            // 3. (選用) 重置表單輸入，避免切換回來還留著舊資料
-            // loginForm.reset(); 
+            // 重置雙方按鈕狀態 (避免切換回來看到 Loading 或 Success)
+            resetButtonState(loginForm.querySelector('button'), "START GAME");
+            resetButtonState(registerForm.querySelector('button'), "CREATE HERO");
         });
     }
 
@@ -73,12 +74,16 @@ document.addEventListener('DOMContentLoaded', () => {
         toLoginBtn.addEventListener('click', (e) => {
             e.preventDefault();
             
-            // 1. 切換容器顯示
+            // UI 切換
             registerContainer.classList.add('hidden');
             loginContainer.classList.remove('hidden');
             
-            // 2. 清除錯誤訊息 (修正：傳入 errorDiv 而不是 form)
+            // 清除錯誤訊息
             hideError(registerErrorDiv);
+
+            // 重置雙方按鈕狀態
+            resetButtonState(loginForm.querySelector('button'), "START GAME");
+            resetButtonState(registerForm.querySelector('button'), "CREATE HERO");
         });
     }
 
@@ -115,10 +120,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     const userData = result.user.dataValues || result.user;
                     let targetUrl = '/holylegend/game_lobby'; 
 
+                    // 判斷是否需要創角
                     if (!userData.jobId || userData.jobId == -1) {
                         targetUrl = '/holylegend/select_role'; 
                     } else {
-                        targetUrl = `/holylegend/game_lobby`;
+                        targetUrl = `/holylegend/game_scene.html?id=${userData.id}`;
                     }
 
                     setTimeout(() => {
@@ -179,18 +185,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     submitBtn.style.color = "#000";
 
                     setTimeout(() => {
-                        // 切換 UI 回登入
+                        // 1. 切換 UI 回登入
                         registerContainer.classList.add('hidden');
                         loginContainer.classList.remove('hidden');
                         
-                        // 自動填入帳號
+                        // 2. 自動填入帳號
                         document.getElementById('login-username').value = data.username;
                         document.getElementById('login-password').focus();
                         
-                        // 重置註冊按鈕與表單
-                        setLoading(submitBtn, false, "CREATE HERO");
-                        submitBtn.style.backgroundColor = ""; 
-                        submitBtn.style.color = "";
+                        // 3. 【關鍵修正】強制重置「登入按鈕」與「註冊按鈕」
+                        // 確保切換過去時，登入按鈕是 "START GAME" 而不是別的狀態
+                        const loginBtn = loginForm.querySelector('button');
+                        resetButtonState(loginBtn, "START GAME");
+                        
+                        resetButtonState(submitBtn, "CREATE HERO");
                         registerForm.reset();
 
                     }, 1500);
@@ -222,9 +230,13 @@ document.addEventListener('DOMContentLoaded', () => {
         element.style.display = 'none';
     }
 
+    // 控制按鈕 Loading 狀態
     function setLoading(btn, isLoading, text) {
         if (isLoading) {
-            btn.dataset.originalText = btn.innerText;
+            // 如果還沒存過原始文字，才存 (避免連續點擊把 Loading 存成原始文字)
+            if (!btn.dataset.originalText) {
+                btn.dataset.originalText = btn.innerText;
+            }
             btn.innerText = text;
             btn.disabled = true;
             btn.classList.add('loading');
@@ -233,6 +245,19 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.disabled = false;
             btn.classList.remove('loading');
         }
+    }
+
+    // 【新增】強制重置按鈕樣式 (顏色、文字、狀態)
+    function resetButtonState(btn, defaultText) {
+        if (!btn) return;
+        btn.disabled = false;
+        btn.classList.remove('loading');
+        btn.innerText = defaultText;
+        btn.style.backgroundColor = ""; // 清除行內樣式 (金色/綠色)
+        btn.style.color = "";
+        
+        // 清除暫存
+        delete btn.dataset.originalText;
     }
 
     function shakeForm(container) {
