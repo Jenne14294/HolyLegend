@@ -138,8 +138,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 執行轉職 (修正為接收 ID)
     async function switchJob(targetJobName) {
-        if(!confirm('確定要切換到這個職業嗎？')) return;
-
         try {
             const res = await fetch('/holylegend/set_role', {
                 method: 'POST',
@@ -150,7 +148,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await res.json();
 
             if (result.success) {
-                alert('轉職成功！');
                 window.location.reload();
 
             } else {

@@ -14,7 +14,8 @@ window.Game = {
         enemyHp: 100,
         enemyMaxHp: 100,
         level: 1,
-        role: 'novice' // 記錄當前職業
+        role: 'novice', // 記錄當前職業
+        AdditionState: []
     },
     
     // 共用工具：安全設定文字
@@ -81,6 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 Game.state.level = data.level;
                 Game.state.currentFloor = 1;
                 Game.state.role = data.role; // 記錄職業
+                Game.state.AdditionState = data.AdditionState;
                 
                 // 更新 UI
                 Game.updateLobbyUI(data);

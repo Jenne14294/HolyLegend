@@ -64,12 +64,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 setTimeout(() => enemyImg.style.transform = 'scale(1)', 100);
             }
 
-            // 假設 playerLevel 存在
-            const playerLevel = state.level || 1; // 預設 1 級
-            const baseDamage = Math.floor(Math.random() * 10) + 10;
+            let damage = 0;
 
-            // 公式 1：等級線性加成
-            const damage = Math.round(baseDamage + playerLevel * 1.1); // 每等級加 2 點傷害
+            state.AdditionState.forEach(value => {
+                for (let i = 0; i < state.AdditionState.length; i++)
+                {
+                    damage += value * 0.25;
+                }
+            });
+
+            const system_critRate = Math.random() * 100
+            let critRate = (state.AdditionState.DEX * 0.25 + state.AdditionState.INT * 0.15)
+            let CritMultiply = 1;
+
+            if (system_critRate < critRate)
+            {
+                CritMultiply = 2;
+            }
+
+            let damageMultiply = 0.8 + Math.random() * 0.4
+            damage = Math.round(damage * damageMultiply * CritMultiply);
 
             state.enemyHp -= damage;
 
@@ -166,9 +180,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (state.isGameOver) return;
             state.isGameOver = true;
 
-            alert(`你已在第 ${state.currentFloor} 層倒下`);
             const expGained = calculateGameOver();
-            alert(`你獲得了 ${expGained} 點經驗值！`);
+            alert(`你已在第 ${state.currentFloor} 層倒下\n你獲得了 ${expGained} 點經驗值！`);
             
             try {
                 await fetch('/holylegend/game_lobby/save_status', { 

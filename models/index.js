@@ -3,8 +3,9 @@ import sequelize from '../database.js';
 import User from './User.js';
 import Class from './Class.js';
 import UserClass from './UserClass.js';
+import Skill from './Skill.js'
 
-const models = { User, Class, UserClass };
+const models = { User, Class, UserClass, Skill };
 
 // --- 修正關聯設定 ---
 
@@ -21,6 +22,8 @@ User.hasMany(UserClass, { foreignKey: 'userId' });
 
 UserClass.belongsTo(Class, { foreignKey: 'id', as: 'class' });
 Class.hasMany(UserClass, { foreignKey: 'jobId' });
+
+Class.hasMany(Skill, {foreignKey: 'jobId'})
 
 console.log(models);
 

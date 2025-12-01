@@ -81,6 +81,13 @@
     align-items: center;
     position: relative;
     overflow: hidden; /* 防止怪物動畫跑出去 */
+
+    background-image: url('/holylegend/images/other/battle_background.png'); /* 背景圖路徑 */
+    background-size: cover;       /* 完全覆蓋容器 */
+    background-position: center;  /* 居中 */
+    background-repeat: no-repeat; /* 不重複 */
+    width: 100%;
+    height: 100vh;                /* 讓容器高度滿版 */
 }
 
 .enemy-container {

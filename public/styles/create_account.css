@@ -320,11 +320,10 @@ input:focus {
 }
 
 .cover-art img {
-    width: 120px;
+    width: 300px;
     height: auto;
     image-rendering: pixelated;
     margin: 20px 0;
-    animation: float 3s ease-in-out infinite;
 }
 
 @keyframes float {
