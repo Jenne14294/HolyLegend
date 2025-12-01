@@ -9,6 +9,10 @@ const Class = sequelize.define(
       type: DataTypes.STRING,
       allowNull: true,
     },
+    nickname: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
     STR: {
       type: DataTypes.INTEGER,
       allowNull: true,
@@ -23,6 +27,22 @@ const Class = sequelize.define(
     },
     INT: {
       type: DataTypes.INTEGER,  
+      allowNull: true,
+    },
+    requireClassA: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    requireClassLevelA: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    requireClassB: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    requireClassLevelB: {
+      type: DataTypes.INTEGER,
       allowNull: true,
     },
   },

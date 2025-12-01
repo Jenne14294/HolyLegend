@@ -158,22 +158,44 @@
 
         </div>
 
+
+
+        <!-- ========================================== -->
+        <!--  區塊 C: 職業切換 (Job Selection)           -->
+        <!-- ========================================== -->
+        <div id="job-layer" class="hidden">
+            
+            <!-- 標題列 -->
+            <div class="layer-header">
+                <h2 class="pixel-title">職業一覽</h2>
+                <button id="btn-close-job" class="btn-pixel-small">X</button>
+            </div>
+
+            <!-- 職業列表容器 (內容由 JS 動態生成) -->
+            <div id="job-list-container" class="scrollable-content">
+                <!-- 範例卡片結構 (僅供參考，JS 會覆蓋這裡)
+                <div class="job-card active">
+                    <div class="job-icon-frame">
+                        <img src="/holylegend/images/Warrior_1.png">
+                    </div>
+                    <div class="job-info">
+                        <div class="job-name">WARRIOR</div>
+                        <div class="job-level">Lv.5</div>
+                    </div>
+                    <button class="btn-pixel-small btn-select" disabled>CURRENT</button>
+                </div>
+                -->
+                <div class="loading-text">載入中...</div>
+            </div>
+
+        </div>
+
     </div>
 
     <!-- 引入邏輯腳本 -->
+    <script src="/holylegend/scripts/game_core.js"></script>
     <script src="/holylegend/scripts/tower_system.js"></script>
+    <script src="/holylegend/scripts/classes_system.js"></script>
     <script src="/holylegend/scripts/game_audio.js"></script>
-    <script>
-        // 簡單的 EJS 資料注入到 JS 變數 (讓前端 JS 知道初始數值)
-        window.INITIAL_PLAYER_DATA = {
-            id: "<%= user.id %>",
-            hp: <%= user.hp %>,
-            maxHp: <%= user.maxHp %>,
-            mp: <%= user.mp %>,
-            maxMp: <%= user.maxMp %>,
-            floor: <%= user.currentFloor %>,
-            gold: <%= user.gold %>
-        };
-    </script>
 </body>
 </html>

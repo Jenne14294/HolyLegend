@@ -82,8 +82,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 創建成功，執行跳轉
                 // 這裡我們將後端回傳的 playerId 帶入網址，方便遊戲場景讀取數據
                 const finalUrl = `${data.redirectUrl}?id=${data.playerId}&tutorial=${data.tutorial}`;
-                
-                console.log(`前往: ${finalUrl}`);
                 window.location.href = finalUrl; 
             } else {
                 // 創建失敗 (例如名字重複或資料庫錯誤)

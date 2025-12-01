@@ -1,6 +1,6 @@
 import express from 'express';
 import { getUser, verifyToken } from '../services/accountAuth.js';
-import { updateUserClassRecord } from '../services/classes.js';
+import { getClass, getUserClasses, updateUserClassRecord } from '../services/classes.js';
 
 const router = express.Router();
 
@@ -14,18 +14,18 @@ router.get('/', verifyToken, async (req, res, next) => {
       return res.redirect('/holylegend/login'); // 找不到人就踢回登入
     }
 
-    console.log("載入玩家資料:", userData);
-
     // 2. 資料整形 (Data Flattening) - 這一步很重要！
     // 因為資料庫結構通常是 user.UserClasses[0].level
     // 但你的 EJS 模板是寫 user.level
     // 所以我們要在這裡把資料「鋪平」
-    const currentClass = userData.UserClasses && userData.UserClasses[0] ? userData.UserClasses[0] : {};
+    const currentClass = userData.UserClasses.find(
+      uc => uc.jobId === userData.jobId
+    );
     
     // 簡單計算一下屬性 (或是你在 getUser 裡算好也可以)
     const level = currentClass.level || 1;
-    const hp = 100 + ((level - 1) * 20);
-    const mp = 30 + ((level - 1) * 5);
+    const hp = 100 + ((level - 1) * 5);
+    const mp = 30 + ((level - 1) * 3);
 
     const renderData = {
         id: userData.id,
@@ -62,21 +62,21 @@ router.get('/status', verifyToken, async (req, res, next) => {
     const userData = await getUser({ id: req.user.id });
 
     if (!userData) {
-      return res.redirect('/holylegend/login'); // 找不到人就踢回登入
+      return res.redirect('/holylegend/'); // 找不到人就踢回登入
     }
-
-    console.log("載入玩家資料:", userData);
 
     // 2. 資料整形 (Data Flattening) - 這一步很重要！
     // 因為資料庫結構通常是 user.UserClasses[0].level
     // 但你的 EJS 模板是寫 user.level
     // 所以我們要在這裡把資料「鋪平」
-    const currentClass = userData.UserClasses && userData.UserClasses[0] ? userData.UserClasses[0] : {};
+    const currentClass = userData.UserClasses.find(
+      uc => uc.jobId === userData.jobId
+    );
     
     // 簡單計算一下屬性 (或是你在 getUser 裡算好也可以)
     const level = currentClass.level || 1;
-    const hp = 100 + ((level - 1) * 20);
-    const mp = 30 + ((level - 1) * 5);
+    const hp = 100 + ((level - 1) * 5);
+    const mp = 30 + ((level - 1) * 3);
 
     const renderData = {
         id: userData.id,
@@ -99,6 +99,30 @@ router.get('/status', verifyToken, async (req, res, next) => {
     res.json({
         success: true,
         data: renderData
+    });
+
+  } catch (err) {
+    console.error(err);
+    next(err);
+  }
+});
+
+router.get('/classes', verifyToken, async (req, res, next) => {
+  try {
+    const userData = await getUser({id: req.user.id})
+
+    if (!userData) {
+      return res.redirect('/holylegend/'); // 找不到人就踢回登入
+    }
+
+    // 1. 根據 Token (req.user.id) 撈取完整玩家資料
+    const ClassData = await getClass({})
+
+    
+    res.json({
+        success: true,
+        userData: userData,
+        classData: ClassData
     });
 
   } catch (err) {

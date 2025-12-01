@@ -2,7 +2,7 @@ import { models } from '../models/index.js';
 
 const getClass = async (conditions = {}) => {
   try {
-    const classInstance = await models.Class.findOne({
+    const classInstance = await models.Class.findAll({
       where: conditions,
     });
     return classInstance;
@@ -10,6 +10,18 @@ const getClass = async (conditions = {}) => {
 catch (err) {  
     throw err;
   }};
+
+const getUserClasses = async (conditions = {}) => {
+    try {
+        const userClass = await models.UserClass.findAll({
+            where: conditions,
+        });
+        return userClass;
+    }
+    catch (err) {
+        throw err;
+    }
+};
 
 const getUserClassRecord = async (conditions = {}) => {
     try {
@@ -86,4 +98,4 @@ const updateUserClass = async (data) => {
 
 
 
-export { getClass, updateUserClass, getUserClassRecord, addUserClassRecord, updateUserClassRecord };
+export { getClass, getUserClasses, updateUserClass, getUserClassRecord, addUserClassRecord, updateUserClassRecord };

@@ -38,7 +38,6 @@ const createUser = async (userData) => {
 const verifyToken = (req, res, next) => {
     // 1. 從 cookie 拿 token
     const token = req.cookies.auth_token; 
-    console.log(token);
 
     if (!token) {
         return res.status(401).json({ success: false, msg: '請先登入' });

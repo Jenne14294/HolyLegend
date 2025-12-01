@@ -8,6 +8,7 @@ import { dirname } from 'path';
 import session from 'express-session';
 import { sequelize } from './models/index.js';
 
+import indexRouter from './routes/index.js';
 import accountRouter from './routes/account.js';
 import gameRouter from './routes/game.js';
 
@@ -44,6 +45,7 @@ app.use(session({
   cookie: { secure: false }  // 如果有 https，這裡可以改 true
 }));
 
+app.use('/', indexRouter);
 app.use('/holylegend', accountRouter);
 app.use('/holylegend/game_lobby', gameRouter);
 

@@ -15,8 +15,6 @@ router.post('/auth/register', async (req, res, next) => {
   // Handle registration logic here
   const user = await getUser({ name: req.body.username });
 
-  console.log(user);
-
   if (user) {
     return res.status(400).json({ success: false, msg: ' 該信箱已存在帳戶' });
   }
@@ -85,19 +83,20 @@ router.get('/select_role', (req, res, next) => {
 
 router.post('/set_role', verifyToken, async (req, res, next) => {
   try {
+    console.log(req.body.role)
     // 1. 檢查職業是否存在
     const job = await getClass({ name: req.body.role });
     if (!job) {
       return res.status(400).json({ success: false, msg: '職業不存在' });
     }
 
-    const job_record = await getUserClassRecord({userId: req.user.id, jobId: job.id});
+    const job_record = await getUserClassRecord({userId: req.user.id, jobId: job[0].id});
 
     if (!job_record) {
       // 如果沒有職業紀錄，新增一筆
       await addUserClassRecord({
         userId: req.user.id,
-        jobId: job.id,
+        jobId: job[0].id,
         currentEXP: 0,
         level: 1
       });
@@ -108,7 +107,7 @@ router.post('/set_role', verifyToken, async (req, res, next) => {
     // 假設你的 updateUserClass 需要的是使用者 ID (user_id)
     await updateUserClass({
       id: req.user.id,     // <--- 關鍵修改：使用 Token 裡的 ID
-      jobId: job.id,       // 職業的 ID (例如 1=戰士)
+      jobId: job[0].id,       // 職業的 ID (例如 1=戰士)
       nickname: req.body.name
     });
 
