@@ -11,6 +11,56 @@ catch (err) {
     throw err;
   }};
 
+const getUserClassRecord = async (conditions = {}) => {
+    try {
+        const userClass = await models.UserClass.findOne({
+            where: conditions,
+        });
+        return userClass;
+    }
+    catch (err) {
+        throw err;
+    }
+};
+
+const addUserClassRecord = async (data) => {
+    try {
+        const newUserClass = await models.UserClass.create({
+            userId: data.userId,
+            jobId: data.jobId,
+            currentEXP: data.currentEXP || 0,
+            level: data.level || 1,
+        });
+        return newUserClass;
+    } catch (err) {
+        throw err;
+    }
+};
+
+const updateUserClassRecord = async (user, data) => {
+    try {
+        const [updatedRows] = await models.UserClass.update(
+            {
+                currentEXP: data.currentEXP,
+                level: data.level
+            },
+            {
+                // 確保同時對應 userId 和 jobId
+                where: { 
+                    userId: user.id, // user.id (Sequelize 物件通常是 id)
+                    jobId: user.jobId 
+                } 
+            }
+        );
+
+        return updatedRows > 0;
+        
+    } catch (error) {
+        console.error("DB Update Error:", error);
+        return false;
+    }
+};
+
 const updateUserClass = async (data) => {
     try {
         // Sequelize: 更新資料
@@ -34,4 +84,6 @@ const updateUserClass = async (data) => {
     }
 };
 
-export { getClass, updateUserClass, };
+
+
+export { getClass, updateUserClass, getUserClassRecord, addUserClassRecord, updateUserClassRecord };

@@ -1,7 +1,7 @@
 import express from 'express';
 import bcrypt from 'bcrypt';
 import { getUser, createUser, verifyToken} from '../services/accountAuth.js';
-import { getClass, updateUserClass } from '../services/classes.js';
+import { getClass, updateUserClass, getUserClassRecord, addUserClassRecord } from '../services/classes.js';
 import jwt from 'jsonwebtoken';
 
 const router = express.Router();
@@ -89,6 +89,18 @@ router.post('/set_role', verifyToken, async (req, res, next) => {
     const job = await getClass({ name: req.body.role });
     if (!job) {
       return res.status(400).json({ success: false, msg: '職業不存在' });
+    }
+
+    const job_record = await getUserClassRecord({userId: req.user.id, jobId: job.id});
+
+    if (!job_record) {
+      // 如果沒有職業紀錄，新增一筆
+      await addUserClassRecord({
+        userId: req.user.id,
+        jobId: job.id,
+        currentEXP: 0,
+        level: 1
+      });
     }
 
     // 2. 更新使用者資料

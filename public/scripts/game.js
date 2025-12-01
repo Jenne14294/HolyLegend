@@ -84,3 +84,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, 500);
     }
 });
+
+window.onload = () => {
+    const audioSource = document.getElementById('bg-music-source');
+    if (audioSource) {
+        audioSource.src = '/holylegend/audio/main_page.ogg';
+        audioSource.play();
+    }
+};

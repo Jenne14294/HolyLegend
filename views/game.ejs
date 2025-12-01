@@ -3,95 +3,177 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Holy Legend - 冒險主頁</title>
+    <title>Holy Legend - 冒險中</title>
     <link rel="stylesheet" href="/holylegend/styles/game.css">
+    <link rel="stylesheet" href="/holylegend/styles/tower.css"> <!-- 新增戰鬥專用樣式 -->
     <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
 </head>
 <body>
+    <audio id="bg-music-source" src="/holylegend/audio/game_lobby.ogg" loop></audio>
 
     <div class="mobile-container">
-        <header class="player-status-panel">
-            <div class="avatar-container">
-                <div class="avatar-frame">
-                    <img id="playerAvatar" src="" alt="Avatar" class="pixel-art">
+        <!-- ========================================== -->
+        <!--  區塊 A: 遊戲大廳 (Lobby)                  -->
+        <!-- ========================================== -->
+        <div id="lobby-layer">
+            <!-- 這是你原本的 Header -->
+            <header class="player-status-panel">
+                <div class="avatar-container">
+                    <div class="avatar-frame">
+                        <!-- EJS 變數注入範例 -->
+                        <img id="lobbyAvatar" src="/holylegend/images/classes/<%= user.role %>_1.png" class="pixel-art">
+                    </div>
+                    <div class="level-badge"><span id="lobbyLevel"><%= user.level %></span></div>
                 </div>
-                <div class="level-badge">
-                    <span id="playerLevel">1</span>
-                </div>
-            </div>
+                <div class="stats-container">
+                    <div class="player-name"><%= user.nickname %></div>
+                    
+                    <!-- HP 血條 -->
+                    <div class="stat-bar-row">
+                        <span class="label" style="color: #e74c3c;">HP</span>
+                        <div class="bar-bg">
+                            <!-- EJS 計算寬度: (當前/最大) * 100 -->
+                            <div class="bar-fill hp-fill" id="lobbyHpBar" style="width: <%= (user.hp / user.maxHp) * 100 %>%;"></div>
+                            <!-- 數值疊加在中間 -->
+                            <span class="bar-text" id="lobbyHpText"><%= user.hp %>/<%= user.maxHp %></span>
+                        </div>
+                    </div>
 
-            <div class="stats-container">
-                <div class="player-name" id="playerName">載入中...</div>
-                
-                <div class="stat-bar-row">
-                    <span class="label">HP</span>
-                    <div class="bar-bg">
-                        <div class="bar-fill hp-fill" id="hpBar" style="width: 100%;"></div>
-                        <span class="bar-text" id="hpText">100/100</span>
+                    <!-- MP 魔力條 -->
+                    <div class="stat-bar-row">
+                        <span class="label" style="color: #3498db;">MP</span>
+                        <div class="bar-bg">
+                            <div class="bar-fill mp-fill" id="lobbyMpBar" style="width: <%= (user.mp / user.maxMp) * 100 %>%;"></div>
+                            <span class="bar-text" id="lobbyMpText"><%= user.mp %>/<%= user.maxMp %></span>
+                        </div>
+                    </div>
+
+                    <!-- 經驗條 -->
+                    <div class="stat-bar-row">
+                        <span class="label" style="color: #3cff27;">EXP</span>
+                        <div class="bar-bg">
+                            <!-- EJS 計算寬度: (當前/最大) * 100 -->
+                            <div class="bar-fill exp-fill" id="lobbyEXPBar" style="width: <%= (user.exp / user.needEXP) * 100 %>%;"></div>
+                            <!-- 數值疊加在中間 -->
+                            <span class="bar-text" id="lobbyEXPText"><%= user.exp %>/<%= user.needEXP %></span>
+                        </div>
                     </div>
                 </div>
+            </header>
 
-                <div class="stat-bar-row">
-                    <span class="label">MP</span>
-                    <div class="bar-bg">
-                        <div class="bar-fill mp-fill" id="mpBar" style="width: 100%;"></div>
-                        <span class="bar-text" id="mpText">50/50</span>
+            <main class="main-actions">
+                <!-- 點擊進入爬塔 -->
+                <div class="action-card tower-card" id="btn-enter-tower">
+                    <div class="card-content">
+                        <h2>爬塔</h2>
+                        <p>MAIN TOWER</p>
+                        <div class="icon pixel-art">🏰</div>
                     </div>
                 </div>
-
-                <div class="stat-bar-row">
-                    <span class="label">EXP</span>
-                    <div class="bar-bg">
-                        <div class="bar-fill exp-fill" id="expBar" style="width: 0%;"></div>
+                <!-- 其他按鈕... -->
+                <div class="action-card tavern-card" onclick="alert('酒館整修中')">
+                    <div class="card-content">
+                        <h2>酒館</h2><div class="icon pixel-art">🍺</div>
                     </div>
                 </div>
-            </div>
-        </header>
+                <div class="action-card guild-card" onclick="alert('公會招募中')">
+                    <div class="card-content">
+                        <h2>公會</h2><div class="icon pixel-art">🛡️</div>
+                    </div>
+                </div>
+            </main>
 
-        <main class="main-actions">
+            <!-- 底部選單 -->
+            <footer class="bottom-menu">
+                <button class="menu-btn"><span class="icon">⚔️</span>職業</button>
+                <button class="menu-btn"><span class="icon">📜</span>任務</button>
+                <button class="menu-btn"><span class="icon">⚙️</span>選單</button>
+            </footer>
+        </div>
+
+        <!-- ========================================== -->
+        <!--  區塊 B: 爬塔戰鬥 (Tower Interface)         -->
+        <!--  預設隱藏 (hidden)                         -->
+        <!-- ========================================== -->
+        <div id="tower-layer" class="hidden">
             
-            <div class="action-card tower-card" onclick="location.href='/game/tower'">
-                <div class="card-content">
-                    <h2>爬塔</h2>
-                    <p>MAIN TOWER</p>
-                    <div class="icon pixel-art">🏰</div>
+            <!-- 1. 頂部資訊列 (Top Info) -->
+            <div class="tower-header">
+                <div class="tower-info">
+                    <div class="info-item">FLOOR: <span id="tower-floor">1</span></div>
+                    <div class="info-item text-gold">GOLD: <span id="tower-gold">0</span></div>
                 </div>
             </div>
 
-            <div class="action-card tavern-card" onclick="alert('酒館尚未開放！')">
-                <div class="card-content">
-                    <h2>酒館</h2>
-                    <p>TAVERN</p>
-                    <div class="icon pixel-art">🍺</div>
+            <!-- 2. 中央舞台 (Main Stage) -->
+            <div class="tower-stage">
+                <!-- 怪物或寶箱顯示區 -->
+                <div class="enemy-container">
+                    <div class="damage-text" id="damage-popup"></div> <!-- 傷害跳字 -->
+                    <img id="enemy-img" src="/holylegend/images/enemies/slime.png" class="pixel-art enemy-anim">
+                    <div class="enemy-hp-bar">
+                        <div class="enemy-hp-fill" id="enemy-hp-fill" style="width: 100%;"></div>
+                    </div>
                 </div>
             </div>
 
-            <div class="action-card guild-card" onclick="alert('公會尚未開放！')">
-                <div class="card-content">
-                    <h2>公會</h2>
-                    <p>GUILD</p>
-                    <div class="icon pixel-art">🛡️</div>
+            <!-- 3. 玩家狀態 (Player Status) -->
+            <div class="tower-player-status">
+                <div class="status-row">
+                    <span class="label">HP</span>
+                    <div class="bar-frame">
+                        <div class="bar-fill hp-fill" id="battle-hp-bar" style="width: 100%;"></div>
+                        <span class="bar-num" id="battle-hp-text">100/100</span>
+                    </div>
+                </div>
+                <div class="status-row">
+                    <span class="label">MP</span>
+                    <div class="bar-frame">
+                        <div class="bar-fill mp-fill" id="battle-mp-bar" style="width: 100%;"></div>
+                        <span class="bar-num" id="battle-mp-text">50/50</span>
+                    </div>
                 </div>
             </div>
 
-        </main>
+            <!-- 4. 底部操作區 (Control Panel) -->
+            <div class="tower-controls">
+                <!-- 攻擊按鈕 -->
+                <button class="control-btn btn-attack" id="btn-attack">
+                    <div class="icon">🗡️</div>
+                    <span>攻擊</span>
+                </button>
 
-        <footer class="bottom-menu">
-            <button class="menu-btn">
-                <span class="icon">⚔️</span>
-                <span>職業</span>
-            </button>
-            <button class="menu-btn">
-                <span class="icon">📜</span>
-                <span>任務</span>
-            </button>
-            <button class="menu-btn">
-                <span class="icon">⚙️</span>
-                <span>選單</span>
-            </button>
-        </footer>
+                <!-- 道具按鈕 -->
+                <button class="control-btn btn-item" id="btn-item">
+                    <div class="icon">🎒</div>
+                    <span>道具</span>
+                </button>
+
+                <!-- 技能/查看按鈕 -->
+                <button class="control-btn btn-skill" id="btn-skill">
+                    <div class="icon">📖</div>
+                    <span>技能</span>
+                </button>
+            </div>
+
+        </div>
+
     </div>
 
-    <script src="/holylegend/scripts/game.js"></script>
+    <!-- 引入邏輯腳本 -->
+    <script src="/holylegend/scripts/tower_system.js"></script>
+    <script src="/holylegend/scripts/game_audio.js"></script>
+    <script>
+        // 簡單的 EJS 資料注入到 JS 變數 (讓前端 JS 知道初始數值)
+        window.INITIAL_PLAYER_DATA = {
+            id: "<%= user.id %>",
+            hp: <%= user.hp %>,
+            maxHp: <%= user.maxHp %>,
+            mp: <%= user.mp %>,
+            maxMp: <%= user.maxMp %>,
+            floor: <%= user.currentFloor %>,
+            gold: <%= user.gold %>
+        };
+    </script>
 </body>
 </html>

@@ -2,8 +2,9 @@
 import sequelize from '../database.js';
 import User from './User.js';
 import Class from './Class.js';
+import UserClass from './UserClass.js';
 
-const models = { User, Class };
+const models = { User, Class, UserClass };
 
 // --- 修正關聯設定 ---
 
@@ -14,6 +15,12 @@ User.belongsTo(Class, { foreignKey: 'jobId', as: 'class' });
 // 2. (選用) 反向關聯：一個職業可以有很多玩家
 // 這告訴 Sequelize: Class 自己沒有外鍵，請去 User 表找 'jobId'
 Class.hasMany(User, { foreignKey: 'jobId' });
+
+UserClass.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+User.hasMany(UserClass, { foreignKey: 'userId' });
+
+UserClass.belongsTo(Class, { foreignKey: 'id', as: 'class' });
+Class.hasMany(UserClass, { foreignKey: 'jobId' });
 
 console.log(models);
 

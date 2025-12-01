@@ -5,9 +5,22 @@ const getUser = async (conditions = {}) => {
   try {
     const user = await models.User.findOne({
       where: conditions,
+      include: [
+        {
+          model: models.UserClass,
+          // as: 'classData' // 如果你在 model/index.js 有設定 as，這裡也要加
+        },
+        {
+          model: models.Class,
+          as: 'class' // 對應 User.belongsTo(Class, { as: 'class' })
+        }
+      ],
     });
 
-    return user;
+    // 關鍵修改：如果有找到人，就轉成純物件 (Plain Object)
+    // 這樣回傳給前端時才不會報錯
+    return user ? user.get({ plain: true }) : null;
+
   } catch (err) {
     throw err;
   }

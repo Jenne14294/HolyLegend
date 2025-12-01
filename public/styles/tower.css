@@ -1,0 +1,238 @@
+/* ==========================================
+   戰鬥層容器 (Tower Layer)
+   ========================================== */
+#tower-layer {
+    width: 100%; 
+    height: 100%;
+    
+    /* 預設為顯示 (Flex)，用於排版 */
+    display: flex; 
+    flex-direction: column;
+    
+    background-color: #1a1a1a;
+    background-image: 
+        linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), 
+        url('/holylegend/images/dungeon_bg.png');
+    background-size: cover;
+    background-position: center;
+}
+
+/* 關鍵修正：強制隱藏
+   使用 ID + Class 選擇器 (#tower-layer.hidden) 來提高權重，
+   確保絕對會覆蓋掉上面的 display: flex
+*/
+#tower-layer.hidden {
+    display: none !important;
+}
+
+/* 通用的隱藏類別 (保險起見) */
+.hidden { 
+    display: none !important; 
+}
+
+/* ==========================================
+   1. 頂部資訊 (Header)
+   ========================================== */
+.tower-header {
+    flex: 0 0 60px; /* 固定高度 */
+    background-color: rgba(0, 0, 0, 0.8);
+    border-bottom: 3px solid #555;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 15px;
+    color: #fff;
+    font-size: 1.2rem;
+    z-index: 10;
+}
+
+.tower-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.text-gold { 
+    color: #ffd700; 
+}
+
+.btn-pixel-small {
+    font-family: 'VT323', monospace;
+    background: #c0392b;
+    border: 2px solid #fff;
+    color: white;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 1rem;
+    box-shadow: 2px 2px 0 #000;
+}
+
+.btn-pixel-small:active {
+    transform: translate(2px, 2px);
+    box-shadow: none;
+}
+
+/* ==========================================
+   2. 中央怪物區 (Stage)
+   ========================================== */
+.tower-stage {
+    flex: 1; /* 自動填滿中間剩餘空間 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    overflow: hidden; /* 防止怪物動畫跑出去 */
+}
+
+.enemy-container {
+    text-align: center;
+    position: relative;
+}
+
+.enemy-anim {
+    width: 150px;
+    height: 150px;
+    image-rendering: pixelated;
+    animation: idle-bounce 2s infinite ease-in-out;
+}
+
+@keyframes idle-bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+.enemy-hp-bar {
+    width: 120px;
+    height: 8px;
+    background: #333;
+    border: 1px solid #fff;
+    margin: 10px auto 0;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.enemy-hp-fill {
+    height: 100%;
+    background-color: #e74c3c;
+    transition: width 0.2s;
+}
+
+.damage-text {
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #fff;
+    font-size: 2rem;
+    font-weight: bold;
+    text-shadow: 2px 2px #ff0000;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 20;
+}
+
+.damage-text.pop {
+    animation: damage-float 0.8s ease-out;
+}
+
+@keyframes damage-float {
+    0% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    50% { opacity: 1; transform: translate(-50%, -30px) scale(1.5); }
+    100% { opacity: 0; transform: translate(-50%, -50px) scale(1); }
+}
+
+/* ==========================================
+   3. 玩家狀態欄 (Status)
+   ========================================== */
+.tower-player-status {
+    flex: 0 0 auto;
+    background-color: rgba(0,0,0,0.8);
+    padding: 10px 20px;
+    border-top: 3px solid #555;
+    z-index: 10;
+}
+
+.status-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.status-row .label {
+    width: 30px;
+    font-weight: bold;
+    color: #ccc;
+    font-size: 1rem;
+}
+
+.bar-frame {
+    flex: 1;
+    height: 16px;
+    background: #222;
+    border: 2px solid #777;
+    position: relative;
+    border-radius: 2px;
+}
+
+.bar-num {
+    position: absolute;
+    width: 100%;
+    text-align: center;
+    top: -2px; /* 微調文字垂直位置 */
+    font-size: 0.8rem;
+    text-shadow: 1px 1px #000;
+    color: #fff;
+    line-height: 16px;
+}
+
+.hp-fill { background-color: #e74c3c; height: 100%; transition: width 0.2s; }
+.mp-fill { background-color: #3498db; height: 100%; transition: width 0.2s; }
+
+/* ==========================================
+   4. 底部按鈕 (Controls)
+   ========================================== */
+.tower-controls {
+    flex: 0 0 90px; /* 固定高度，確保好按 */
+    background-color: #2c3e50;
+    border-top: 4px solid #000;
+    display: flex;
+    justify-content: space-around;
+    padding: 10px;
+    gap: 10px;
+    
+    /* 適配 iPhone X 底部橫條 */
+    padding-bottom: env(safe-area-inset-bottom);
+    box-sizing: content-box; /* 確保高度不被 padding 吃掉 */
+}
+
+.control-btn {
+    flex: 1;
+    border: 3px solid #000;
+    border-radius: 8px;
+    background-color: #95a5a6;
+    color: #000;
+    font-family: 'VT323', monospace;
+    font-size: 1.2rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    box-shadow: inset 2px 2px #fff, inset -2px -2px #555;
+    transition: transform 0.1s;
+}
+
+.control-btn:active {
+    background-color: #7f8c8d;
+    transform: translateY(2px);
+    box-shadow: inset 2px 2px #555;
+}
+
+.control-btn .icon {
+    font-size: 1.5rem;
+    margin-bottom: 2px;
+}
+
+/* 按鈕個別顏色 */
+.btn-attack { background-color: #e67e22; }
+.btn-item { background-color: #27ae60; }
+.btn-skill { background-color: #3498db; }

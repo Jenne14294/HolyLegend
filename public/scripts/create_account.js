@@ -118,13 +118,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     submitBtn.style.backgroundColor = "#2ecc71"; // 綠色
 
                     const userData = result.user.dataValues || result.user;
-                    let targetUrl = '/holylegend/game_lobby'; 
 
                     // 判斷是否需要創角
                     if (!userData.jobId || userData.jobId == -1) {
                         targetUrl = '/holylegend/select_role'; 
                     } else {
-                        targetUrl = `/holylegend/game_scene.html?id=${userData.id}`;
+                        targetUrl = `/holylegend/game_lobby`;
                     }
 
                     setTimeout(() => {
