@@ -14,18 +14,16 @@ router.get('/', verifyToken, async (req, res, next) => {
       return res.redirect('/holylegend/login'); // 找不到人就踢回登入
     }
 
-    // 2. 資料整形 (Data Flattening) - 這一步很重要！
-    // 因為資料庫結構通常是 user.UserClasses[0].level
-    // 但你的 EJS 模板是寫 user.level
-    // 所以我們要在這裡把資料「鋪平」
+    const classData = await getClass({ id: userData.jobId})
+    
     const currentClass = userData.UserClasses.find(
       uc => uc.jobId === userData.jobId
     );
     
     // 簡單計算一下屬性 (或是你在 getUser 裡算好也可以)
     const level = currentClass.level || 1;
-    const hp = 100 + ((level - 1) * 5);
-    const mp = 30 + ((level - 1) * 3);
+    const hp = Math.round(100 + ((level - 1) * (classData[0].dataValues.STR * 0.3 + classData[0].dataValues.CON * 0.7)))
+    const mp = Math.round(30 + ((level - 1) * (classData[0].dataValues.INT * 1)))
 
     const renderData = {
         id: userData.id,
@@ -80,8 +78,8 @@ router.get('/status', verifyToken, async (req, res, next) => {
     
     // 簡單計算一下屬性 (或是你在 getUser 裡算好也可以)
     const level = currentClass.level || 1;
-    const hp = 100 + ((level - 1) * (classData[0].dataValues.STR * 0.3 + classData[0].dataValues.CON * 0.7));
-    const mp = 30 + ((level - 1) * (classData[0].dataValues.INT * 1));
+    const hp = Math.round(100 + ((level - 1) * (classData[0].dataValues.STR * 0.3 + classData[0].dataValues.CON * 0.7)))
+    const mp = Math.round(30 + ((level - 1) * (classData[0].dataValues.INT * 1)))
 
     const renderData = {
         id: userData.id,
