@@ -6,9 +6,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnEnterTower = document.getElementById('btn-enter-tower');
     const btnExitTower = document.getElementById('btn-tower-exit');
     const btnAttack = document.getElementById('btn-attack');
+    const rewardLayer = document.getElementById('reward-layer');
+    const rewardCardsContainer = document.getElementById('reward-cards-container');
 
     // 簡化存取 Game.state
     const state = window.Game.state; 
+
+
+
+    // 獎勵圖示
+    const REWARD_ICONS = {
+        'STR': '💪', 'DEX': '🦶', 'CON': '🛡️', 'INT': '🔮',
+        'GOLD': '💰', 'EXP': '✨',
+        'HP': '❤️', 'HEAL_PERCENT': '❤️', // 相容兩種寫法
+        'MP': '💧', 'MP_RECOVER_PERCENT': '💧'
+    };
 
     // ===========================
     // 進入爬塔
@@ -97,13 +109,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateTopBarUI();
                 
                 if(enemyImg) enemyImg.style.opacity = '0';
+
+                const RewardRate = Math.floor(Math.random() * 100)
+                console.log(RewardRate)
+                // const RewardRate = 0
                 
                 // 怪物死了，不需要解鎖 isTurnLocked，因為 startNewFloor 會負責重置
                 
-                setTimeout(() => {
+                setTimeout(async () => {
                     if (state.isGameOver) return; 
                     state.currentFloor++;
-                    startNewFloor();
+
+                    if (RewardRate <= 14) {
+                        await showRewards();
+                    }
+
+                    else {
+                        startNewFloor();
+                    }
+
+                    
                 }, 500);
             } else {
                 setTimeout(enemyAttack, 500);
@@ -122,6 +147,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (i % 10 === 0) EXPgained += 20; 
             else if (i % 5 === 0) EXPgained += 5;
         }
+
+        EXPgained += state.AdditionEXP;
         return EXPgained;
     }
 
@@ -153,6 +180,160 @@ document.addEventListener('DOMContentLoaded', () => {
         updateEnemyUI();
         updateTopBarUI();
         updatePlayerUI();
+    }
+
+    async function showRewards() {
+        // 1. 顯示遮罩
+        rewardLayer.classList.remove('hidden');
+        // 顯示載入中提示
+        rewardCardsContainer.innerHTML = '<div style="color: white; font-size: 1.5rem;">正在祈禱...</div>';
+
+        try {
+            // 2. 從路由獲取資料 (API)
+            const response = await fetch('/holylegend/system/rewards');
+            const result = await response.json();
+
+            // if (!result.success) throw new Error(result.msg || '無法獲取獎勵');
+
+            const allRewards = result.data; // 資料庫裡的所有獎勵
+
+            // 3. 隨機抽取 3 個獎勵
+            const options = [];
+            // 複製一份陣列以免影響原資料
+            const pool = [...allRewards];
+
+            for(let i=0; i<3; i++) {
+                if (pool.length === 0) break;
+                const randIndex = Math.floor(Math.random() * pool.length);
+                options.push(pool[randIndex]);
+                pool.splice(randIndex, 1); // 取出後移除，避免重複
+            }
+
+            // 清空載入文字
+            rewardCardsContainer.innerHTML = '';
+
+            // 4. 生成卡片 DOM
+            options.forEach((rewardData, index) => {
+                const card = document.createElement('div');
+                card.className = 'reward-card';
+                
+                // 設置動畫延遲
+                card.style.animationDelay = `${index * 0.2}s`;
+
+                // 根據資料庫欄位準備顯示內容
+                let icon = REWARD_ICONS[rewardData.rewardType] || '🎁';
+                let desc = '';
+
+                if (rewardData.rewardType === 'GOLD') {
+                    desc = `獲得 ${rewardData.rewardValue} 金幣`;
+                } else if (rewardData.rewardType === 'EXP') {
+                    desc = `獲得 ${rewardData.rewardValue} 經驗`;
+                } else if (rewardData.rewardPercent > 0) {
+                    desc = `恢復 ${rewardData.rewardPercent}% ${rewardData.rewardType}`;
+                } else {
+                    desc = `${rewardData.rewardType} +${rewardData.rewardValue}`;
+                }
+
+                card.innerHTML = `
+                    <div class="card-inner">
+                        <div class="card-front">
+                            <div class="card-icon">${icon}</div>
+                            <div class="card-name">${rewardData.name}</div>
+                            <div class="card-desc">${desc}</div>
+                        </div>
+                        <div class="card-back"></div>
+                    </div>
+                `;
+
+                // 【關鍵修正】監聽動畫結束，強制設定樣式
+                // 解決 CSS forwards 可能導致卡片變回透明的問題
+                card.addEventListener('animationend', () => {
+                    // 如果已經被點擊(正在退場)，就不干涉
+                    if (card.classList.contains('clicked')) return;
+                    
+                    card.style.opacity = '1';
+                    card.style.transform = 'translate(0, 0) rotateY(0deg) scale(1)';
+                });
+
+                // 5. 綁定點擊事件
+                card.addEventListener('click', () => {
+                    applyReward(rewardData);
+                });
+
+                rewardCardsContainer.appendChild(card);
+
+                // 6. 觸發進場動畫
+                setTimeout(() => {
+                    card.classList.add('animate-in');
+                }, 50);
+            });
+
+        } catch (e) {
+            console.error("獎勵系統錯誤:", e);
+            rewardCardsContainer.innerHTML = '<div style="color: white;">獎勵載入失敗...</div>';
+            // 失敗保底：2秒後自動進入下一層
+            setTimeout(() => {
+                rewardLayer.classList.add('hidden');
+                state.currentFloor++;
+                startNewFloor();
+            }, 2000);
+        }
+    }
+
+    function applyReward(rewardData) {
+        // 1. 執行效果 (根據 rewardType)
+        switch (rewardData.rewardType) {
+            case 'HP': // 資料庫是用 HP
+                if (rewardData.rewardPercent > 0) {
+                    const heal = Math.floor(state.playerMaxHp * (rewardData.rewardPercent / 100));
+                    state.playerHp = Math.min(state.playerMaxHp, state.playerHp + heal);
+                    alert(`恢復了 ${heal} 點生命！`);
+                } else {
+                    state.playerHp = Math.min(state.playerMaxHp, state.playerHp + rewardData.rewardValue);
+                    alert(`恢復了 ${rewardData.rewardValue} 點生命！`);
+                }
+                break;
+            case 'MP': // 資料庫是用 MP
+                if (rewardData.rewardPercent > 0) {
+                    const mana = Math.floor(state.playerMaxMp * (rewardData.rewardPercent / 100));
+                    state.playerMp = Math.min(state.playerMaxMp, state.playerMp + mana);
+                } else {
+                    state.playerMp = Math.min(state.playerMaxMp, state.playerMp + rewardData.rewardValue);
+                }
+                break;
+            case 'GOLD':
+                state.goldCollected += rewardData.rewardValue;
+                break;
+            case 'EXP':
+                // 這裡暫時用 alert 提示，實際可加到一個暫存變數 bonusExp，結算時一併送出
+                // 如果後端結算API沒有接收 bonusExp，這裡僅為視覺效果
+                state.AdditionEXP += rewardData.rewardValue;
+                alert(`獲得 ${rewardData.rewardValue} 經驗值 (將於結算時發放)`);
+                break;
+            case 'STR':
+                state.AdditionState[0] += rewardData.rewardValue;
+            case 'DEX':
+                state.AdditionState[1] += rewardData.rewardValue;
+            case 'CON':
+                state.AdditionState[2] += rewardData.rewardValue;
+            case 'INT':
+                state.AdditionState[3] += rewardData.rewardValue;
+                alert(`${rewardData.name} 生效！(本次冒險屬性提升)`);
+                break;
+            default:
+                console.log("未知的獎勵類型:", rewardData.rewardType);
+        }
+        
+        // 2. 更新介面顯示 (血量、金幣變動)
+        updatePlayerUI();
+        updateTopBarUI();
+
+        // 3. 隱藏獎勵層
+        rewardLayer.classList.add('hidden');
+
+        // 4. 進入下一層
+        state.currentFloor++;
+        startNewFloor();
     }
 
     async function enemyAttack() {

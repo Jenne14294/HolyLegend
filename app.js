@@ -11,6 +11,7 @@ import { sequelize } from './models/index.js';
 import indexRouter from './routes/index.js';
 import accountRouter from './routes/account.js';
 import gameRouter from './routes/game.js';
+import systemRouter from './routes/system.js';
 
 const app = express();
 
@@ -48,6 +49,7 @@ app.use(session({
 app.use('/', indexRouter);
 app.use('/holylegend', accountRouter);
 app.use('/holylegend/game_lobby', gameRouter);
+app.use('/holylegend/system', systemRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {

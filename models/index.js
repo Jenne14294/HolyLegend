@@ -4,8 +4,9 @@ import User from './User.js';
 import Class from './Class.js';
 import UserClass from './UserClass.js';
 import Skill from './Skill.js'
+import Reward from './Reward.js'
 
-const models = { User, Class, UserClass, Skill };
+const models = { User, Class, UserClass, Skill, Reward };
 
 // --- 修正關聯設定 ---
 
