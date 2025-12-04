@@ -18,6 +18,12 @@ window.Game = {
         AdditionState: [],
         AdditionEXP: 0
     },
+
+    InitData: {
+        nickname: 'Player',
+    },
+
+    socket: null,
     
     // 共用工具：安全設定文字
     safeSetText: function(id, text) {
@@ -63,6 +69,13 @@ window.Game = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+    // 初始化 socketIO
+    if (typeof io !== 'undefined') {
+        window.Game.socket = io();
+        console.log("Game Core: Socket 初始化完成");
+    } else {
+        console.warn("Socket.io 客戶端庫未載入！");
+    }
     // ===========================
     // 初始化：跟後端拿資料
     // ===========================
@@ -85,6 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 Game.state.role = data.role; // 記錄職業
                 Game.state.AdditionState = data.AdditionState;
                 Game.state.AdditionEXP = 0;
+                Game.InitData.nickname = data.nickname;
                 
                 // 更新 UI
                 Game.updateLobbyUI(data);

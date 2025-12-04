@@ -6,6 +6,7 @@
     <title>Holy Legend - 冒險中</title>
     <link rel="stylesheet" href="/holylegend/styles/game.css">
     <link rel="stylesheet" href="/holylegend/styles/tower.css"> <!-- 新增戰鬥專用樣式 -->
+    <link rel="stylesheet" href="/holylegend/styles/team.css"> <!-- 新增戰鬥專用樣式 -->
     <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -70,12 +71,14 @@
                         <div class="icon pixel-art">🏰</div>
                     </div>
                 </div>
-                <!-- 其他按鈕... -->
-                <div class="action-card tavern-card" onclick="alert('酒館整修中')">
+                <div class="action-card tavern-card" id="btn-open-team">
                     <div class="card-content">
-                        <h2>酒館</h2><div class="icon pixel-art">🍺</div>
+                        <h2>酒館</h2>
+                        <p>TAVERN</p>
+                        <div class="icon pixel-art">🍺</div>
                     </div>
                 </div>
+                <!-- 其他按鈕... -->
                 <div class="action-card guild-card" onclick="alert('公會招募中')">
                     <div class="card-content">
                         <h2>公會</h2><div class="icon pixel-art">🛡️</div>
@@ -86,8 +89,9 @@
             <!-- 底部選單 -->
             <footer class="bottom-menu">
                 <button class="menu-btn"><span class="icon">⚔️</span>職業</button>
-                <button class="menu-btn"><span class="icon">📜</span>任務</button>
+                <button class="menu-btn"><span class="icon">📜</span>技能</button>
                 <button class="menu-btn"><span class="icon">⚙️</span>選單</button>
+
             </footer>
         </div>
 
@@ -96,6 +100,30 @@
         <!--  預設隱藏 (hidden)                         -->
         <!-- ========================================== -->
         <div id="tower-layer" class="hidden">
+            <!-- ========================================== -->
+            <!--  區塊 F: 多人準備確認 (Ready Check)         -->
+            <!--  預設隱藏                                   -->
+            <!-- ========================================== -->
+            <div id="ready-check-layer" class="hidden">
+                <div class="ready-title">隊伍準備確認</div>
+                <div class="ready-subtitle">等待全員接受...</div>
+
+                <div id="ready-slots-container">
+                    <!-- JS 動態生成 4 個格子 -->
+                    <!-- 範例:
+                    <div class="ready-slot accepted">
+                        <img src="..." class="slot-avatar">
+                        <div class="slot-status">✔</div>
+                        <div class="slot-name">Player1</div>
+                    </div>
+                    -->
+                </div>
+
+                <div class="ready-actions">
+                    <button id="btn-ready-accept" class="btn-pixel-medium btn-accept">接受</button>
+                    <button id="btn-ready-decline" class="btn-pixel-medium btn-decline">拒絕</button>
+                </div>
+            </div>
             
             <!-- 1. 頂部資訊列 (Top Info) -->
             <div class="tower-header">
@@ -199,12 +227,100 @@
 
         </div>
 
+
+
+        <!-- ========================================== -->
+        <!--  區塊 E: 多人組隊 (Team Interface)          -->
+        <!-- ========================================== -->
+        <div id="team-layer" class="hidden">
+            
+            <!-- 標題與關閉鈕 -->
+            <div class="layer-header">
+                <h2 class="pixel-title">冒險者酒館</h2>
+                <button id="btn-close-team" class="btn-pixel-small">X</button>
+            </div>
+
+            <!-- 操作區 (創建 / 加入) -->
+            <div class="team-actions">
+                <button id="btn-create-team" class="btn-pixel-large">創建隊伍</button>
+                <button id="btn-join-team" class="btn-pixel-large">加入隊伍</button>
+            </div>
+
+            <!-- 主內容區 (包含隊伍列表 & 聊天室) -->
+            <div class="team-container">
+                
+                <!-- 上半部：隊員列表 -->
+                <div class="section-members">
+                    <div class="team-status-text">目前隊伍 (1/4)</div>
+                    <div id="team-members-list">
+                        
+                        <!-- 範例：隊長 -->
+                        <div class="member-card">
+                            <div class="member-avatar-box">
+                                <img src="/holylegend/images/classes/<%=user.role %>_1.png" class="member-avatar">
+                                <div class="member-lv"><%=user.level %></div>
+                            </div>
+                            <div class="member-stats">
+                                <div class="member-name"><%=user.nickname %><span class="badge-leader">隊長</span></div>
+                                <div class="mini-bar-bg">
+                                    <div class="mini-bar-fill hp-fill" style="width: 100%;"></div>
+                                </div>
+                                <div class="mini-bar-bg">
+                                    <div class="mini-bar-fill mp-fill" style="width: 100%;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 範例：空位 -->
+                        <div class="member-card empty">
+                            <div class="member-avatar-box empty-avatar">?</div>
+                            <div class="member-stats">
+                                <div class="member-name waiting">等待加入...</div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- 下半部：聊天室 (新增) -->
+                <div class="section-chat">
+                    <div class="chat-header">隊伍頻道</div>
+                    
+                    <!-- 訊息顯示區 -->
+                    <div id="chat-messages" class="chat-box">
+                        <div class="chat-line system">
+                        </div>
+                        <div class="chat-line">
+                        </div>
+                    </div>
+
+                    <!-- 輸入區 -->
+                    <div class="chat-input-area">
+                        <input type="text" id="chat-input" placeholder="輸入訊息..." maxlength="50">
+                        <button id="btn-chat-send" class="btn-pixel-small">送出</button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- 底部準備按鈕 -->
+            <div class="team-footer">
+                <button id="btn-leave-team" class="btn-pixel-wide btn-danger" style="display:none;">離開隊伍</button>
+            </div>
+
+        </div>
+
+
+        
+
     </div>
 
     <!-- 引入邏輯腳本 -->
     <script src="/holylegend/scripts/game_core.js"></script>
     <script src="/holylegend/scripts/tower_system.js"></script>
     <script src="/holylegend/scripts/classes_system.js"></script>
+    <script src="/holylegend/scripts/team_system.js"></script>
     <script src="/holylegend/scripts/game_audio.js"></script>
+    <script src="/socket.io/socket.io.js"></script> <!-- 新增這行 -->
 </body>
 </html>

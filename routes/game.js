@@ -9,6 +9,7 @@ router.get('/', verifyToken, async (req, res, next) => {
   try {
     // 1. 根據 Token (req.user.id) 撈取完整玩家資料
     const userData = await getUser({ id: req.user.id });
+    const classData = await getClass({ id: userData.jobId})
 
     if (!userData) {
       return res.redirect('/holylegend/login'); // 找不到人就踢回登入
@@ -24,8 +25,8 @@ router.get('/', verifyToken, async (req, res, next) => {
     
     // 簡單計算一下屬性 (或是你在 getUser 裡算好也可以)
     const level = currentClass.level || 1;
-    const hp = 100 + ((level - 1) * 5);
-    const mp = 30 + ((level - 1) * 3);
+    const hp = Math.round(100 + ((level - 1) * (classData[0].dataValues.STR * 0.3 + classData[0].dataValues.CON * 0.7)));
+    const mp = Math.round(30 + ((level - 1) * (classData[0].dataValues.INT * 1)));
 
     const renderData = {
         id: userData.id,
@@ -80,8 +81,8 @@ router.get('/status', verifyToken, async (req, res, next) => {
     
     // 簡單計算一下屬性 (或是你在 getUser 裡算好也可以)
     const level = currentClass.level || 1;
-    const hp = 100 + ((level - 1) * (classData[0].dataValues.STR * 0.3 + classData[0].dataValues.CON * 0.7));
-    const mp = 30 + ((level - 1) * (classData[0].dataValues.INT * 1));
+    const hp = Math.round(100 + ((level - 1) * (classData[0].dataValues.STR * 0.3 + classData[0].dataValues.CON * 0.7)))
+    const mp = Math.round(30 + ((level - 1) * (classData[0].dataValues.INT * 1)))
 
     const renderData = {
         id: userData.id,

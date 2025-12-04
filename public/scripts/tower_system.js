@@ -6,13 +6,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnEnterTower = document.getElementById('btn-enter-tower');
     const btnExitTower = document.getElementById('btn-tower-exit');
     const btnAttack = document.getElementById('btn-attack');
+    
+    // 獎勵相關
     const rewardLayer = document.getElementById('reward-layer');
     const rewardCardsContainer = document.getElementById('reward-cards-container');
 
+    // 多人準備相關
+    const readyCheckLayer = document.getElementById('ready-check-layer');
+    const readySlotsContainer = document.getElementById('ready-slots-container');
+    const btnReadyAccept = document.getElementById('btn-ready-accept');
+    const btnReadyDecline = document.getElementById('btn-ready-decline');
+
     // 簡化存取 Game.state
     const state = window.Game.state; 
+    const socket = window.Game.socket; 
 
-
+    // 多人模式狀態標記
+    let isMultiplayerMode = false;
+    let waitingForTurn = false; // 是否正在等待隊友行動
 
     // 獎勵圖示
     const REWARD_ICONS = {
@@ -22,17 +33,170 @@ document.addEventListener('DOMContentLoaded', () => {
         'MP': '💧', 'MP_RECOVER_PERCENT': '💧'
     };
 
+
     // ===========================
-    // 進入爬塔
+    // Socket 事件監聽 (多人戰鬥核心)
+    // ===========================
+    if (socket) {
+        // ... (init_ready_check, update_ready_view, ready_check_canceled 保持不變) ...
+        socket.on('init_ready_check', (members) => {
+            isMultiplayerMode = true;
+            renderReadyCheckModal(members);
+            lobbyLayer.classList.add('hidden');
+            towerLayer.classList.remove('hidden');
+            readyCheckLayer.classList.remove('hidden');
+        });
+
+        socket.on('update_ready_view', (data) => {
+            updateReadySlotStatus(data.socketId, data.status);
+        });
+
+        socket.on('ready_check_canceled', (data) => {
+            alert(`${data.nickname} 拒絕了準備，取消戰鬥。`);
+            readyCheckLayer.classList.add('hidden');
+            towerLayer.classList.add('hidden');
+            lobbyLayer.classList.remove('hidden');
+            btnReadyAccept.disabled = false;
+            btnReadyDecline.disabled = false;
+            btnReadyAccept.innerText = "接受";
+            window.Game.playMusic('/holylegend/audio/game_lobby.ogg');
+        });
+
+        // 3. 多人戰鬥開始
+        socket.on('multiplayer_battle_start', (initialData) => {
+            readyCheckLayer.classList.add('hidden');
+            
+            state.currentFloor = initialData.floor;
+            state.enemyMaxHp = initialData.enemyMaxHp;
+            state.enemyHp = initialData.enemyHp;
+            
+            // 重置個人狀態
+            // 注意：多人模式下 Server 記錄了血量，前端這裡主要是顯示用
+            // 如果是復活，Server 應該會處理好血量並通知 (目前簡化版未實作Server回傳血量，暫時保留本地血量)
+            
+            state.isGameOver = false;
+            state.processingLevelUp = false;
+            waitingForTurn = false;
+            
+            // 【修正】傳入 Server 指定的怪物類型
+            startNewFloor(true, initialData.monsterType); 
+            
+            window.Game.playMusic('/holylegend/audio/tower_theme.ogg');
+            // alert("戰鬥開始！"); // 這個 alert 有時候會很煩，可以註解掉
+        });
+
+        // 4. 【修正】回合結算
+        socket.on('turn_result', (result) => {
+            // result: { damageDealt, targetSocketId, damageTaken, isEnemyDead, deadPlayerId, isAllDead }
+            
+            // 怪物受傷動畫
+            const enemyImg = document.getElementById('enemy-img');
+            if(enemyImg) {
+                enemyImg.style.transform = 'scale(0.8)';
+                setTimeout(() => enemyImg.style.transform = 'scale(1)', 100);
+            }
+
+            state.enemyHp = Math.max(0, state.enemyHp - result.damageDealt);
+            showDamageNumber(result.damageDealt); 
+            updateEnemyUI();
+
+            // 處理玩家受傷
+            if (result.damageTaken > 0 && result.targetSocketId) {
+                setTimeout(() => {
+                    if (result.targetSocketId === socket.id) {
+                        playerTakeDamage(result.damageTaken); // 這會扣本地血量並更新UI
+                        alert(`怪物攻擊了你！造成 ${result.damageTaken} 點傷害！`);
+                    } else {
+                        console.log("怪物攻擊了隊友");
+                        // 這裡可以加一個視覺效果顯示隊友受傷
+                    }
+                }, 600);
+            }
+
+            // 【關鍵】處理有人死亡
+            if (result.deadPlayerId) {
+                if (result.deadPlayerId === socket.id) {
+                    // 我死了 -> 鎖定操作，變成觀戰模式
+                    state.isGameOver = true; 
+                    alert("你已倒下！進入觀戰模式...");
+                    updateControlsState(); // 變灰
+                } else {
+                    // 隊友死了
+                    console.log("隊友倒下了！");
+                }
+            }
+
+            // 【關鍵】全滅處理
+            if (result.isAllDead) {
+                alert(`全隊覆沒！止步於第 ${state.currentFloor} 層`);
+                resetBattle();
+                return;
+            }
+
+            // 如果我沒死，就解鎖按鈕，準備下一回合
+            if (!state.isGameOver) {
+                waitingForTurn = false;
+                state.isTurnLocked = false; 
+                updateControlsState(); 
+            }
+
+            if (result.isEnemyDead) {
+                handleMonsterDeath();
+            }
+        });
+        
+        socket.on('game_over_all', (data) => {
+             alert(`全隊覆沒！`);
+             resetBattle();
+        });
+    }
+
+    // ===========================
+    // 進入爬塔按鈕
     // ===========================
     if (btnEnterTower) {
         btnEnterTower.addEventListener('click', () => {
-            lobbyLayer.classList.add('hidden');
-            towerLayer.classList.remove('hidden');
-            
-            startNewFloor();
-            // 呼叫 Game Core 播放戰鬥音樂
-            window.Game.playMusic('/holylegend/audio/tower_theme.ogg');
+            // 判斷是否在隊伍中 (檢查 HTML 裡是否有隊伍資訊，或是 check myRoomId)
+            // 這裡假設如果 team-status-text 顯示有房間號，就是多人
+            const teamText = document.querySelector('.team-status-text');
+            const isInTeam = teamText && teamText.innerText.includes('房號');
+
+            if (isInTeam) {
+                // --- 多人模式 ---
+                // 發送請求給 Server，Server 會廣播 init_ready_check 給全隊
+                socket.emit('request_tower_start');
+            } else {
+                // --- 單人模式 (保持原樣) ---
+                isMultiplayerMode = false;
+                lobbyLayer.classList.add('hidden');
+                towerLayer.classList.remove('hidden');
+                window.Game.playMusic('/holylegend/audio/tower_theme.ogg');
+                startNewFloor();
+                
+            }
+        });
+    }
+
+    // ===========================
+    // 準備確認按鈕
+    // ===========================
+    if (btnReadyAccept) {
+        btnReadyAccept.addEventListener('click', () => {
+            socket.emit('respond_ready', true); // 同意
+            // UI 鎖定，等待其他人
+            btnReadyAccept.disabled = true;
+            btnReadyDecline.disabled = true;
+            btnReadyAccept.innerText = "等待中...";
+        });
+    }
+
+    if (btnReadyDecline) {
+        btnReadyDecline.addEventListener('click', () => {
+            socket.emit('respond_ready', false); // 拒絕
+            // 回大廳
+            readyCheckLayer.classList.add('hidden');
+            lobbyLayer.classList.remove('hidden');
+            towerLayer.classList.add('hidden');
         });
     }
 
@@ -48,8 +212,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!confirm(`確定要離開嗎？\n目前獲得金幣: ${state.goldCollected}\n預計獲得經驗: ${totalExp}`)) return;
 
             state.isGameOver = true;
-            alert(`結算完成！\n獲得金幣: ${state.goldCollected}\n獲得經驗: ${totalExp}`);
             
+            if (isMultiplayerMode) {
+                socket.emit('leave_battle'); // 通知 Server 離開
+            }
+
+            alert(`結算完成！\n獲得金幣: ${state.goldCollected}\n獲得經驗: ${totalExp}`);
             resetBattle();
         });
     }
@@ -76,67 +244,180 @@ document.addEventListener('DOMContentLoaded', () => {
                 setTimeout(() => enemyImg.style.transform = 'scale(1)', 100);
             }
 
-            let damage = 0;
-
-            state.AdditionState.forEach(value => {
-                for (let i = 0; i < state.AdditionState.length; i++)
-                {
-                    damage += value * 0.25;
-                }
-            });
-
-            const system_critRate = Math.random() * 100
-            let critRate = (state.AdditionState.DEX * 0.25 + state.AdditionState.INT * 0.15)
-            let CritMultiply = 1;
-
-            if (system_critRate < critRate)
-            {
-                CritMultiply = 2;
-            }
-
-            let damageMultiply = 0.8 + Math.random() * 0.4
-            damage = Math.round(damage * damageMultiply * CritMultiply);
-
-            state.enemyHp -= damage;
-
-            showDamageNumber(damage);
-            updateEnemyUI();
-
-            // 怪物死亡
-            if (state.enemyHp <= 0) {
-                state.processingLevelUp = true;
-                state.goldCollected += 50;
-                updateTopBarUI();
-                
-                if(enemyImg) enemyImg.style.opacity = '0';
-
-                const RewardRate = Math.floor(Math.random() * 100)
-                console.log(RewardRate)
-                // const RewardRate = 0
-                
-                // 怪物死了，不需要解鎖 isTurnLocked，因為 startNewFloor 會負責重置
-                
-                setTimeout(async () => {
-                    if (state.isGameOver) return; 
-                    state.currentFloor++;
-
-                    if (RewardRate <= 14) {
-                        await showRewards();
-                    }
-
-                    else {
-                        startNewFloor();
-                    }
-
-                    
-                }, 500);
+            if (isMultiplayerMode) {
+                // --- 多人模式 ---
+                waitingForTurn = true;
+                // 發送動作給 Server，不直接扣血
+                socket.emit('player_action', { type: 'attack' });
+                // 等待 Server 回傳 turn_result
             } else {
-                setTimeout(enemyAttack, 500);
+                // --- 單人模式 (原邏輯) ---
+                performLocalAttack();
             }
         });
     }
 
+    // 單人攻擊邏輯 (封裝)
+    function performLocalAttack() {
+        const enemyImg = document.getElementById('enemy-img');
+        let damage = 0;
+
+        if(enemyImg) {
+            enemyImg.style.transform = 'scale(0.9)';
+            setTimeout(() => enemyImg.style.transform = 'scale(1)', 100);
+        }
+
+        state.AdditionState.forEach(value => {
+            for (let i = 0; i < state.AdditionState.length; i++)
+            {
+                damage += value * 0.25;
+            }
+        });
+
+        const system_critRate = Math.random() * 100
+        let critRate = (state.AdditionState.DEX * 0.25 + state.AdditionState.INT * 0.15)
+        let CritMultiply = 1;
+
+        if (system_critRate < critRate)
+        {
+            CritMultiply = 2;
+        }
+
+        let damageMultiply = 0.8 + Math.random() * 0.4
+        damage = Math.round(damage * damageMultiply * CritMultiply);
+        // 若有屬性加成...
+        
+        state.enemyHp -= damage;
+        showDamageNumber(damage);
+        updateEnemyUI();
+
+        if (state.enemyHp <= 0) {
+            handleMonsterDeath();
+        } else {
+            setTimeout(enemyAttack, 500); // 單人怪物反擊
+        }
+    }
+
+    // 怪物死亡處理 (通用)
+    function handleMonsterDeath() {
+        state.processingLevelUp = true;
+        state.goldCollected += 50;
+        updateTopBarUI();
+        
+        const enemyImg = document.getElementById('enemy-img');
+        if(enemyImg) enemyImg.style.opacity = '0';
+        
+        setTimeout(() => {
+            if (state.isGameOver) return; 
+            if (isMultiplayerMode) {
+                // 多人模式：等待 Server 發送下一層指令 (或者 Server 直接發獎勵)
+                // 這裡暫時模擬：
+                // socket.emit('request_next_floor'); 
+            } else {
+                const RewardRate = Math.floor(Math.random() * 100)
+
+                if (RewardRate <= 14) {
+                    showRewards(); // 單人顯示獎勵
+                }
+
+                else {
+                    startNewFloor();
+                }
+                
+            }
+        }, 500);
+    }
+
+
+    // 玩家受傷處理 (通用)
+    async function playerTakeDamage(amount) {
+        state.playerHp -= amount;
+        if (state.playerHp < 0) state.playerHp = 0;
+        updatePlayerUI();
+        
+        document.body.style.backgroundColor = '#500';
+        setTimeout(() => document.body.style.backgroundColor = '', 100);
+
+        // 玩家死亡
+        if (state.playerHp <= 0) {
+            // 倒下邏輯
+            alert("你已倒下！等待隊友救援或戰鬥結束...");
+            // 多人模式下，玩家倒下不代表遊戲結束，除非全滅
+            if (!isMultiplayerMode) {
+                if (state.isGameOver) return;
+                state.isGameOver = true;
+
+                const expGained = calculateGameOver();
+                alert(`你已在第 ${state.currentFloor} 層倒下\n你獲得了 ${expGained} 點經驗值！`);
+                
+                try {
+                    await fetch('/holylegend/game_lobby/save_status', { 
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            exp: expGained,
+                            gold: state.goldCollected
+                        })
+                    });
+                } catch (err) {
+                    console.error("結算失敗", err);
+                }
+
+                resetBattle();
+            }
+        }
+    }
+
     // --- 輔助函式 ---
+    // 渲染準備視窗
+    function renderReadyCheckModal(members) {
+        const container = document.getElementById('ready-slots-container');
+        container.innerHTML = '';
+
+        // 復原按鈕
+        btnReadyAccept.disabled = false;
+        btnReadyDecline.disabled = false;
+        btnReadyAccept.innerText = "接受";
+
+        members.forEach(m => {
+            const roleName = m.state.role ? (m.state.role.charAt(0).toUpperCase() + m.state.role.slice(1).toLowerCase()) : 'Novice';
+            const imgSrc = `/holylegend/images/classes/${roleName}_1.png`;
+
+            const slot = document.createElement('div');
+            slot.className = 'ready-slot active'; // 標記有人
+            slot.id = `slot-${m.socketId}`; // 方便後續更新狀態
+            
+            slot.innerHTML = `
+                <img src="${imgSrc}" class="slot-avatar">
+                <div class="slot-status"></div>
+                <div class="slot-name">${m.nickname}</div>
+            `;
+            container.appendChild(slot);
+        });
+    }
+
+    // 更新某個格子的勾勾
+    function updateReadySlotStatus(socketId, status) {
+        const slot = document.getElementById(`slot-${socketId}`);
+        if (slot) {
+            if (status === 'accepted') {
+                slot.classList.add('accepted');
+            } else if (status === 'declined') {
+                slot.classList.add('declined');
+            }
+        }
+    }
+
+    // 更新按鈕外觀 (冷卻/等待中)
+    function updateControlsState() {
+        if (waitingForTurn || state.isTurnLocked) {
+            btnAttack.style.filter = "grayscale(100%)";
+            btnAttack.style.transform = "translateY(2px)";
+        } else {
+            btnAttack.style.filter = "";
+            btnAttack.style.transform = "";
+        }
+    }
 
     function calculateGameOver() {
         const floor = state.currentFloor;
@@ -152,7 +433,15 @@ document.addEventListener('DOMContentLoaded', () => {
         return EXPgained;
     }
 
-    function startNewFloor() {
+    function startNewFloor(isMultiplayerInit = false) {
+        state.floor++;
+        if (!isMultiplayerInit) {
+            // 單人模式才自己算血量，多人模式血量由 Server 下發
+            state.enemyMaxHp = 100 + (state.currentFloor * 10);
+            state.enemyHp = state.enemyMaxHp;
+        }
+
+        state.isTurnLocked = false;
         state.isGameOver = false; 
         state.processingLevelUp = false; 
         
@@ -162,9 +451,6 @@ document.addEventListener('DOMContentLoaded', () => {
             btnAttack.style.filter = "";
             btnAttack.style.transform = "";
         }
-
-        state.enemyMaxHp = 100 + (state.currentFloor * 10);
-        state.enemyHp = state.enemyMaxHp;
         
         const enemyImg = document.getElementById('enemy-img');
         if(enemyImg) {
@@ -341,44 +627,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state.isGameOver || state.processingLevelUp) return;
 
         const dmg = 5;
-        state.playerHp -= dmg;
-        if (state.playerHp < 0) state.playerHp = 0;
-        
-        updatePlayerUI();
-        
-        // 【修正 4】怪物攻擊完畢，解開回合鎖，玩家可以再次攻擊
-        state.isTurnLocked = false;
-        if(btnAttack) {
-            btnAttack.style.filter = "";
-            btnAttack.style.transform = "";
-        }
+        state.isTurnLocked = false; // 解鎖
 
-        document.body.style.backgroundColor = '#500';
-        setTimeout(() => document.body.style.backgroundColor = '', 100);
+        playerTakeDamage(dmg);
+        updateControlsState();
 
-        // 玩家死亡
-        if (state.playerHp <= 0) {
-            if (state.isGameOver) return;
-            state.isGameOver = true;
-
-            const expGained = calculateGameOver();
-            alert(`你已在第 ${state.currentFloor} 層倒下\n你獲得了 ${expGained} 點經驗值！`);
-            
-            try {
-                await fetch('/holylegend/game_lobby/save_status', { 
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        exp: expGained,
-                        gold: state.goldCollected
-                    })
-                });
-            } catch (err) {
-                console.error("結算失敗", err);
-            }
-
-            resetBattle();
-        }
     }
 
     function resetBattle() {
@@ -386,13 +639,13 @@ document.addEventListener('DOMContentLoaded', () => {
         state.currentFloor = 1; 
         state.isGameOver = false;
         state.processingLevelUp = false;
+        isMultiplayerMode = false;
         
         towerLayer.classList.add('hidden');
         lobbyLayer.classList.remove('hidden');
+        readyCheckLayer.classList.add('hidden'); // 確保關閉
 
-        // 切回大廳音樂
         window.Game.playMusic('/holylegend/audio/game_lobby.ogg');
-        
         location.reload(); 
     }
 

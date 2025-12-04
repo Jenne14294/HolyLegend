@@ -3,11 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const nicknameInput = document.getElementById('nicknameInput');
     const randomBtn = document.getElementById('randomBtn');
     const startBtn = document.getElementById('startBtn');
-    
-    // 獲取彈窗相關元素
-    const tutorialModal = document.getElementById('tutorialModal');
-    const btnTutorialYes = document.getElementById('btnTutorialYes');
-    const btnTutorialNo = document.getElementById('btnTutorialNo');
+
 
     let selectedRole = null;
 
@@ -36,30 +32,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 4. 開始遊戲點擊 (開啟彈窗) ---
     startBtn.addEventListener('click', () => {
         // 顯示彈窗
-        tutorialModal.classList.remove('hidden');
+        startGame();
     });
 
-    // --- 5. 彈窗按鈕邏輯 ---
-    
-    // 選擇「是，進行教學」
-    btnTutorialYes.addEventListener('click', () => {
-        startGame(true);
-    });
-
-    // 選擇「否，跳過教學」
-    btnTutorialNo.addEventListener('click', () => {
-        startGame(false);
-    });
-
-    // 點擊遮罩背景也可以關閉 (選擇性功能)
-    tutorialModal.addEventListener('click', (e) => {
-        if (e.target === tutorialModal) {
-            tutorialModal.classList.add('hidden');
-        }
-    });
 
     // --- 6. 實際跳轉函數 ---
-    async function startGame(isTutorial) {
+    async function startGame() {
         const nickname = nicknameInput.value.trim();
         
         try {
@@ -71,8 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 body: JSON.stringify({
                     role: selectedRole,
-                    name: nickname,
-                    tutorial: isTutorial
+                    name: nickname
                 })
             });
 
@@ -81,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.success) {
                 // 創建成功，執行跳轉
                 // 這裡我們將後端回傳的 playerId 帶入網址，方便遊戲場景讀取數據
-                const finalUrl = `${data.redirectUrl}?id=${data.playerId}&tutorial=${data.tutorial}`;
+                const finalUrl = `${data.redirectUrl}`;
                 window.location.href = finalUrl; 
             } else {
                 // 創建失敗 (例如名字重複或資料庫錯誤)
