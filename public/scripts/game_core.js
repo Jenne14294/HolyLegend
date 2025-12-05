@@ -83,8 +83,6 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch('/holylegend/game_lobby/status');
             const result = await response.json();
-
-            console.log(result.data)
             
             if (result.success) {
                 const data = result.data;
@@ -102,7 +100,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // 更新 UI
                 Game.updateLobbyUI(data);
-                console.log("玩家資料載入成功:", data);
             } else {
                 console.warn("API 回傳失敗");
             }

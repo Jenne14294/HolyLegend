@@ -421,3 +421,96 @@
     border-color: #fff;
     background-image: linear-gradient(135deg, #34495e 0%, #6dd5fa 100%);
 }
+
+
+#teammates-container {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    padding: 5px;
+    background: rgba(0, 0, 0, 0.5);
+    min-height: 60px;
+    width: 100%;
+    overflow-x: auto; /* 防止太寬爆版 */
+}
+
+.tm-card {
+    display: flex;
+    align-items: center;
+    background: #2c3e50;
+    border: 2px solid #555;
+    border-radius: 4px;
+    padding: 3px;
+    width: 130px;
+    flex-shrink: 0;
+    cursor: pointer; /* 為未來點擊做準備 */
+    transition: transform 0.1s;
+}
+
+.tm-card:active {
+    transform: scale(0.95);
+}
+
+/* 死亡狀態 */
+.tm-card.dead {
+    filter: grayscale(100%);
+    opacity: 0.6;
+    border-color: #e74c3c;
+}
+
+.tm-avatar-box {
+    width: 36px;
+    height: 36px;
+    border: 2px solid #fff;
+    background: #000;
+    margin-right: 5px;
+}
+
+.tm-avatar-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    image-rendering: pixelated;
+}
+
+.tm-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.tm-name {
+    font-size: 0.8rem;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+}
+
+.tm-bar-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.tm-hp-bar, .tm-mp-bar {
+    width: 100%;
+    height: 4px;
+    background: #111;
+    border: 1px solid #444;
+}
+
+.tm-hp-bar .fill { height: 100%; background-color: #e74c3c; transition: width 0.3s; }
+.tm-mp-bar .fill { height: 100%; background-color: #3498db; transition: width 0.3s; }
+
+/* 手機版微調 */
+@media (max-width: 480px) {
+    #teammates-container {
+        justify-content: flex-start; /* 靠左，允許滑動 */
+    }
+    .tm-card {
+        width: 110px;
+    }
+}
