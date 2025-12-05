@@ -71,8 +71,10 @@ window.Game = {
 document.addEventListener('DOMContentLoaded', () => {
     // 初始化 socketIO
     if (typeof io !== 'undefined') {
-        window.Game.socket = io();
-        console.log("Game Core: Socket 初始化完成");
+        window.Game.socket = io({
+  	  path: '/holylegend/socket.io' // <--- 這一行也不能少
+	});
+	console.log("Game Core: Socket 初始化完成");
     } else {
         console.warn("Socket.io 客戶端庫未載入！");
     }

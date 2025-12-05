@@ -4,7 +4,10 @@ const rooms = {};
 const battles = {}; 
 
 export default function initSocket(server) {
-    const io = new Server(server);
+    const io = new Server(server, {
+      path: '/holylegend/socket.io' // <--- 這一行不能少
+    });
+
 
     io.on('connection', (socket) => {       
         let currentRoomId = null;
