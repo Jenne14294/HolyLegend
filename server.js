@@ -37,6 +37,44 @@ export default function initSocket(server) {
             io.to(roomId).emit('chat_message', { sender: '系統', text: `${playerData.nickname} 加入了隊伍！`, isSystem: true });
         });
 
+        // 修改後的 kick_member
+        socket.on('kick_member', ({ roomId, targetSocketId }) => {
+            // 1. 取得房間成員列表
+            const roomMembers = rooms[roomId];
+            if (!roomMembers) return;
+
+            // 2. 驗證: 找出發送請求的人 (requester)，確認他是隊長
+            const requester = roomMembers.find(p => p.socketId === socket.id);
+            
+            // 如果找不到人，或是這個人不是隊長，就拒絕執行
+            if (!requester || !requester.isLeader) {
+                socket.emit('error_msg', '權限不足：只有隊長可以踢人');
+                return;
+            }
+
+            // 3. 執行踢人 (過濾掉目標 ID)
+            const originalLength = roomMembers.length;
+            rooms[roomId] = roomMembers.filter(m => m.socketId !== targetSocketId);
+
+            // 如果長度沒變，代表沒踢到人(目標可能已經離開)，就不廣播了
+            if (rooms[roomId].length === originalLength) return;
+            
+            // 4. 通知被踢的人 (觸發前端的 socket.on('kicked'))
+            io.to(targetSocketId).emit('kicked');
+            
+            // 強制讓該 socket 離開 socket.io 的 room
+            const targetSocket = io.sockets.sockets.get(targetSocketId);
+            if (targetSocket) {
+                targetSocket.leave(roomId);
+            }
+
+            // 5. 通知房間其他人更新列表
+            io.to(roomId).emit('team_update', rooms[roomId]);
+            
+            // 發送系統訊息
+            io.to(roomId).emit('chat_message', { sender: '系統', text: '一名隊員已被請離隊伍。', isSystem: true });
+        });
+
         socket.on('send_message', (text) => {
             if (currentRoomId && currentPlayer) {
                 io.to(currentRoomId).emit('chat_message', { sender: currentPlayer.nickname, text: text, isSystem: false });
@@ -179,7 +217,7 @@ export default function initSocket(server) {
                 if (!isEnemyDead && battle.alivePlayerIds.length > 0) {
                     const targetIndex = Math.floor(Math.random() * battle.alivePlayerIds.length);
                     targetSocketId = battle.alivePlayerIds[targetIndex];
-                    damageTaken = Math.round(5 + (2.5 * battle.alivePlayerIds.length)); 
+                    damageTaken = Math.round(5 + (2.5 * (battle.alivePlayerIds.length - 1))); 
 
                     if (battle.playerStates[targetSocketId]) {
                         battle.playerStates[targetSocketId].hp -= damageTaken;
@@ -227,13 +265,18 @@ export default function initSocket(server) {
                 if (isEnemyDead) {
                     setTimeout(() => {
                         if (!battles[currentRoomId]) return;
+
+                        // const rewardRate = Math.round(Math.random() * 100);
+                        const rewardRate = 0;
+                        if (rewardRate <= 14) {
+                            socket.emit('multiplayer_show_rewards');
+                        }
                         
                         battle.floor++;
                         const room = rooms[currentRoomId];
                         
-                        // 全體復活
                         if (room) {
-                            battle.enemyMaxHp = 100 * battle.floor * room.length;
+                            battle.enemyMaxHp = 100 + (10 * battle.floor * room.length);
                             battle.enemyHp = battle.enemyMaxHp;
                             
                             const monsters = ['slime', 'bat', 'skeleton', 'orc']; 
@@ -263,9 +306,33 @@ export default function initSocket(server) {
             }
         });
 
-        socket.on('player_selected_reward', () => {
+        // 修改監聽事件，接收 data 參數
+        socket.on('player_selected_reward', (data) => { // ★ 加上 data
             if (!currentRoomId || !battles[currentRoomId]) return;
             const battle = battles[currentRoomId];
+
+            // --- ★ 新增：處理復活邏輯 ---
+            // 判斷傳來的 data 是否包含 rewardType 且為復活
+            if (data && (data.rewardType === 'REVIVE' || data.rewardType === 'revive')) {
+                const pState = battle.playerStates[socket.id];
+                
+                if (pState) {
+                    // 1. 恢復數值
+                    pState.isDead = false;
+                    pState.hp = pState.maxHp;
+                    pState.mp = pState.maxMp;
+
+                    // 2. ★ 關鍵：將玩家加回「存活名單 (alivePlayerIds)」
+                    // 如果不加回去，下一層開始時系統可能還是會判定該玩家已死，或是結算時被略過
+                    if (!battle.alivePlayerIds.includes(socket.id)) {
+                        battle.alivePlayerIds.push(socket.id);
+                    }
+                    
+                    // (選用) 可以廣播通知其他人：某某人復活了
+                    // io.to(currentRoomId).emit('player_revived', { socketId: socket.id });
+                }
+            }
+            // ---------------------------
 
             // 記錄該玩家已選擇
             if (!battle.rewardSelection.selectedPlayers.includes(socket.id)) {
@@ -273,7 +340,7 @@ export default function initSocket(server) {
             }
 
             // 檢查：是否「所有存活玩家」都選完了？
-            // 注意：死掉的玩家不需要選獎勵，所以只比對 alivePlayerIds
+            // 注意：因為剛剛如果有人復活，alivePlayerIds 已經更新了，所以這裡的檢查會包含剛復活的人
             const allSelected = battle.alivePlayerIds.every(id => 
                 battle.rewardSelection.selectedPlayers.includes(id)
             );

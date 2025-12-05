@@ -796,6 +796,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.AdditionState[3] += rewardData.rewardValue;
                 alert(`${rewardData.name} 生效！(本次冒險屬性提升)`);
                 break;
+            case 'REVIVE':
+                state.playerHp = state.playerMaxHp;
+                state.playerMp = state.playerMaxMp;
+                state.isDead = false;
             default:
                 console.log("未知的獎勵類型:", rewardData.rewardType);
         }
@@ -807,7 +811,9 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (isMultiplayerMode && socket) {
                 // 多人模式：通知 Server 我選好了，並且不關閉遮罩(等待隊友)
-                socket.emit('player_selected_reward');
+                socket.emit('player_selected_reward', { 
+                    rewardType: rewardData.rewardType 
+                });
                 
                 // 清空卡片，顯示等待訊息
                 rewardCardsContainer.innerHTML = '<div style="color: white; font-size: 1.5rem;">等待隊友選擇...</div>';

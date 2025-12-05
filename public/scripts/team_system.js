@@ -74,6 +74,12 @@ document.addEventListener('DOMContentLoaded', () => {
             appendMessage(msg.sender, msg.text, msg.isSystem);
         });
 
+        // 【新增】監聽：被踢出隊伍 (針對被踢的人)
+        socket.on('kicked', () => {
+            alert("你已被隊長踢出隊伍。");
+            leaveRoom(true); // true 表示是被動離開，不需要再送 leave 請求
+        });
+
         // 監聽：錯誤訊息
         socket.on('error_msg', (msg) => {
             alert(msg);
@@ -150,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function leaveRoom() {
+    function leaveRoom(isForced = false) {
         const socket = window.Game.socket;
         
         // 通知 Server 離開 (如果有的話，或是直接 disconnect 重連)
@@ -288,6 +294,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderTeamMembers(members) {
         const memberList = members || [];
+        const socket = window.Game.socket; // 需要用來比對 socket.id
 
         if (teamStatusText) {
             const text = myRoomId ? `目前隊伍 (${memberList.length}/4) - 房號: ${myRoomId}` : '目前隊伍 (0/4)';
@@ -301,16 +308,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 const roleName = p.state.role ? (p.state.role.charAt(0).toUpperCase() + p.state.role.slice(1).toLowerCase()) : 'Novice';
                 const imgSrc = `/holylegend/images/classes/${roleName}_1.png`;
 
-                const hpPct = (p.state.hp / p.state.maxHp) * 100;
-                const mpPct = (p.state.mp / p.state.maxMp) * 100;
+                const hpPct = p.state.maxHp ? (p.state.hp / p.state.maxHp) * 100 : 100;
+                const mpPct = p.state.maxMp ? (p.state.mp / p.state.maxMp) * 100 : 100;
 
                 const leaderBadge = p.isLeader ? '<span class="badge-leader">隊長</span>' : '';
-                // 如果後端有傳 isReady 狀態
                 const readyStatus = p.isReady ? '<span style="color:#2ecc71; font-size:0.8rem;">(準備)</span>' : '';
+
+                // 【重點】判斷是否顯示踢人按鈕
+                // 條件：我是隊長 && 這張卡片不是我
+                let kickBtnHtml = '';
+                
+                // 假設 p 物件裡有 socketId，這最準確。如果沒有，可以用 nickname 比對
+                const isMe = (p.socketId === socket.id) || (p.nickname === window.Game.InitData.nickname);
+                
+                if (isLeader && !isMe) {
+                    // 我們將目標的 socketId 或 nickname 存在 data attribute 中
+                    // 建議後端 memberList 包含 socketId
+                    const targetId = p.socketId || p.nickname; 
+                    kickBtnHtml = `<button class="btn-kick" data-target="${targetId}">X</button>`;
+                }
 
                 const card = document.createElement('div');
                 card.className = 'member-card';
                 card.innerHTML = `
+                    ${kickBtnHtml}
                     <div class="member-avatar-box">
                         <img src="${imgSrc}" class="member-avatar" onerror="this.src='/holylegend/images/classes/Novice_1.png'">
                         <div class="member-lv">${p.state.level}</div>
@@ -325,9 +346,21 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
                 `;
+                
+                // 【重點】綁定踢人按鈕事件
+                const kickBtn = card.querySelector('.btn-kick');
+                if (kickBtn) {
+                    kickBtn.addEventListener('click', (e) => {
+                        e.stopPropagation(); // 防止觸發其他卡片點擊效果
+                        const targetId = kickBtn.dataset.target;
+                        handleKickMember(targetId, p.nickname);
+                    });
+                }
+
                 teamMembersList.appendChild(card);
             });
 
+            // 補滿空位
             for (let i = memberList.length; i < 4; i++) {
                 const emptyCard = document.createElement('div');
                 emptyCard.className = 'member-card empty';
@@ -339,6 +372,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
                 teamMembersList.appendChild(emptyCard);
             }
+        }
+    }
+
+    // 【新增】處理踢人邏輯
+    function handleKickMember(targetId, targetName) {
+        if (!confirm(`確定要將 [${targetName}] 踢出隊伍嗎？`)) return;
+
+        const socket = window.Game.socket;
+        if (socket && myRoomId) {
+            // 發送踢人請求給 Server
+            // Server 端需要監聽 'kick_member' 事件，並驗證發送者是否為該房間隊長
+            socket.emit('kick_member', { 
+                roomId: myRoomId, 
+                targetSocketId: targetId // 建議後端用 socketId 踢人比較準
+            });
         }
     }
 
