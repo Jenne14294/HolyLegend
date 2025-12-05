@@ -529,7 +529,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function resetBattle() {
+    async function resetBattle() {
         state.goldCollected = 0;
         state.currentFloor = 1; 
         state.isGameOver = false;
@@ -542,11 +542,12 @@ document.addEventListener('DOMContentLoaded', () => {
         readyCheckLayer.classList.add('hidden'); // 確保關閉
 
         window.Game.playMusic('/holylegend/audio/game_lobby.ogg');
+        await initGame();
         
     }
 
     // 回到大廳 (單人用)
-    function resetBattleToLobby() {
+    async function resetBattleToLobby() {
         state.goldCollected = 0;
         state.currentFloor = 1; 
         state.isGameOver = false;
@@ -554,7 +555,37 @@ document.addEventListener('DOMContentLoaded', () => {
         towerLayer.classList.add('hidden');
         lobbyLayer.classList.remove('hidden');
         window.Game.playMusic('/holylegend/audio/game_lobby.ogg');
-        location.reload(); // 單人模式重整比較乾淨
+        await initGame();
+    }
+
+    async function initGame() {
+        try {
+            const response = await fetch('/holylegend/system/status');
+            const result = await response.json();
+            
+            if (result.success) {
+                const data = result.data;
+                // 更新全域狀態
+                Game.state.playerHp = data.hp;
+                Game.state.playerMaxHp = data.maxHp;
+                Game.state.playerMp = data.mp;
+                Game.state.playerMaxMp = data.maxMp;
+                Game.state.level = data.level;
+                Game.state.currentFloor = 1;
+                Game.state.role = data.role; // 記錄職業
+                Game.state.AdditionState = data.AdditionState;
+                Game.state.AdditionEXP = 0;
+                Game.InitData.nickname = data.nickname;
+                
+                // 更新 UI
+                Game.updateLobbyUI(data);
+            } else {
+                console.warn("API 回傳失敗");
+            }
+        } catch (error) {
+            console.error("無法連線到伺服器:", error);
+            Game.updateLobbyUI(window.INITIAL_PLAYER_DATA);
+        }
     }
 
     async function saveProgress() {

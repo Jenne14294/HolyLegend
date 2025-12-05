@@ -46,15 +46,20 @@ window.Game = {
 
     // 共用工具：更新大廳 UI
     updateLobbyUI: function(data) {
+        const level = document.getElementById("lobbyLevel");
         this.safeSetText('lobbyLevel', data.level);
         this.safeSetText('lobbyName', data.nickname);
         this.safeSetText('lobbyHpText', `${data.hp}/${data.maxHp}`);
         this.safeSetText('lobbyMpText', `${data.mp}/${data.maxMp}`);
+        this.safeSetText('lobbyEXPText', `${data.exp}/${data.needEXP}`);
         
         const hpElem = document.getElementById('lobbyHpBar');
         const mpElem = document.getElementById('lobbyMpBar');
+        const expElem = document.getElementById('lobbyEXPBar');
         if (hpElem) hpElem.style.width = `${(data.hp / data.maxHp) * 100}%`;
         if (mpElem) mpElem.style.width = `${(data.mp / data.maxMp) * 100}%`;
+        if (mpElem) expElem.style.width = `${(data.exp / data.needEXP) * 100}%`;
+                
 
         const avatar = document.getElementById('lobbyAvatar');
         if (avatar && data.role) {
@@ -83,8 +88,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // ===========================
     async function initGame() {
         try {
-            const response = await fetch('/holylegend/game_lobby/status');
+            const response = await fetch('/holylegend/system/status');
             const result = await response.json();
+
+            console.log(result)
             
             if (result.success) {
                 const data = result.data;
