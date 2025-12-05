@@ -228,25 +228,31 @@ export default function initSocket(server) {
 
                 // 下一層
                 if (isEnemyDead) {
-                    setTimeout(() => {
-                        // 復活所有玩家並補滿血量，讓大家能繼續玩
-                        // (或者你可以設計成死掉的這層不能復活，看遊戲性)
-                        battle.floor++;
-                        const room = rooms[currentRoomId];
+                    // 伺服器端決定是否給獎勵 (15% 機率)
+                    const rewardRate = Math.floor(Math.random() * 100);
+                    
+                    // 初始化獎勵選擇狀態
+                    battle.rewardSelection = {
+                        isActive: false,
+                        selectedPlayers: [] // 紀錄誰已經選好了
+                    };
 
-                        battle.enemyMaxHp = 100 + (battle.floor * 5 * room.length);
-                        battle.enemyHp = battle.enemyMaxHp;
+                    if (rewardRate <= 14) {
+                        // --- 觸發獎勵流程 ---
+                        battle.rewardSelection.isActive = true;
+                        console.log(battle)
                         
-                        const monsters = ['slime', 'bat', 'skeleton', 'orc']; 
-                        const randomMonster = monsters[Math.floor(Math.random() * monsters.length)];
+                        setTimeout(() => {
+                            // 通知前端顯示獎勵畫面
+                            io.to(currentRoomId).emit('multiplayer_show_rewards');
+                        }, 1000); 
 
-                        io.to(currentRoomId).emit('multiplayer_battle_start', {
-                            enemyHp: battle.enemyMaxHp,
-                            enemyMaxHp: battle.enemyMaxHp,
-                            floor: battle.floor,
-                            monsterType: randomMonster // 同步怪物圖片
-                        });
-                    }, 2000); 
+                    } else {
+                        // --- 沒有獎勵，直接進下一層 (維持原樣) ---
+                        setTimeout(() => {
+                            startNextFloor(currentRoomId);
+                        }, 2000); 
+                    }
                 }
                 
                 // 全滅
@@ -260,6 +266,33 @@ export default function initSocket(server) {
                     const room = rooms[currentRoomId];
                     if(room) room.forEach(p => p.isReady = false);
                 }
+            }
+        });
+
+        socket.on('player_selected_reward', () => {
+            if (!currentRoomId || !battles[currentRoomId]) return;
+            const battle = battles[currentRoomId];
+
+            // 記錄該玩家已選擇
+            if (!battle.rewardSelection.selectedPlayers.includes(socket.id)) {
+                battle.rewardSelection.selectedPlayers.push(socket.id);
+            }
+
+            // 檢查：是否「所有存活玩家」都選完了？
+            // 注意：死掉的玩家不需要選獎勵，所以只比對 alivePlayerIds
+            const allSelected = battle.alivePlayerIds.every(id => 
+                battle.rewardSelection.selectedPlayers.includes(id)
+            );
+
+            if (allSelected) {
+                // 所有人選完，進入下一層
+                startNextFloor(currentRoomId);
+            } else {
+                // 還有隊友沒選，通知前端顯示等待訊息
+                socket.emit('waiting_for_teammates', { 
+                    current: battle.rewardSelection.selectedPlayers.length, 
+                    total: battle.alivePlayerIds.length 
+                });
             }
         });
 
@@ -286,6 +319,28 @@ export default function initSocket(server) {
                     io.to(currentRoomId).emit('team_update', rooms[currentRoomId]);
                 }
             }
+        }
+
+
+        function startNextFloor(roomId) {
+            const battle = battles[roomId];
+            if (!battle) return;
+
+            const room = rooms[roomId];
+            battle.floor++;
+
+            battle.enemyMaxHp = 100 + 10 * (battle.floor * room.length);
+            battle.enemyHp = battle.enemyMaxHp;
+            
+            const monsters = ['slime', 'bat', 'skeleton', 'orc']; 
+            const randomMonster = monsters[Math.floor(Math.random() * monsters.length)];
+
+            io.to(roomId).emit('multiplayer_battle_start', {
+                enemyHp: battle.enemyMaxHp,
+                enemyMaxHp: battle.enemyMaxHp,
+                floor: battle.floor,
+                monsterType: randomMonster
+            });
         }
     });
 

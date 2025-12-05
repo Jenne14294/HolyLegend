@@ -135,6 +135,8 @@ document.addEventListener('DOMContentLoaded', () => {
             state.processingLevelUp = false;
             waitingForTurn = false;
             state.isTurnLocked = false;
+            readyCheckLayer.classList.add('hidden');
+            rewardLayer.classList.add('hidden'); // ★ 確保這一行存在，不然下一層開始了獎勵視窗還在
 
             // 【新增】渲染隊友介面
             if (initialData.players) {
@@ -212,6 +214,21 @@ document.addEventListener('DOMContentLoaded', () => {
             if (result.isEnemyDead) {
                 handleMonsterDeath();
             }
+        });
+
+        socket.on('multiplayer_show_rewards', () => {
+            showRewards();
+        });
+
+        // ★ 新增：等待隊友選擇中
+        socket.on('waiting_for_teammates', (data) => {
+            // 可以在這裡顯示一個簡單的 Loading 畫面或文字
+            // 這裡簡單用 Alert 或者改變 UI 文字
+            // 為了不打斷體驗，建議在 rewardLayer 顯示文字就好
+            const container = document.getElementById('reward-cards-container');
+            container.innerHTML = `<div style="color:white; font-size:1.5rem;">
+                等待隊友選擇... (${data.current}/${data.total})
+            </div>`;
         });
         
         socket.on('game_over_all', async (data) => {
@@ -383,7 +400,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleMonsterDeath() {
         state.processingLevelUp = true;
         state.goldCollected += 50;
-        state.currentFloor++;
         updateTopBarUI();
         
         addBattleLog(`怪物被擊敗！獲得 50 金幣`, 'log-system');
@@ -540,6 +556,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function startNewFloor(isMultiplayerInit = false, specifiedMonster = null) {
+        state.currentFloor++;
         state.processingLevelUp = false; 
 
         if (!isMultiplayerInit) {
@@ -718,16 +735,26 @@ document.addEventListener('DOMContentLoaded', () => {
             default:
                 console.log("未知的獎勵類型:", rewardData.rewardType);
         }
-        
-        // 2. 更新介面顯示 (血量、金幣變動)
-        updatePlayerUI();
-        updateTopBarUI();
 
-        // 3. 隱藏獎勵層
-        rewardLayer.classList.add('hidden');
-
-        // 4. 進入下一層
-        startNewFloor();
+        // 3. 動畫結束後的行為
+        setTimeout(() => {
+            updatePlayerUI();
+            updateTopBarUI();
+            
+            if (isMultiplayerMode && socket) {
+                // 多人模式：通知 Server 我選好了，並且不關閉遮罩(等待隊友)
+                socket.emit('player_selected_reward');
+                
+                // 清空卡片，顯示等待訊息
+                rewardCardsContainer.innerHTML = '<div style="color: white; font-size: 1.5rem;">等待隊友選擇...</div>';
+                // 注意：不要移除 hidden，讓遮罩繼續蓋著，直到下一層開始
+            } else {
+                // 單人模式：直接進下一層
+                rewardLayer.classList.add('hidden');
+                state.currentFloor++;
+                startNewFloor();
+            }
+        }, 600);
     }
 
     async function enemyAttack() {
