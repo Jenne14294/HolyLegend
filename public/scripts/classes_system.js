@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
         jobListContainer.innerHTML = '<div class="loading-text">讀取中...</div>';
         
         try {
-            const res = await fetch('/holylegend/game_lobby/classes');
+            const res = await fetch('/holylegend/system/classes');
             const result = await res.json();
             
             if (result.success) {
