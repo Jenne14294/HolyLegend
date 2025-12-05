@@ -416,6 +416,125 @@ html, body {
     margin-top: 50px;
 }
 
+
+#ready-check-layer {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background-color: rgba(0, 0, 0, 0.9);
+    z-index: 200; /* 比獎勵層更高 */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(5px);
+}
+
+#ready-check-layer.hidden {
+    display: none !important;
+}
+
+.ready-title {
+    font-size: 2.5rem;
+    color: #fff;
+    margin-bottom: 10px;
+    text-shadow: 0 0 10px #3498db;
+}
+
+.ready-subtitle {
+    color: #ccc;
+    margin-bottom: 30px;
+    font-size: 1.2rem;
+}
+
+/* 準備格子容器 */
+#ready-slots-container {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 40px;
+}
+
+/* 單個格子 */
+.ready-slot {
+    position: relative;
+    width: 70px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    opacity: 0.5; /* 預設半透明 (未回應) */
+    transition: all 0.3s;
+}
+
+.ready-slot.active {
+    opacity: 1; /* 有人入座 */
+}
+
+.slot-avatar {
+    width: 60px;
+    height: 60px;
+    border: 3px solid #555;
+    border-radius: 50%;
+    background: #000;
+    margin-bottom: 5px;
+}
+
+.slot-name {
+    font-size: 0.8rem;
+    color: #fff;
+    white-space: nowrap;
+}
+
+/* 狀態圖示 (勾勾/叉叉) */
+.slot-status {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    font-size: 1rem;
+    color: #fff;
+    border: 2px solid #fff;
+    display: none; /* 預設隱藏 */
+}
+
+/* 同意樣式 */
+.ready-slot.accepted .slot-avatar { border-color: #2ecc71; box-shadow: 0 0 10px #2ecc71; }
+.ready-slot.accepted .slot-status { display: flex; background-color: #2ecc71; content: "✔"; }
+.ready-slot.accepted .slot-status::after { content: "✔"; }
+
+/* 拒絕樣式 */
+.ready-slot.declined .slot-avatar { border-color: #e74c3c; filter: grayscale(100%); }
+.ready-slot.declined .slot-status { display: flex; background-color: #e74c3c; }
+.ready-slot.declined .slot-status::after { content: "✕"; }
+
+/* 按鈕區 */
+.ready-actions {
+    display: flex;
+    gap: 20px;
+}
+
+.btn-pixel-medium {
+    font-family: 'VT323', monospace;
+    font-size: 1.5rem;
+    padding: 10px 30px;
+    border: 3px solid #fff;
+    cursor: pointer;
+    color: #fff;
+    transition: transform 0.1s;
+}
+.btn-pixel-medium:active { transform: scale(0.95); }
+
+.btn-accept { background-color: #2ecc71; box-shadow: 0 4px 0 #27ae60; }
+.btn-decline { background-color: #e74c3c; box-shadow: 0 4px 0 #c0392b; }
+
+
+
+
 /* --- 針對超小螢幕 (例如 iPhone SE) 的微調 --- */
 @media (max-height: 600px) {
     .player-status-panel {

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import app from '../app.js';
+import initSocket from '../server.js'; // 1. 引入
 import debugLib from 'debug';
 import http from 'http';
 
@@ -12,7 +13,7 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 
-const debug = debugLib('maisubackend:server');
+const debug = debugLib('holylegend:server');
 
 /**
  * Get port from environment and store in Express.
@@ -24,8 +25,8 @@ app.set('port', port);
 /**
  * Create HTTP server.
  */
-const server = http.createServer(app);
-
+var server = http.createServer(app);          // 2. 建立 server
+initSocket(server);
 /**
  * Listen on provided port, on all network interfaces.
  */

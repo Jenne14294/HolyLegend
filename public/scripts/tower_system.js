@@ -3,16 +3,27 @@ document.addEventListener('DOMContentLoaded', () => {
     // DOM 元素
     const lobbyLayer = document.getElementById('lobby-layer');
     const towerLayer = document.getElementById('tower-layer');
+    const teamLayer = document.getElementById('team-layer');
     const btnEnterTower = document.getElementById('btn-enter-tower');
     const btnExitTower = document.getElementById('btn-tower-exit');
     const btnAttack = document.getElementById('btn-attack');
+    const teammatesContainer = document.getElementById('teammates-container'); // 新增這個
+    
+    // 獎勵與準備
     const rewardLayer = document.getElementById('reward-layer');
     const rewardCardsContainer = document.getElementById('reward-cards-container');
+    const readyCheckLayer = document.getElementById('ready-check-layer');
+    const readySlotsContainer = document.getElementById('ready-slots-container');
+    const btnReadyAccept = document.getElementById('btn-ready-accept');
+    const btnReadyDecline = document.getElementById('btn-ready-decline');
 
-    // 簡化存取 Game.state
     const state = window.Game.state; 
+    const socket = window.Game.socket; 
 
-
+    // 多人模式狀態標記
+    let isMultiplayerMode = false;
+    let waitingForTurn = false; // 是否正在等待隊友行動
+    let battleLogContainer = null; // 日誌容器
 
     // 獎勵圖示
     const REWARD_ICONS = {
@@ -22,17 +33,248 @@ document.addEventListener('DOMContentLoaded', () => {
         'MP': '💧', 'MP_RECOVER_PERCENT': '💧'
     };
 
+    // 執行 UI 初始化
+    initBattleLogUI();
+
     // ===========================
-    // 進入爬塔
+    // 初始化：動態建立戰鬥日誌 UI
+    // ===========================
+    function initBattleLogUI() {
+        // 1. 注入 CSS
+        const style = document.createElement('style');
+        style.innerHTML = `
+            .battle-log {
+                position: absolute;
+                top: 70px; /* Header 下方 */
+                left: 10px;
+                right: 10px;
+                height: 100px; /* 固定高度 */
+                background: rgba(0, 0, 0, 0.6);
+                border: 2px solid #555;
+                border-radius: 4px;
+                pointer-events: none; /* 讓點擊穿透，不影響打怪 */
+                overflow-y: hidden;
+                display: flex;
+                flex-direction: column;
+                justify-content: flex-end; /* 訊息從底部開始 */
+                padding: 5px 10px;
+                font-family: 'VT323', monospace;
+                font-size: 1.1rem;
+                z-index: 5;
+            }
+            .log-line { margin-top: 2px; text-shadow: 1px 1px 0 #000; opacity: 0.9; }
+            .log-player { color: #f1c40f; } /* 黃色：自己 */
+            .log-team { color: #3498db; }   /* 藍色：隊友/全隊 */
+            .log-enemy { color: #e74c3c; }  /* 紅色：怪物/受傷 */
+            .log-system { color: #bdc3c7; } /* 灰色：系統 */
+        `;
+        document.head.appendChild(style);
+
+        // 2. 建立 DOM
+        if (!document.getElementById('battle-log')) {
+            const logDiv = document.createElement('div');
+            logDiv.id = 'battle-log';
+            logDiv.className = 'battle-log';
+            if (towerLayer) towerLayer.appendChild(logDiv);
+            battleLogContainer = logDiv;
+        } else {
+            battleLogContainer = document.getElementById('battle-log');
+        }
+    }
+
+    // 輔助：新增日誌訊息
+    function addBattleLog(message, type = 'log-system') {
+        if (!battleLogContainer) return;
+        
+        const line = document.createElement('div');
+        line.className = `log-line ${type}`;
+        line.innerText = message;
+        battleLogContainer.appendChild(line);
+
+        // 只保留最近 5 條
+        while (battleLogContainer.children.length > 5) {
+            battleLogContainer.removeChild(battleLogContainer.firstChild);
+        }
+    }
+
+
+    // ===========================
+    // Socket 事件監聽 (多人戰鬥核心)
+    // ===========================
+    if (socket) {
+        socket.on('init_ready_check', (members) => {
+            isMultiplayerMode = true;
+            renderReadyCheckModal(members);
+            lobbyLayer.classList.add('hidden');
+            teamLayer.classList.add('hidden');
+            towerLayer.classList.remove('hidden');
+            readyCheckLayer.classList.remove('hidden');
+        });
+
+        socket.on('update_ready_view', (data) => {
+            updateReadySlotStatus(data.socketId, data.status);
+        });
+
+        socket.on('ready_check_canceled', (data) => {
+            alert(`${data.nickname} 拒絕了準備，取消戰鬥。`);
+            readyCheckLayer.classList.add('hidden');
+            towerLayer.classList.add('hidden');
+            teamLayer.classList.remove('hidden');
+            btnReadyAccept.disabled = false;
+            btnReadyDecline.disabled = false;
+            btnReadyAccept.innerText = "接受";
+            window.Game.playMusic('/holylegend/audio/game_lobby.ogg');
+        });
+
+        socket.on('multiplayer_battle_start', (initialData) => {
+            readyCheckLayer.classList.add('hidden');
+            state.currentFloor = initialData.floor;
+            state.enemyMaxHp = initialData.enemyMaxHp;
+            state.enemyHp = initialData.enemyHp;
+            state.isGameOver = false;
+            state.processingLevelUp = false;
+            waitingForTurn = false;
+            state.isTurnLocked = false;
+
+            // 【新增】渲染隊友介面
+            if (initialData.players) {
+                console.log(initialData.players)
+                renderTeammatesUI(initialData.players);
+            }
+            
+            startNewFloor(true, initialData.monsterType); 
+            window.Game.playMusic('/holylegend/audio/tower_theme.ogg');
+            
+            addBattleLog(`=== 第 ${initialData.floor} 層戰鬥開始 ===`, 'log-system');
+        });
+
+        socket.on('turn_result', (result) => {
+            const enemyImg = document.getElementById('enemy-img');
+            if(enemyImg) {
+                enemyImg.style.transform = 'scale(0.8)';
+                setTimeout(() => enemyImg.style.transform = 'scale(1)', 100);
+            }
+
+            state.enemyHp = Math.max(0, state.enemyHp - result.damageDealt);
+            showDamageNumber(result.damageDealt); 
+            updateEnemyUI();
+
+            // 顯示全隊傷害日誌
+            addBattleLog(`隊伍合力造成 ${result.damageDealt} 點傷害`, 'log-team');
+
+            if (result.damageTaken > 0 && result.targetSocketId) {
+                setTimeout(() => {
+                    if (result.targetSocketId === socket.id) {
+                        playerTakeDamage(result.damageTaken);
+                        // 日誌在 playerTakeDamage 裡處理
+                    } else {
+                        addBattleLog(`隊友受到了 ${result.damageTaken} 點傷害！`, 'log-enemy');
+                    }
+                }, 600);
+            }
+
+            if (result.deadPlayerId) {
+                if (result.deadPlayerId === socket.id) {
+                    state.isGameOver = true; 
+                    state.playerHp = 0;
+                    updatePlayerUI();
+                    addBattleLog("你已倒下！進入觀戰模式...", 'log-enemy');
+                    alert("你已倒下！進入觀戰模式...");
+                    updateControlsState(); 
+                } else {
+                    addBattleLog("一名隊友倒下了！", 'log-enemy');
+                }
+            }
+
+            // 【新增】同步隊友血量
+            if (result.playersStatus) {
+                updateTeammatesUI(result.playersStatus);
+                
+                // 同步自己的血量 (Server Authority 校正)
+                // 雖然本地有 playerTakeDamage，但用 Server 的值校正更準
+                const myStatus = result.playersStatus[socket.id];
+                if (myStatus) {
+                    state.playerHp = myStatus.hp;
+                    updatePlayerUI();
+                }
+            }
+
+            if (result.isAllDead) {
+                return;
+            }
+
+            if (!state.isGameOver && !result.isEnemyDead) {
+                waitingForTurn = false;
+                state.isTurnLocked = false; 
+                updateControlsState(); 
+            }
+
+            if (result.isEnemyDead) {
+                handleMonsterDeath();
+            }
+        });
+        
+        socket.on('game_over_all', async (data) => {
+             // 【修正】防止重複執行
+             if (state.isEndingProcessing) return;
+             state.isEndingProcessing = true;
+
+             state.currentFloor = data.floor;
+             alert(`全隊覆沒！止步於第 ${state.currentFloor} 層`);
+             
+             await saveProgress();
+             resetBattle();
+             
+             state.isEndingProcessing = false;
+        });
+    }
+
+    // ===========================
+    // 進入爬塔按鈕
     // ===========================
     if (btnEnterTower) {
         btnEnterTower.addEventListener('click', () => {
-            lobbyLayer.classList.add('hidden');
-            towerLayer.classList.remove('hidden');
-            
-            startNewFloor();
-            // 呼叫 Game Core 播放戰鬥音樂
-            window.Game.playMusic('/holylegend/audio/tower_theme.ogg');
+            // 判斷是否在隊伍中 (檢查 HTML 裡是否有隊伍資訊，或是 check myRoomId)
+            // 這裡假設如果 team-status-text 顯示有房間號，就是多人
+            const teamText = document.querySelector('.team-status-text');
+            const isInTeam = teamText && teamText.innerText.includes('房號');
+
+            if (isInTeam) {
+                // --- 多人模式 ---
+                // 發送請求給 Server，Server 會廣播 init_ready_check 給全隊
+                socket.emit('request_tower_start');
+            } else {
+                // --- 單人模式 (保持原樣) ---
+                isMultiplayerMode = false;
+                lobbyLayer.classList.add('hidden');
+                towerLayer.classList.remove('hidden');
+                window.Game.playMusic('/holylegend/audio/tower_theme.ogg');
+                startNewFloor();
+                
+            }
+        });
+    }
+
+    // ===========================
+    // 準備確認按鈕
+    // ===========================
+    if (btnReadyAccept) {
+        btnReadyAccept.addEventListener('click', () => {
+            socket.emit('respond_ready', true); // 同意
+            // UI 鎖定，等待其他人
+            btnReadyAccept.disabled = true;
+            btnReadyDecline.disabled = true;
+            btnReadyAccept.innerText = "等待中...";
+        });
+    }
+
+    if (btnReadyDecline) {
+        btnReadyDecline.addEventListener('click', () => {
+            socket.emit('respond_ready', false); // 拒絕
+            // 回大廳
+            readyCheckLayer.classList.add('hidden');
+            lobbyLayer.classList.remove('hidden');
+            towerLayer.classList.add('hidden');
         });
     }
 
@@ -48,8 +290,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!confirm(`確定要離開嗎？\n目前獲得金幣: ${state.goldCollected}\n預計獲得經驗: ${totalExp}`)) return;
 
             state.isGameOver = true;
-            alert(`結算完成！\n獲得金幣: ${state.goldCollected}\n獲得經驗: ${totalExp}`);
             
+            if (isMultiplayerMode) {
+                socket.emit('leave_battle'); // 通知 Server 離開
+            }
+
+            alert(`結算完成！\n獲得金幣: ${state.goldCollected}\n獲得經驗: ${totalExp}`);
             resetBattle();
         });
     }
@@ -76,67 +322,208 @@ document.addEventListener('DOMContentLoaded', () => {
                 setTimeout(() => enemyImg.style.transform = 'scale(1)', 100);
             }
 
-            let damage = 0;
-
-            state.AdditionState.forEach(value => {
-                for (let i = 0; i < state.AdditionState.length; i++)
-                {
-                    damage += value * 0.25;
-                }
-            });
-
-            const system_critRate = Math.random() * 100
-            let critRate = (state.AdditionState.DEX * 0.25 + state.AdditionState.INT * 0.15)
-            let CritMultiply = 1;
-
-            if (system_critRate < critRate)
-            {
-                CritMultiply = 2;
-            }
-
-            let damageMultiply = 0.8 + Math.random() * 0.4
-            damage = Math.round(damage * damageMultiply * CritMultiply);
-
-            state.enemyHp -= damage;
-
-            showDamageNumber(damage);
-            updateEnemyUI();
-
-            // 怪物死亡
-            if (state.enemyHp <= 0) {
-                state.processingLevelUp = true;
-                state.goldCollected += 50;
-                updateTopBarUI();
-                
-                if(enemyImg) enemyImg.style.opacity = '0';
-
-                const RewardRate = Math.floor(Math.random() * 100)
-                console.log(RewardRate)
-                // const RewardRate = 0
-                
-                // 怪物死了，不需要解鎖 isTurnLocked，因為 startNewFloor 會負責重置
-                
-                setTimeout(async () => {
-                    if (state.isGameOver) return; 
-                    state.currentFloor++;
-
-                    if (RewardRate <= 14) {
-                        await showRewards();
-                    }
-
-                    else {
-                        startNewFloor();
-                    }
-
-                    
-                }, 500);
+           if (isMultiplayerMode && socket) {
+                waitingForTurn = true;
+                // 【關鍵修正】把本地的 HP 傳給 Server，強迫 Server 同步
+                socket.emit('player_action', { 
+                    type: 'attack',
+                    currentHp: state.playerHp,
+                    AdditionState: state.AdditionState
+                });
             } else {
-                setTimeout(enemyAttack, 500);
+                // --- 單人模式 (原邏輯) ---
+                performLocalAttack();
             }
         });
     }
 
+    // 單人攻擊邏輯 (封裝)
+    function performLocalAttack() {
+        const enemyImg = document.getElementById('enemy-img');
+        let damage = 0;
+
+        if(enemyImg) {
+            enemyImg.style.transform = 'scale(0.9)';
+            setTimeout(() => enemyImg.style.transform = 'scale(1)', 100);
+        }
+
+        state.AdditionState.forEach(value => {
+            for (let i = 0; i < state.AdditionState.length; i++)
+            {
+                damage += value * 0.25;
+            }
+        });
+
+        const system_critRate = Math.random() * 100
+        let critRate = (state.AdditionState.DEX * 0.25 + state.AdditionState.INT * 0.15)
+        let CritMultiply = 1;
+
+        if (system_critRate < critRate)
+        {
+            CritMultiply = 2;
+        }
+
+        let damageMultiply = 0.8 + Math.random() * 0.4
+        damage = Math.round(damage * damageMultiply * CritMultiply);
+        // 若有屬性加成...
+        
+        state.enemyHp -= damage;
+        addBattleLog(`你對怪物造成 ${damage} 點傷害`, 'log-player');
+        showDamageNumber(damage);
+        updateEnemyUI();
+
+        if (state.enemyHp <= 0) {
+            handleMonsterDeath();
+        } else {
+            setTimeout(enemyAttack, 500); // 單人怪物反擊
+        }
+    }
+
+    // 怪物死亡處理 (通用)
+    function handleMonsterDeath() {
+        state.processingLevelUp = true;
+        state.goldCollected += 50;
+        state.currentFloor++;
+        updateTopBarUI();
+        
+        addBattleLog(`怪物被擊敗！獲得 50 金幣`, 'log-system');
+        const enemyImg = document.getElementById('enemy-img');
+        if(enemyImg) enemyImg.style.opacity = '0';
+        
+        setTimeout(() => {
+            if (state.isGameOver) return; 
+            if (isMultiplayerMode) {
+                // 多人模式：等待 Server 發送下一層指令 (或者 Server 直接發獎勵)
+                // 這裡暫時模擬：
+                // socket.emit('request_next_floor'); 
+            } else {
+                const RewardRate = Math.floor(Math.random() * 100)
+
+                if (RewardRate <= 14) {
+                    showRewards(); // 單人顯示獎勵
+                }
+
+                else {
+                    startNewFloor();
+                }
+                
+            }
+        }, 500);
+    }
+
+
+    // 玩家受傷處理 (通用)
+    function playerTakeDamage(amount) {
+        state.playerHp -= amount;
+        if (state.playerHp < 0) state.playerHp = 0;
+        updatePlayerUI();
+        
+        document.body.style.backgroundColor = '#500';
+        setTimeout(() => document.body.style.backgroundColor = '', 100);
+        addBattleLog(`你受到 ${amount} 點傷害！`, 'log-enemy');
+
+        if (state.playerHp <= 0 && !isMultiplayerMode) {
+            state.isGameOver = true;
+            saveProgress().then(resetBattleToLobby);
+        }
+    }
+
     // --- 輔助函式 ---
+    // 渲染準備視窗
+    function renderReadyCheckModal(members) {
+        const container = document.getElementById('ready-slots-container');
+        container.innerHTML = '';
+
+        // 復原按鈕
+        btnReadyAccept.disabled = false;
+        btnReadyDecline.disabled = false;
+        btnReadyAccept.innerText = "接受";
+
+        members.forEach(m => {
+            const roleName = m.state.role ? (m.state.role.charAt(0).toUpperCase() + m.state.role.slice(1).toLowerCase()) : 'Novice';
+            const imgSrc = `/holylegend/images/classes/${roleName}_1.png`;
+
+            const slot = document.createElement('div');
+            slot.className = 'ready-slot active'; // 標記有人
+            slot.id = `slot-${m.socketId}`; // 方便後續更新狀態
+            
+            slot.innerHTML = `
+                <img src="${imgSrc}" class="slot-avatar">
+                <div class="slot-status"></div>
+                <div class="slot-name">${m.nickname}</div>
+            `;
+            container.appendChild(slot);
+        });
+    }
+
+    // 更新某個格子的勾勾
+    function updateReadySlotStatus(socketId, status) {
+        const slot = document.getElementById(`slot-${socketId}`);
+        if (slot) {
+            if (status === 'accepted') {
+                slot.classList.add('accepted');
+            } else if (status === 'declined') {
+                slot.classList.add('declined');
+            }
+        }
+    }
+
+    // 更新按鈕外觀 (冷卻/等待中)
+    function updateControlsState() {
+        if (waitingForTurn || state.isTurnLocked) {
+            btnAttack.style.filter = "grayscale(100%)";
+            btnAttack.style.transform = "translateY(2px)";
+        } else {
+            btnAttack.style.filter = "";
+            btnAttack.style.transform = "";
+        }
+    }
+
+    function resetBattle() {
+        state.goldCollected = 0;
+        state.currentFloor = 1; 
+        state.isGameOver = false;
+        state.processingLevelUp = false;
+        state.playerHp = state.playerMaxHp;
+        state.playerMp = state.playerMaxMp;
+        
+        towerLayer.classList.add('hidden');
+        lobbyLayer.classList.remove('hidden');
+        readyCheckLayer.classList.add('hidden'); // 確保關閉
+
+        window.Game.playMusic('/holylegend/audio/game_lobby.ogg');
+        
+    }
+
+    // 回到大廳 (單人用)
+    function resetBattleToLobby() {
+        state.goldCollected = 0;
+        state.currentFloor = 1; 
+        state.isGameOver = false;
+        
+        towerLayer.classList.add('hidden');
+        lobbyLayer.classList.remove('hidden');
+        window.Game.playMusic('/holylegend/audio/game_lobby.ogg');
+        location.reload(); // 單人模式重整比較乾淨
+    }
+
+    async function saveProgress() {
+        const expGained = calculateGameOver();
+        alert(`你已在 ${state.currentFloor} 層\n獲得點 ${expGained} 經驗值`)
+        try {
+            await fetch('/holylegend/game_lobby/save_status', { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    exp: expGained,
+                    gold: state.goldCollected
+                })
+            });
+            console.log(`存檔成功: EXP+${expGained}, Gold+${state.goldCollected}`);
+        } catch (err) {
+            console.error("結算失敗", err);
+        }
+    }
 
     function calculateGameOver() {
         const floor = state.currentFloor;
@@ -152,26 +539,31 @@ document.addEventListener('DOMContentLoaded', () => {
         return EXPgained;
     }
 
-    function startNewFloor() {
-        state.isGameOver = false; 
+    function startNewFloor(isMultiplayerInit = false, specifiedMonster = null) {
         state.processingLevelUp = false; 
+
+        if (!isMultiplayerInit) {
+            state.enemyMaxHp = 100 + (state.currentFloor * 10);
+            state.enemyHp = state.enemyMaxHp;
+        }
         
-        // 【修正 3】新樓層開始，解開回合鎖，恢復按鈕樣式
-        state.isTurnLocked = false;
-        if(btnAttack) {
-            btnAttack.style.filter = "";
-            btnAttack.style.transform = "";
+        // 確保沒死才能解鎖
+        if (!state.isGameOver) {
+            state.isTurnLocked = false;
+            waitingForTurn = false;
+            updateControlsState();
         }
 
-        state.enemyMaxHp = 100 + (state.currentFloor * 10);
-        state.enemyHp = state.enemyMaxHp;
-        
         const enemyImg = document.getElementById('enemy-img');
         if(enemyImg) {
             enemyImg.style.opacity = '1';
-            const monsters = ['slime', 'bat', 'skeleton', 'orc']; 
-            const randomIndex = Math.floor(Math.random() * monsters.length);
-            const randomMonster = monsters[randomIndex];
+            let randomMonster = 'slime';
+            if (specifiedMonster) {
+                randomMonster = specifiedMonster;
+            } else {
+                const monsters = ['slime', 'bat', 'skeleton', 'orc']; 
+                randomMonster = monsters[Math.floor(Math.random() * monsters.length)];
+            }
             enemyImg.src = `/holylegend/images/enemies/${randomMonster}.png`;
             enemyImg.onerror = function() {
                 this.src = '/holylegend/images/enemies/slime.png'; 
@@ -181,6 +573,8 @@ document.addEventListener('DOMContentLoaded', () => {
         updateTopBarUI();
         updatePlayerUI();
     }
+
+    
 
     async function showRewards() {
         // 1. 顯示遮罩
@@ -274,7 +668,6 @@ document.addEventListener('DOMContentLoaded', () => {
             // 失敗保底：2秒後自動進入下一層
             setTimeout(() => {
                 rewardLayer.classList.add('hidden');
-                state.currentFloor++;
                 startNewFloor();
             }, 2000);
         }
@@ -287,18 +680,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (rewardData.rewardPercent > 0) {
                     const heal = Math.floor(state.playerMaxHp * (rewardData.rewardPercent / 100));
                     state.playerHp = Math.min(state.playerMaxHp, state.playerHp + heal);
-                    alert(`恢復了 ${heal} 點生命！`);
+                    addBattleLog(`恢復了 ${heal} 點生命！`, 'log-player');
                 } else {
                     state.playerHp = Math.min(state.playerMaxHp, state.playerHp + rewardData.rewardValue);
-                    alert(`恢復了 ${rewardData.rewardValue} 點生命！`);
+                    addBattleLog(`恢復了 ${rewardData.rewardValue} 點生命！`, 'log-player');
                 }
                 break;
             case 'MP': // 資料庫是用 MP
                 if (rewardData.rewardPercent > 0) {
                     const mana = Math.floor(state.playerMaxMp * (rewardData.rewardPercent / 100));
                     state.playerMp = Math.min(state.playerMaxMp, state.playerMp + mana);
+                    addBattleLog(`恢復了 ${mana} 點魔力！`, 'log-player');
                 } else {
                     state.playerMp = Math.min(state.playerMaxMp, state.playerMp + rewardData.rewardValue);
+                    addBattleLog(`恢復了 ${rewardData.rewardValue} 點魔力！`, 'log-player');
                 }
                 break;
             case 'GOLD':
@@ -332,7 +727,6 @@ document.addEventListener('DOMContentLoaded', () => {
         rewardLayer.classList.add('hidden');
 
         // 4. 進入下一層
-        state.currentFloor++;
         startNewFloor();
     }
 
@@ -341,59 +735,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state.isGameOver || state.processingLevelUp) return;
 
         const dmg = 5;
-        state.playerHp -= dmg;
-        if (state.playerHp < 0) state.playerHp = 0;
-        
-        updatePlayerUI();
-        
-        // 【修正 4】怪物攻擊完畢，解開回合鎖，玩家可以再次攻擊
-        state.isTurnLocked = false;
-        if(btnAttack) {
-            btnAttack.style.filter = "";
-            btnAttack.style.transform = "";
-        }
+        state.isTurnLocked = false; // 解鎖
 
-        document.body.style.backgroundColor = '#500';
-        setTimeout(() => document.body.style.backgroundColor = '', 100);
+        playerTakeDamage(dmg);
+        updateControlsState();
 
-        // 玩家死亡
-        if (state.playerHp <= 0) {
-            if (state.isGameOver) return;
-            state.isGameOver = true;
-
-            const expGained = calculateGameOver();
-            alert(`你已在第 ${state.currentFloor} 層倒下\n你獲得了 ${expGained} 點經驗值！`);
-            
-            try {
-                await fetch('/holylegend/game_lobby/save_status', { 
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        exp: expGained,
-                        gold: state.goldCollected
-                    })
-                });
-            } catch (err) {
-                console.error("結算失敗", err);
-            }
-
-            resetBattle();
-        }
-    }
-
-    function resetBattle() {
-        state.goldCollected = 0;
-        state.currentFloor = 1; 
-        state.isGameOver = false;
-        state.processingLevelUp = false;
-        
-        towerLayer.classList.add('hidden');
-        lobbyLayer.classList.remove('hidden');
-
-        // 切回大廳音樂
-        window.Game.playMusic('/holylegend/audio/game_lobby.ogg');
-        
-        location.reload(); 
     }
 
     function showDamageNumber(num) {
@@ -427,5 +773,153 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateTopBarUI() {
         window.Game.safeSetText('tower-floor', state.currentFloor);
         window.Game.safeSetText('tower-gold', state.goldCollected);
+    }
+
+
+    // ===========================
+    //  新增：隊友 UI 輔助函式
+    // ===========================
+
+    function renderTeammatesUI(players) {
+        teammatesContainer.innerHTML = ''; // 清空
+
+        players.forEach(p => {
+            // 跳過自己，只顯示隊友
+            if (p.socketId === socket.id) return;
+
+            const roleName = p.role ? (p.role.charAt(0).toUpperCase() + p.role.slice(1).toLowerCase()) : 'Novice';
+            const imgSrc = `/holylegend/images/classes/${roleName}_1.png`;
+
+            const card = document.createElement('div');
+            card.className = 'tm-card';
+            card.dataset.id = p.socketId; // 用 socketId 識別
+
+            // 計算初始百分比
+            const hpPct = (p.hp / p.maxHp) * 100;
+            const mpPct = (p.mp / p.maxMp) * 100;
+
+            card.innerHTML = `
+                <div class="tm-avatar-box">
+                    <img src="${imgSrc}" onerror="this.src='/holylegend/images/classes/Novice_1.png'">
+                </div>
+                <div class="tm-info">
+                    <div class="tm-name">${p.nickname}</div>
+                    <div class="tm-bar-group">
+                        <div class="tm-hp-bar">
+                            <div class="fill" style="width: ${hpPct}%"></div>
+                        </div>
+                        <div class="tm-mp-bar">
+                            <div class="fill" style="width: ${mpPct}%"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // 點擊事件 (未來擴充：對隊友使用技能)
+            card.addEventListener('click', () => {
+                console.log(`點擊了隊友: ${p.nickname} (${p.socketId})`);
+                // 例如：useSkillOn(p.socketId);
+            });
+
+            teammatesContainer.appendChild(card);
+        });
+    }
+
+    function updateTeammatesUI(statusMap) {
+        // statusMap: { socketId: { hp, isDead }, ... }
+        
+        const cards = teammatesContainer.querySelectorAll('.tm-card');
+        cards.forEach(card => {
+            const sid = card.dataset.id;
+            const status = statusMap[sid];
+            
+            if (status) {
+                // 1. 處理死亡樣式
+                if (status.isDead) {
+                    card.classList.add('dead');
+                } else {
+                    card.classList.remove('dead');
+                }
+
+                // 2. 更新血條 (這裡簡化，假設 maxHp 不變，或者可以從 dataset 存 maxHp)
+                // 為了簡單，我們假設 maxHp 是 100 (或者需要從一開始存起來)
+                // 更好的做法是在 render 時把 maxHp 存到 dataset
+                // 這裡先做一個簡單的視覺更新，假設滿血比例
+                
+                // 修正：因為我們不知道 maxHp，這裡用一個簡單的視覺縮放
+                // 實務上應該在 render 時存 data-max-hp
+                // 暫時解法：如果 hp=0 width=0, 否則大致顯示
+                // 為了準確，建議修改 renderTeammates 把 maxHp 存入
+                
+                // 讓我們優化一下 renderTeammates (上面代碼我沒改 dataset，這裡補救一下)
+                // 如果您希望準確，請在 renderTeammates 的 card.dataset.maxHp = p.maxHp;
+                // 這裡先假設 width 直接反映百分比 (如果後端傳來的是數值，這裡會有點問題)
+                
+                // 既然是休閒，我們先做視覺回饋：
+                // 我們需要 maxHp 才能算百分比。
+                // 如果沒存 maxHp，這裡會有點難算。
+                // 建議方案：後端直接傳 hpPercent 比較快，或者前端存 map。
+            }
+        });
+    }
+    
+    // 優化版：需要先建立一個 Map 存隊友最大血量
+    const teammatesData = {}; // 用來存 { socketId: maxHp }
+
+    // 重新覆寫 renderTeammatesUI 以儲存 maxHp
+    function renderTeammatesUI(players) {
+        teammatesContainer.innerHTML = ''; 
+
+        players.forEach(p => {
+            if (p.socketId === socket.id) return;
+            
+            // 存起來
+            teammatesData[p.socketId] = { maxHp: p.maxHp || 100, maxMp: p.maxMp || 50 };
+
+            const roleName = p.role ? (p.role.charAt(0).toUpperCase() + p.role.slice(1).toLowerCase()) : 'Novice';
+            const imgSrc = `/holylegend/images/classes/${roleName}_1.png`;
+
+            const card = document.createElement('div');
+            card.className = 'tm-card';
+            card.dataset.id = p.socketId;
+
+            const hpPct = (p.hp / p.maxHp) * 100;
+            const mpPct = (p.mp / p.maxMp) * 100;
+
+            card.innerHTML = `
+                <div class="tm-avatar-box">
+                    <img src="${imgSrc}">
+                </div>
+                <div class="tm-info">
+                    <div class="tm-name">${p.nickname}</div>
+                    <div class="tm-bar-group">
+                        <div class="tm-hp-bar"><div class="fill" style="width: ${hpPct}%"></div></div>
+                        <div class="tm-mp-bar"><div class="fill" style="width: ${mpPct}%"></div></div>
+                    </div>
+                </div>
+            `;
+            teammatesContainer.appendChild(card);
+        });
+    }
+
+    // 重新覆寫 updateTeammatesUI
+    function updateTeammatesUI(statusMap) {
+        const cards = teammatesContainer.querySelectorAll('.tm-card');
+        cards.forEach(card => {
+            const sid = card.dataset.id;
+            const status = statusMap[sid];
+            const maxData = teammatesData[sid]; // 取出最大值
+
+            if (status && maxData) {
+                if (status.isDead) card.classList.add('dead');
+                else card.classList.remove('dead');
+
+                const hpPct = (status.hp / maxData.maxHp) * 100;
+                // MP 如果後端沒傳，就先不動
+                
+                const hpBar = card.querySelector('.tm-hp-bar .fill');
+                if(hpBar) hpBar.style.width = `${Math.max(0, hpPct)}%`;
+            }
+        });
     }
 });
