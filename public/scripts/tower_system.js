@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isMultiplayerMode = false;
     let waitingForTurn = false; // 是否正在等待隊友行動
     let battleLogContainer = null; // 日誌容器
+    let myReadyStatus = false; // 記錄自己的準備狀態
 
     // 獎勵圖示
     const REWARD_ICONS = {
@@ -104,6 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (socket) {
         socket.on('init_ready_check', (members) => {
             isMultiplayerMode = true;
+            myReadyStatus = false; // 重置
             renderReadyCheckModal(members);
             lobbyLayer.classList.add('hidden');
             teamLayer.classList.add('hidden');
@@ -161,13 +163,23 @@ document.addEventListener('DOMContentLoaded', () => {
             showDamageNumber(result.damageDealt); 
             updateEnemyUI();
 
+            if (result.playersStatus) {
+                updateTeammatesUI(result.playersStatus);
+                
+                const myStatus = result.playersStatus[socket.id];
+                if (myStatus) {
+                    state.playerHp = myStatus.hp;
+                    updatePlayerUI(); // 這裡才更新 UI
+                }
+            }
+
             // 顯示全隊傷害日誌
             addBattleLog(`隊伍合力造成 ${result.damageDealt} 點傷害`, 'log-team');
 
             if (result.damageTaken > 0 && result.targetSocketId) {
                 setTimeout(() => {
                     if (result.targetSocketId === socket.id) {
-                        playerTakeDamage(result.damageTaken);
+                        playerTakeDamageVisual(result.damageTaken); 
                         // 日誌在 playerTakeDamage 裡處理
                     } else {
                         addBattleLog(`隊友受到了 ${result.damageTaken} 點傷害！`, 'log-enemy');
@@ -255,6 +267,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // 這裡假設如果 team-status-text 顯示有房間號，就是多人
             const teamText = document.querySelector('.team-status-text');
             const isInTeam = teamText && teamText.innerText.includes('房號');
+            btnReadyAccept.style.backgroundColor = ""; // 恢復原色
 
             if (isInTeam) {
                 // --- 多人模式 ---
@@ -275,13 +288,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // ===========================
     // 準備確認按鈕
     // ===========================
+    // 【新增】準備/取消按鈕邏輯
     if (btnReadyAccept) {
         btnReadyAccept.addEventListener('click', () => {
-            socket.emit('respond_ready', true); // 同意
-            // UI 鎖定，等待其他人
-            btnReadyAccept.disabled = true;
-            btnReadyDecline.disabled = true;
-            btnReadyAccept.innerText = "等待中...";
+            if (!myReadyStatus) {
+                // 接受
+                socket.emit('respond_ready', true);
+                myReadyStatus = true;
+                btnReadyAccept.innerText = "取消";
+                btnReadyAccept.style.backgroundColor = "#e67e22"; // 橘色
+                btnReadyDecline.disabled = true; // 已準備就不能直接按拒絕，要先取消
+            } else {
+                // 取消準備
+                socket.emit('cancel_ready');
+                myReadyStatus = false;
+                btnReadyAccept.innerText = "接受";
+                btnReadyAccept.style.backgroundColor = ""; // 恢復原色
+                btnReadyDecline.disabled = false;
+            }
         });
     }
 
@@ -403,6 +427,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateTopBarUI();
         
         addBattleLog(`怪物被擊敗！獲得 50 金幣`, 'log-system');
+        state.currentFloor++;
         const enemyImg = document.getElementById('enemy-img');
         if(enemyImg) enemyImg.style.opacity = '0';
         
@@ -427,8 +452,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 500);
     }
 
+    function playerTakeDamageVisual(amount) {
+        // 純視覺，不改 state.playerHp
+        document.body.style.backgroundColor = '#500';
+        setTimeout(() => document.body.style.backgroundColor = '', 100);
+        addBattleLog(`你受到 ${amount} 點傷害！`, 'log-enemy');
+    }
 
-    // 玩家受傷處理 (通用)
+
+    // 單人模式專用：包含扣血邏輯
     function playerTakeDamage(amount) {
         state.playerHp -= amount;
         if (state.playerHp < 0) state.playerHp = 0;
@@ -439,6 +471,8 @@ document.addEventListener('DOMContentLoaded', () => {
         addBattleLog(`你受到 ${amount} 點傷害！`, 'log-enemy');
 
         if (state.playerHp <= 0 && !isMultiplayerMode) {
+            addBattleLog("你已倒下！戰鬥結束。", 'log-enemy');
+            alert("你已倒下！");
             state.isGameOver = true;
             saveProgress().then(resetBattleToLobby);
         }
@@ -556,7 +590,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function startNewFloor(isMultiplayerInit = false, specifiedMonster = null) {
-        state.currentFloor++;
         state.processingLevelUp = false; 
 
         if (!isMultiplayerInit) {
