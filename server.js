@@ -82,7 +82,7 @@ export default function initSocket(server) {
                 
                 // 初始化戰鬥
                 const floor = 1;
-                const enemyMaxHp = 100 * floor * room.length; 
+                const enemyMaxHp = 100 + (10 * ((floor - 1) * room.length)); 
                 const monsters = ['slime', 'bat', 'skeleton', 'orc']; 
                 const randomMonster = monsters[Math.floor(Math.random() * monsters.length)];
 
@@ -131,7 +131,27 @@ export default function initSocket(server) {
             if (battle.playerStates[socket.id]?.isDead) return;
 
             // 紀錄動作
-            const damage = Math.floor(Math.random() * 10) + 10;
+            let damage = 0;
+
+            action.AdditionState.forEach(value => {
+                for (let i = 0; i < action.AdditionState.length; i++)
+                {
+                    damage += value * 0.25;
+                }
+            });
+
+            const system_critRate = Math.random() * 100
+            let critRate = (action.AdditionState.DEX * 0.25 + action.AdditionState.INT * 0.15)
+            let CritMultiply = 1;
+
+            if (system_critRate < critRate)
+            {
+                CritMultiply = 2;
+            }
+
+            let damageMultiply = 0.8 + Math.random() * 0.4
+            damage = Math.round(damage * damageMultiply * CritMultiply);
+
             const hasActed = battle.pendingActions.find(a => a.socketId === socket.id);
             if (!hasActed) {
                 battle.pendingActions.push({ socketId: socket.id, damage: damage });
