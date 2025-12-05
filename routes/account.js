@@ -2,6 +2,7 @@ import express from 'express';
 import bcrypt from 'bcrypt';
 import { getUser, createUser, verifyToken} from '../services/accountAuth.js';
 import { getClass, updateUserClass, getUserClassRecord, addUserClassRecord } from '../services/classes.js';
+import { updateUser } from '../services/account.js';
 import jwt from 'jsonwebtoken';
 
 const router = express.Router();
@@ -83,7 +84,6 @@ router.get('/select_role', (req, res, next) => {
 
 router.post('/set_role', verifyToken, async (req, res, next) => {
   try {
-    console.log(req.body.role)
     // 1. 檢查職業是否存在
     const job = await getClass({ name: req.body.role });
     if (!job) {
@@ -120,6 +120,26 @@ router.post('/set_role', verifyToken, async (req, res, next) => {
       playerId: req.user.id, 
       tutorial: req.body.tutorial
     });
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, msg: '伺服器錯誤' });
+  }
+});
+
+
+router.post('/updateProfile', verifyToken, async (req, res, next) => {
+  try {
+    // 1. 檢查職業是否存在
+    const user = await getUser({id: req.user.id})
+
+    if (!user) {
+      return res.redirect('/holylegend'); // 找不到人就踢回登入
+    }
+
+    await updateUser({name: req.body.name, userId: req.user.id})
+
+    return res.status(200).json({ success: true });
 
   } catch (error) {
     console.error(error);

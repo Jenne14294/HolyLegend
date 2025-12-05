@@ -11,7 +11,7 @@ router.get('/', verifyToken, async (req, res, next) => {
     const userData = await getUser({ id: req.user.id });
 
     if (!userData) {
-      return res.redirect('/holylegend/login'); // 找不到人就踢回登入
+      return res.redirect('/holylegend'); // 找不到人就踢回登入
     }
 
     const classData = await getClass({ id: userData.jobId})

@@ -7,10 +7,12 @@
     <link rel="stylesheet" href="/holylegend/styles/game.css">
     <link rel="stylesheet" href="/holylegend/styles/tower.css"> <!-- 新增戰鬥專用樣式 -->
     <link rel="stylesheet" href="/holylegend/styles/team.css"> <!-- 新增戰鬥專用樣式 -->
+    <link rel="stylesheet" href="/holylegend/styles/setting.css">
     <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
 </head>
 <body>
     <audio id="bg-music-source" src="/holylegend/audio/game_lobby.ogg" loop></audio>
+    <audio id="bg-sound-source" src=""></audio>
 
     <div class="mobile-container">
         <!-- ========================================== -->
@@ -27,7 +29,7 @@
                     <div class="level-badge"><span id="lobbyLevel"><%= user.level %></span></div>
                 </div>
                 <div class="stats-container">
-                    <div class="player-name"><%= user.nickname %></div>
+                    <div class="player-name" id="lobbyName"><%= user.nickname %></div>
                     
                     <!-- HP 血條 -->
                     <div class="stat-bar-row">
@@ -330,6 +332,73 @@
         </div>
 
 
+
+        <!-- ========================================== -->
+        <!--  區塊 G: 系統選單 (Settings Layer)          -->
+        <!-- ========================================== -->
+        <div id="settings-layer" class="hidden">
+            
+            <div class="layer-header">
+                <h2 class="pixel-title">系統設定</h2>
+                <button id="btn-close-settings" class="btn-pixel-small">X</button>
+            </div>
+
+            <div class="settings-container">
+                
+                <!-- 1. 頭像設定 -->
+                <div class="setting-section">
+                    <div class="section-title">角色資料</div>
+                    
+                    <div class="avatar-upload-area">
+                        <div class="preview-box">
+                            <img id="settings-avatar-preview" src="/holylegend/images/classes/Novice_1.png" class="pixel-art">
+                        </div>
+                        <div class="upload-controls">
+                            <label for="file-upload" class="btn-pixel-medium">
+                                📤 上傳頭像
+                            </label>
+                            <input id="file-upload" type="file" accept="image/*" style="display: none;"/>
+                            <div class="tip-text">建議尺寸: 64x64</div>
+                        </div>
+                    </div>
+
+                    <div class="name-edit-area">
+                        <label>冒險者暱稱</label>
+                        <div class="input-group">
+                            <input type="text" id="settings-nickname-input" placeholder="輸入新名字" maxlength="10">
+                            <button id="btn-save-name" class="btn-pixel-small">修改</button>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="pixel-divider">
+
+                <!-- 2. 音效設定 -->
+                <div class="setting-section">
+                    <div class="section-title">音效設定</div>
+                    
+                    <div class="toggle-row">
+                        <span>背景音樂 (BGM)</span>
+                        <label class="pixel-switch">
+                            <input type="checkbox" id="toggle-bgm" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="toggle-row">
+                        <span>遊戲音效 (SFX)</span>
+                        <label class="pixel-switch">
+                            <input type="checkbox" id="toggle-sfx" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="version-text">Ver 1.0.0 Alpha</div>
+            </div>
+        </div>
+
+
         
 
     </div>
@@ -339,6 +408,7 @@
     <script src="/holylegend/scripts/tower_system.js"></script>
     <script src="/holylegend/scripts/classes_system.js"></script>
     <script src="/holylegend/scripts/team_system.js"></script>
+    <script src="/holylegend/scripts/setting_system.js"></script>
     <script src="/holylegend/scripts/game_audio.js"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>   <!-- 新增這行 -->
 </body>
