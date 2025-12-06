@@ -1,5 +1,5 @@
 import express from 'express';
-import { getRewards } from '../services/system.js';
+import { getRewards, getEvents } from '../services/system.js';
 import { getUser, verifyToken } from '../services/accountAuth.js';
 import { getClass } from '../services/classes.js';
 
@@ -100,6 +100,20 @@ router.get('/classes', verifyToken, async (req, res, next) => {
     });
 
   } catch (err) {
+    console.error(err);
+    next(err);
+  }
+});
+
+
+router.get('/events', async (req, res, next) => {
+  try {
+    const events = await getEvents();
+
+    res.json({"success":true, data: events});
+  }
+
+  catch (err) {
     console.error(err);
     next(err);
   }

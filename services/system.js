@@ -12,4 +12,16 @@ catch (err) {
 };
 
 
-export {getRewards}
+
+const getEvents = async () => {
+  try {
+    const Events = await models.Event.findAll({
+    });
+    return Events;
+    }   
+catch (err) {  
+    throw err;
+  }
+};
+
+export {getRewards, getEvents}

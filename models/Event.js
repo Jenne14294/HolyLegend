@@ -13,23 +13,39 @@ const Event = sequelize.define(
       type: DataTypes.STRING,
       allowNull: true,
     },
+    image: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
     rewardText: {
       type: DataTypes.STRING,
       allowNull: true,
     },
-    STR_requirement: {
+    rewardType: {
       type: DataTypes.STRING,
       allowNull: true,
     },
-    DEX_requirement: {
+    rewardValue: {
       type: DataTypes.INTEGER,
       allowNull: true,
     },
-    CON_requirement: {
+    failText: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    punishType: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    punishValue: {
       type: DataTypes.INTEGER,
       allowNull: true,
     },
-    INT_requirement: {
+    requirementType: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    requirementValue: {
       type: DataTypes.INTEGER,
       allowNull: true,
     }

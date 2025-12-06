@@ -34,6 +34,22 @@ document.addEventListener('DOMContentLoaded', () => {
         'MP': '💧', 'MP_RECOVER_PERCENT': '💧'
     };
 
+    // 定義屬性對照表 (方便迴圈生成)
+    const STAT_CONFIG = [
+        { name: 'STR', label: '力量', icon: '💪' },
+        { name: 'DEX', label: '敏捷', icon: '🦶' },
+        { name: 'CON', label: '體質', icon: '🛡️' },
+        { name: 'INT', label: '智力', icon: '🔮' }
+    ];
+
+
+    // 在 tower_system.js 的 DOMContentLoaded 裡面
+    // 監聽事件系統結束後的通知
+    document.addEventListener('event_completed', () => {
+        // 事件結束，進入下一層
+        startNewFloor();
+    });
+
     // 執行 UI 初始化
     initBattleLogUI();
 
@@ -437,18 +453,44 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 這裡暫時模擬：
                 // socket.emit('request_next_floor'); 
             } else {
-                const RewardRate = Math.floor(Math.random() * 100)
+                const eventRoll = Math.floor(Math.random() * 100);
+                // const eventRoll = 0;
 
-                if (RewardRate <= 14) {
-                    showRewards(); // 單人顯示獎勵
-                }
-
-                else {
-                    startNewFloor();
-                }
+                if (eventRoll < 25) { 
+                    tryTriggerSinglePlayerEvent(); // ★ 觸發事件
+                } 
                 
+                else {
+                    const RewardRate = Math.floor(Math.random() * 100)
+
+                    if (RewardRate <= 14) {
+                        showRewards(); // 單人顯示獎勵
+                    }
+
+                    else {
+                        startNewFloor();
+                    }
+                }
             }
         }, 500);
+    }
+
+    // 新增：單人獲取並觸發事件
+    async function tryTriggerSinglePlayerEvent() {
+        try {
+            const response = await fetch('/holylegend/system/events');
+            const result = await response.json();
+
+            const allEvents = result.data; // 資料庫裡的所有獎勵
+            const eventId = Math.floor(Math.random() * allEvents.length)
+            const event = allEvents[eventId]
+
+            createAndShowEventCard(event);
+
+        } catch (e) {
+            console.error("事件載入失敗", e);
+            startNewFloor();
+        }
     }
 
     function playerTakeDamageVisual(amount) {
@@ -818,7 +860,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             return; // ★ 中斷函式，不執行下面的預設邏輯
         }
-        
+
         switch (rewardData.rewardType) {
             case 'HP': // 資料庫是用 HP
                 if (rewardData.rewardPercent > 0) {
@@ -934,6 +976,9 @@ document.addEventListener('DOMContentLoaded', () => {
         window.Game.safeSetText('tower-gold', state.goldCollected);
     }
 
+
+
+    // 隊伍 UI
 
     // ===========================
     //  新增：隊友 UI 輔助函式
@@ -1080,5 +1125,300 @@ document.addEventListener('DOMContentLoaded', () => {
                 if(hpBar) hpBar.style.width = `${Math.max(0, hpPct)}%`;
             }
         });
+    }
+
+
+
+
+
+
+    // 事件系統
+
+    // ==========================================
+    //  核心：動態生成事件卡片 (Dynamic Render)
+    // ==========================================
+    function createAndShowEventCard(eventData) {
+        const layer = document.getElementById('event-layer');
+        if (!layer) return;
+
+        // 1. 清空容器 (確保不會有舊的卡片殘留)
+        layer.innerHTML = ''; 
+        layer.classList.remove('hidden');
+
+        // 2. 準備數據
+        const defaultStat = ["STR", "DEX", "CON", "INT"]
+        const playerStats = window.Game.state.AdditionState || [0, 0, 0, 0];
+        const reqIndex = defaultStat.indexOf(eventData.requirementType);
+        const myValue = playerStats[reqIndex];
+        const reqValue = eventData.requirementValue;
+
+        // 計算機率 (基礎 50% + 差距*10%)
+        let successRate = 0;
+        let canTry = false;
+
+        if (myValue >= reqValue) {
+            canTry = true;
+            const diff = myValue - reqValue;
+            successRate = Math.min(100, 30 + (diff * 10));
+        }
+
+        // 決定機率顏色
+        let chanceClass = 'chance-low';
+        if (successRate >= 80) chanceClass = 'chance-high';
+        else if (successRate >= 50) chanceClass = 'chance-mid';
+
+        // ==========================================
+        //  開始建構 DOM (就像堆積木)
+        // ==========================================
+
+        // A. 卡片容器
+        const cardContainer = document.createElement('div');
+        cardContainer.className = 'event-card-container';
+
+        // B. 標題列
+        const header = document.createElement('div');
+        header.className = 'event-card-header';
+        header.innerHTML = `<span class="event-type-badge">🎲 隨機遭遇</span>`;
+        cardContainer.appendChild(header);
+
+        // C. 內容區 body
+        const body = document.createElement('div');
+        body.className = 'event-card-body';
+
+        // C-1. 圖片
+        const imgFrame = document.createElement('div');
+        imgFrame.className = 'event-image-frame';
+        // 圖片載入錯誤處理
+        const imgPath = `/holylegend/images/events/${eventData.image}`;
+        imgFrame.innerHTML = `
+            <img src="${imgPath}" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
+            <div class="event-img-placeholder" style="display:none;">🔮</div>
+        `;
+        body.appendChild(imgFrame);
+
+        // C-2. 標題與描述
+        const title = document.createElement('h3');
+        title.className = 'event-title';
+        title.innerText = eventData.name;
+        body.appendChild(title);
+
+        const desc = document.createElement('div');
+        desc.className = 'event-desc';
+        desc.innerHTML = eventData.description; // 允許 HTML (如換行)
+        body.appendChild(desc);
+
+        // C-3. 玩家屬性儀表板 (動態迴圈生成)
+        const statsContainer = document.createElement('div');
+        statsContainer.className = 'my-stats-container';
+        const statsGrid = document.createElement('div');
+        statsGrid.className = 'stats-grid';
+
+        STAT_CONFIG.forEach((config, idx) => {
+            const statBox = document.createElement('div');
+            statBox.className = 'stat-box';
+            
+            // 如果是檢定需要的屬性，加上高亮
+            if (idx === reqIndex) {
+                statBox.classList.add('highlight');
+            }
+
+            statBox.innerHTML = `
+                <span class="icon">${config.icon}</span>
+                <span class="val">${playerStats[idx]}</span>
+            `;
+            statsGrid.appendChild(statBox);
+        });
+        statsContainer.appendChild(statsGrid);
+        body.appendChild(statsContainer);
+
+        // C-4. 條件與機率顯示
+        const reqDiv = document.createElement('div');
+        reqDiv.className = 'event-requirements';
+        
+        // 狀態文字 (成功率 或 警告)
+        let statusHtml = '';
+        if (canTry) {
+            statusHtml = `
+                <div class="chance-display">
+                    成功率: <span class="${chanceClass}">${successRate}%</span>
+                </div>`;
+        } else {
+            statusHtml = `
+                <div class="warning-text">
+                    ❌ ${STAT_CONFIG[reqIndex].label} 不足 (需 ${reqValue})
+                </div>`;
+        }
+
+        reqDiv.innerHTML = `
+            <div>
+                <span class="req-label">檢定條件:</span>
+                <span class="req-value">${STAT_CONFIG[reqIndex].name} ≥ ${reqValue}</span>
+            </div>
+            ${statusHtml}
+        `;
+        body.appendChild(reqDiv);
+
+        // C-5. 按鈕區
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'event-actions';
+
+        // 嘗試按鈕
+        const btnTry = document.createElement('button');
+        btnTry.className = 'btn-action';
+        btnTry.innerText = canTry ? `嘗試 (${successRate}%)` : '能力不足';
+        btnTry.disabled = !canTry;
+        
+        btnTry.onclick = () => {
+            handleTryEvent(eventData, successRate, btnTry);
+        };
+
+        // 離開按鈕
+        const btnLeave = document.createElement('button');
+        btnLeave.className = 'btn-leave';
+        btnLeave.innerText = '離開';
+        
+        btnLeave.onclick = () => {
+            handleLeaveEvent();
+        };
+
+        actionsDiv.appendChild(btnTry);
+        actionsDiv.appendChild(btnLeave);
+        body.appendChild(actionsDiv); // 將按鈕區加入 body (或 container 底部，看你 CSS 設計)
+
+        // 組合完畢
+        cardContainer.appendChild(body);
+        layer.appendChild(cardContainer);
+    }
+
+    // ==========================================
+    //  處理邏輯
+    // ==========================================
+
+    function handleTryEvent(eventData, rate, btnElement) {
+        // 鎖定按鈕
+        btnElement.disabled = true;
+        btnElement.innerText = "檢定中...";
+
+        // 模擬延遲感
+        setTimeout(() => {
+            const roll = Math.random() * 100;
+            const isSuccess = roll <= rate;
+            const socket = window.Game?.socket;
+
+            if (socket && isMultiplayerMode) {
+                // 多人模式：回報 Server
+                socket.emit('try_event_action', { 
+                    event: eventData, 
+                    isSuccess: isSuccess 
+                });
+                closeEventLayer(); // 關閉視窗，等待 Server 的 chat 訊息回饋
+            } else {
+                // 單人模式：本地結算
+                resolveSinglePlayerEvent(isSuccess, eventData);
+                startNewFloor();
+            }
+        }, 800);
+    }
+
+    function handleLeaveEvent() {
+        const socket = window.Game.socket;
+        if (socket && isMultiplayerMode) {
+            socket.emit('ignore_event');
+        } else {
+            startNewFloor()
+        }
+        closeEventLayer();
+    }
+
+    function resolveSinglePlayerEvent(isSuccess, eventData) {
+        closeEventLayer();
+        const defaultStat = ["STR", "DEX", "CON", "INT"]
+        const ReqType = eventData.requirementType;
+        const RewardType = eventData.rewardType;
+        const PunishType = eventData.punishType;
+
+        const statIndex = defaultStat.indexOf(ReqType)
+        const rewardIndex = defaultStat.indexOf(RewardType)
+        const punishIndex = defaultStat.indexOf(PunishType)
+        
+        if (isSuccess) {
+            if (defaultStat.includes(RewardType)) {
+                alert(`✨ 檢定成功！\n${STAT_CONFIG[statIndex].label} 獲得提升！`);
+                // 實際給予獎勵
+                window.Game.state.AdditionState[rewardIndex] += eventData.rewardValue;
+                // 更新 UI
+                if (window.Game.updateLobbyUI) window.Game.updateLobbyUI(window.Game.state);
+            }
+
+            else if (RewardType == 'GOLD') {
+                alert(`✨ 檢定成功！\n獲得額外金幣！`);
+
+                window.Game.state.goldCollected += eventData.rewardValue;
+                // 更新 UI
+                if (window.Game.updateLobbyUI) window.Game.updateLobbyUI(window.Game.state);
+            }
+
+            else if (['HP', 'MP'].includes(RewardType)) {
+                alert(`✨ 檢定成功！\n${RewardType} 恢復！`);
+
+                if (RewardType == 'HP') {
+                    window.Game.state.playerHp += eventData.rewardValue;
+                    window.Game.state.playerHp = Math.min(window.Game.state.playerHp, window.Game.state.playerMaxHp)
+                }
+                
+                else {
+                    window.Game.state.playerMp += eventData.rewardValue;
+                    window.Game.state.playerMp = Math.min(window.Game.state.playerMp, window.Game.state.playerMaxMp)
+                }
+                // 更新 UI
+                if (window.Game.updateLobbyUI) window.Game.updateLobbyUI(window.Game.state);
+            }
+
+            else if (RewardType == 'EXP') {
+                alert(`✨ 檢定成功！\n獲得額外經驗值！`);
+
+                window.Game.AdditionEXP += eventData.rewardValue;
+            }
+            
+        } else {
+            alert("💨 檢定失敗，你好像損失了什麼...。");
+
+            if (defaultStat.includes(PunishType)) {
+                // 實際給予獎勵
+                window.Game.state.AdditionState[punishIndex] -= eventData.punishValue;
+                // 更新 UI
+                if (window.Game.updateLobbyUI) window.Game.updateLobbyUI(window.Game.state);
+            }
+
+            else if (PunishType == 'GOLD') {
+                window.Game.state.goldCollected -= eventData.punishValue;
+                // 更新 UI
+                if (window.Game.updateLobbyUI) window.Game.updateLobbyUI(window.Game.state);
+            }
+
+            else if (['HP', 'MP'].includes(PunishType)) {
+                if (PunishType == 'HP') {
+                    window.Game.state.playerHp -= eventData.punishValue;
+                    window.Game.state.playerHp = Math.max(window.Game.state.playerHp, 0)
+                }
+                
+                else {
+                    window.Game.state.playerMp -= eventData.punishValue;
+                    window.Game.state.playerMp = Math.max(window.Game.state.playerMp, 0)
+                }
+                // 更新 UI
+                if (window.Game.updateLobbyUI) window.Game.updateLobbyUI(window.Game.state);
+            }
+
+
+        }
+    }
+
+    function closeEventLayer() {
+        const layer = document.getElementById('event-layer');
+        if (layer) {
+            layer.classList.add('hidden');
+            layer.innerHTML = ''; // 清空 DOM
+        }
     }
 });

@@ -5,8 +5,11 @@ import Class from './Class.js';
 import UserClass from './UserClass.js';
 import Skill from './Skill.js'
 import Reward from './Reward.js'
+import Event from './Event.js'
 
-const models = { User, Class, UserClass, Skill, Reward };
+
+
+const models = { User, Class, UserClass, Skill, Reward, Event };
 
 // --- 修正關聯設定 ---
 
