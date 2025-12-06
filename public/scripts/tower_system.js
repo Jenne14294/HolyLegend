@@ -1377,7 +1377,7 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (RewardType == 'EXP') {
                 alert(`✨ 檢定成功！\n獲得額外經驗值！`);
 
-                window.Game.AdditionEXP += eventData.rewardValue;
+                window.Game.state.AdditionEXP += eventData.rewardValue;
             }
             
         } else {
