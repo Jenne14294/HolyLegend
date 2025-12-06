@@ -182,12 +182,6 @@ html, body {
     gap: 10px;
     padding: 15px;
     
-    background-image: 
-        linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)),
-        url('/holylegend/images/bg_pattern.png'); /* 可選背景圖 */
-    background-size: cover;
-    background-position: center;
-    
     overflow: hidden; /* 禁止內部滾動 */
 }
 

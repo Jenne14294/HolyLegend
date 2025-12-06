@@ -17,6 +17,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnReadyAccept = document.getElementById('btn-ready-accept');
     const btnReadyDecline = document.getElementById('btn-ready-decline');
 
+    // 事件層 DOM (需要操作它)
+    const eventLayer = document.getElementById('event-layer');
+
     const state = window.Game.state; 
     const socket = window.Game.socket; 
 
@@ -159,6 +162,35 @@ document.addEventListener('DOMContentLoaded', () => {
             // 【新增】渲染隊友介面
             if (initialData.players) {
                 renderTeammatesUI(initialData.players);
+
+                // 1. 找出我自己
+                const myInfo = initialData.players.find(p => p.socketId === socket.id);
+                
+                if (myInfo) {
+                    // 2. 覆蓋本地狀態 (這就是你要的 "送給原本玩家的 window.Game.state")
+                    if (myInfo.AdditionState) {
+                        state.AdditionState = myInfo.AdditionState;
+                    }
+                    if (myInfo.goldCollected !== undefined) {
+                        state.goldCollected = myInfo.goldCollected;
+                    }
+                    if (myInfo.AdditionEXP !== undefined) {
+                        state.AdditionEXP = myInfo.AdditionEXP;
+                    }
+
+                    // 3. 更新大廳/UI 顯示 (如果有需要)
+                    if (window.Game.updateLobbyUI) {
+                        // 構建一個符合 updateLobbyUI 格式的物件
+                        const uiData = {
+                            ...state,
+                            maxHp: myInfo.maxHp,
+                            maxMp: myInfo.maxMp,
+                            hp: myInfo.hp,
+                            mp: myInfo.mp
+                        };
+                        window.Game.updateLobbyUI(uiData);
+                    }
+                }
             }
             
             startNewFloor(true, initialData.monsterType); 
@@ -270,6 +302,42 @@ document.addEventListener('DOMContentLoaded', () => {
              resetBattle();
              
              state.isEndingProcessing = false;
+        });
+
+
+        // ==========================================
+        // ★ 新增：多人事件相關監聽
+        // ==========================================
+
+        // 1. 觸發事件：顯示卡片
+        socket.on('trigger_event', (eventData) => {
+            createAndShowEventCard(eventData);
+        });
+
+        // 2. 事件被鎖定：有人正在檢定
+        socket.on('event_locked', (data) => {
+            // 找到事件卡片上的按鈕
+            const btnTry = document.querySelector('.event-actions .btn-action');
+            if (btnTry) {
+                btnTry.disabled = true; 
+                btnTry.innerText = `${data.nickname} 檢定中...`;
+                btnTry.style.backgroundColor = '#555'; 
+            }
+        });
+
+        // 3. 收到檢定結果
+        socket.on('event_result', (result) => {
+            // 這裡可以做 Alert 或是更新卡片文字
+            alert(result.msg);
+            
+            // 更新描述文字，讓玩家知道結果
+            const desc = document.querySelector('.event-desc');
+            if (desc) desc.innerHTML += `<br><br><span style="color:${result.success ? '#2ecc71':'#e74c3c'}">${result.msg}</span>`;
+        });
+
+        // 4. 關閉事件視窗 (Server 通知所有人都確認完了)
+        socket.on('close_event_window', () => {
+            closeEventLayer();
         });
     }
 
@@ -453,10 +521,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 這裡暫時模擬：
                 // socket.emit('request_next_floor'); 
             } else {
-                const eventRoll = Math.floor(Math.random() * 100);
-                // const eventRoll = 0;
+                // const eventRoll = Math.floor(Math.random() * 100);
+                const eventRoll = 0;
 
-                if (eventRoll < 25) { 
+                if (eventRoll < 20) { 
                     tryTriggerSinglePlayerEvent(); // ★ 觸發事件
                 } 
                 
@@ -1295,25 +1363,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
 
     function handleTryEvent(eventData, rate, btnElement) {
-        // 鎖定按鈕
         btnElement.disabled = true;
         btnElement.innerText = "檢定中...";
 
-        // 模擬延遲感
         setTimeout(() => {
             const roll = Math.random() * 100;
             const isSuccess = roll <= rate;
-            const socket = window.Game?.socket;
 
-            if (socket && isMultiplayerMode) {
-                // 多人模式：回報 Server
+            // ★ 分歧：多人模式
+            if (isMultiplayerMode && socket) {
+                // 發送請求給 Server，讓 Server 鎖定其他人
                 socket.emit('try_event_action', { 
-                    event: eventData, 
-                    isSuccess: isSuccess 
+                    eventId: eventData.id,
+                    isSuccess: isSuccess // (備註：正式版應該由後端算，這裡先傳結果)
                 });
-                closeEventLayer(); // 關閉視窗，等待 Server 的 chat 訊息回饋
-            } else {
-                // 單人模式：本地結算
+                // 注意：這裡不關閉視窗，等待 Server 的 event_result 廣播
+            } 
+            // ★ 分歧：單人模式
+            else {
                 resolveSinglePlayerEvent(isSuccess, eventData);
                 startNewFloor();
             }
@@ -1321,13 +1388,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function handleLeaveEvent() {
-        const socket = window.Game.socket;
-        if (socket && isMultiplayerMode) {
-            socket.emit('ignore_event');
-        } else {
-            startNewFloor()
+        // ★ 分歧：多人模式 (離開 = 確認/等待)
+        if (isMultiplayerMode && socket) {
+            const btnLeave = document.querySelector('.event-actions .btn-leave');
+            if (btnLeave) {
+                btnLeave.disabled = true;
+                btnLeave.innerText = "等待隊友...";
+            }
+            // 發送確認訊號
+            socket.emit('player_confirm_event');
+        } 
+        // ★ 分歧：單人模式 (離開 = 結束)
+        else {
+            closeEventLayer();
+            startNewFloor();
         }
-        closeEventLayer();
     }
 
     function resolveSinglePlayerEvent(isSuccess, eventData) {

@@ -90,8 +90,6 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch('/holylegend/system/status');
             const result = await response.json();
-
-            console.log(result)
             
             if (result.success) {
                 const data = result.data;
