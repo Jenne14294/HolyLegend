@@ -521,8 +521,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 這裡暫時模擬：
                 // socket.emit('request_next_floor'); 
             } else {
-                // const eventRoll = Math.floor(Math.random() * 100);
-                const eventRoll = 0;
+                const eventRoll = Math.floor(Math.random() * 100);
+                // const eventRoll = 0;
 
                 if (eventRoll < 20) { 
                     tryTriggerSinglePlayerEvent(); // ★ 觸發事件
