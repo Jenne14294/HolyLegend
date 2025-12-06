@@ -118,6 +118,8 @@ export default function initSocket(server) {
                     mp: p.state.playerMaxMp   // 初始魔力
                 }));
                 
+                console.log(playersPublicInfo)
+                
                 // 初始化戰鬥
                 const floor = 1;
                 const enemyMaxHp = 100 + (10 * ((floor - 1) * room.length)); 
@@ -128,9 +130,9 @@ export default function initSocket(server) {
                 const playerStates = {};
                 room.forEach(p => {
                     playerStates[p.socketId] = {
-                        hp: p.state.playerHp || 100,
+                        hp: p.state.playerMaxHp || 100,
                         maxHp: p.state.playerMaxHp || 100,
-                        mp: p.state.playerMp || 100,
+                        mp: p.state.playerMaxMp || 100,
                         maxMp: p.state.playerMaxMp || 100,
                         isDead: false
                         
@@ -306,18 +308,61 @@ export default function initSocket(server) {
             if (!currentRoomId || !battles[currentRoomId]) return;
             const battle = battles[currentRoomId];
 
+            if (battle.playerStates[socket.id].isDead) return;
+
             if (battle.playerStates[socket.id] && data) {
                 // 1. 處理【復活】 (REVIVE)
                 // 必須在加血之前處理，因為復活通常是直接回滿
                 if (data.reward.rewardType === 'REVIVE' || data.reward.rewardType === 'revive') {
-                    battle.playerStates[socket.id].isDead = false;
-                    battle.playerStates[socket.id].hp = battle.playerStates[socket.id].maxHp;
-                    battle.playerStates[socket.id].mp = battle.playerStates[socket.id].maxMp;
-                     
-                     // ★ 重要：加回存活名單，否則下一層會被略過
-                     if (!battle.alivePlayerIds.includes(socket.id)) {
-                         battle.alivePlayerIds.push(socket.id);
-                     }
+                    const deadPlayerIds = Object.keys(battle.playerStates).filter(id => 
+                        battle.playerStates[id].isDead
+                    );
+
+                    if (deadPlayerIds.length > 0) {
+                        let finalTargetId = null;
+
+                        // ★ A. 如果有指定目標，且該目標確實死亡，就鎖定他
+                        if (targetSocketId && deadPlayerIds.includes(targetSocketId)) {
+                            finalTargetId = targetSocketId;
+                        } 
+                        // ★ B. 如果沒有指定(或目標錯誤)，則隨機選一個 (防呆)
+                        else {
+                            const randomIndex = Math.floor(Math.random() * deadPlayerIds.length);
+                            finalTargetId = deadPlayerIds[randomIndex];
+                        }
+
+                        const targetState = battle.playerStates[finalTargetId];
+
+                        if (targetState) {
+                            // 3. 復活並恢復 30%
+                            targetState.isDead = false;
+                            targetState.hp = Math.round(targetState.maxHp * 0.3);
+                            targetState.mp = Math.round(targetState.maxMp * 0.3);
+                            
+                            // 加回存活名單 (關鍵)
+                            if (!battle.alivePlayerIds.includes(finalTargetId)) {
+                                battle.alivePlayerIds.push(finalTargetId);
+                            }
+
+                            // 取得暱稱發公告
+                            const roomMembers = rooms[currentRoomId];
+                            const targetMember = roomMembers ? roomMembers.find(m => m.socketId === finalTargetId) : null;
+                            const targetName = targetMember ? targetMember.nickname : '隊友';
+
+                            // 發送系統訊息通知大家
+                            io.to(currentRoomId).emit('chat_message', { 
+                                sender: '系統', 
+                                text: `${targetName} 被復活了！(HP/MP 恢復 30%)`, 
+                                isSystem: true 
+                            });
+                        }
+                    } else {
+                        // 如果沒人死掉，幫自己補 30%
+                        battle.playerStates[socket.id].hp += Math.round(battle.playerStates[socket.id].maxHp * 0.3);
+                        battle.playerStates[socket.id].mp += Math.round(battle.playerStates[socket.id].maxMp * 0.3);
+                        if (battle.playerStates[socket.id].hp > battle.playerStates[socket.id].maxHp) battle.playerStates[socket.id].hp = battle.playerStates[socket.id].maxHp;
+                        if (battle.playerStates[socket.id].mp > battle.playerStates[socket.id].maxMp) battle.playerStates[socket.id].mp = battle.playerStates[socket.id].maxMp;
+                    }
                 }
                 // 2. 處理【HP 回復】 (HP / HP_PERCENT)
                 else if (data.reward.rewardType  === 'HP') {
@@ -355,8 +400,6 @@ export default function initSocket(server) {
                     if (battle.playerStates[socket.id].mp > battle.playerStates[socket.id].maxMp) battle.playerStates[socket.id].mp = battle.playerStates[socket.id].maxMp;
                 }
                 
-                // (選用) 為了方便除錯，可以在後端印出來看看
-                // console.log(`玩家 ${pState.nickname || socket.id} 狀態更新: HP=${pState.hp}/${pState.maxHp}`);
             }
 
             // ---------------------------

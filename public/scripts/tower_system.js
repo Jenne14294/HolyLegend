@@ -755,6 +755,70 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function applyReward(rewardData) {
         // 1. 執行效果 (根據 rewardType)
+        if (isMultiplayerMode && socket && rewardData.rewardType === 'REVIVE') {
+            
+            // 1. 隱藏獎勵介面，讓玩家能看到隊友
+            rewardLayer.classList.add('hidden');
+            
+            // 2. 顯示提示
+            addBattleLog("請點擊一名 [死亡] 的隊友進行復活！", 'log-system');
+            alert("請點擊一名 [死亡] 的隊友頭像進行復活！\n(如果不小心關閉提示，直接點擊隊友即可)");
+
+            // 3. 進入選人模式：為隊友卡片加入點擊監聽
+            const cards = teammatesContainer.querySelectorAll('.tm-card');
+            
+            // 定義一次性點擊處理器
+            const handleTeammateSelect = (e) => {
+                const targetCard = e.currentTarget;
+                const targetId = targetCard.dataset.id;
+                
+                // 確認
+                if (confirm("確定要復活這位隊友嗎？")) {
+                    // 發送 Socket 請求 (帶入目標 ID)
+                    socket.emit('player_selected_reward', { 
+                        reward: rewardData,
+                        targetSocketId: targetId
+                    });
+
+                    // 清理：移除所有卡片的監聽器與樣式
+                    cards.forEach(c => {
+                        c.removeEventListener('click', handleTeammateSelect);
+                        c.classList.remove('selectable');
+                    });
+
+                    // 顯示等待訊息
+                    rewardLayer.classList.remove('hidden');
+                    rewardCardsContainer.innerHTML = '<div style="color: white; font-size: 1.5rem;">等待隊友選擇...</div>';
+                }
+            };
+
+            // 綁定監聽器並增加視覺提示
+            let foundDead = false;
+            cards.forEach(c => {
+                // 可以只讓死亡的隊友可選，或是全部可選(後端防呆)
+                // 這裡我們讓所有隊友都可選，讓玩家自己決定
+                c.classList.add('selectable'); 
+                c.addEventListener('click', handleTeammateSelect);
+                if (c.classList.contains('dead')) foundDead = true;
+            });
+
+            // 如果沒有人死亡，自動跳過選人，直接送出(後端會幫自己補血)
+            if (!foundDead) {
+                alert("目前無人陣亡，系統將自動為你恢復生命。");
+                // 移除剛剛綁定的監聽
+                cards.forEach(c => {
+                    c.removeEventListener('click', handleTeammateSelect);
+                    c.classList.remove('selectable');
+                });
+                
+                socket.emit('player_selected_reward', { reward: rewardData });
+                rewardLayer.classList.remove('hidden');
+                rewardCardsContainer.innerHTML = '<div style="color: white; font-size: 1.5rem;">等待隊友選擇...</div>';
+            }
+
+            return; // ★ 中斷函式，不執行下面的預設邏輯
+        }
+        
         switch (rewardData.rewardType) {
             case 'HP': // 資料庫是用 HP
                 if (rewardData.rewardPercent > 0) {
@@ -798,7 +862,6 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'REVIVE':
                 state.playerHp = state.playerMaxHp;
                 state.playerMp = state.playerMaxMp;
-                state.isDead = false;
             default:
                 console.log("未知的獎勵類型:", rewardData);
         }
