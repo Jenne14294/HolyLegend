@@ -142,7 +142,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 【新增】渲染隊友介面
             if (initialData.players) {
-                console.log(initialData.players)
                 renderTeammatesUI(initialData.players);
             }
             
@@ -801,7 +800,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.playerMp = state.playerMaxMp;
                 state.isDead = false;
             default:
-                console.log("未知的獎勵類型:", rewardData.rewardType);
+                console.log("未知的獎勵類型:", rewardData);
         }
 
         // 3. 動畫結束後的行為
@@ -812,7 +811,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isMultiplayerMode && socket) {
                 // 多人模式：通知 Server 我選好了，並且不關閉遮罩(等待隊友)
                 socket.emit('player_selected_reward', { 
-                    rewardType: rewardData.rewardType 
+                    reward: rewardData
                 });
                 
                 // 清空卡片，顯示等待訊息

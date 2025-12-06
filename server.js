@@ -261,37 +261,32 @@ export default function initSocket(server) {
                 }
 
                 // --- 特殊狀態處理 ---
-
+                
                 if (isEnemyDead) {
-                    setTimeout(() => {
-                        if (!battles[currentRoomId]) return;
+                    // 伺服器端決定是否給獎勵 (15% 機率)
+                    const rewardRate = Math.floor(Math.random() * 100);
+                    
+                    // 初始化獎勵選擇狀態
+                    battle.rewardSelection = {
+                        isActive: false,
+                        selectedPlayers: [] // 紀錄誰已經選好了
+                    };
 
-                        // const rewardRate = Math.round(Math.random() * 100);
-                        const rewardRate = 0;
-                        if (rewardRate <= 14) {
-                            socket.emit('multiplayer_show_rewards');
-                        }
+                    if (rewardRate <= 14) {
+                        // --- 觸發獎勵流程 ---
+                        battle.rewardSelection.isActive = true;
                         
-                        battle.floor++;
-                        const room = rooms[currentRoomId];
-                        
-                        if (room) {
-                            battle.enemyMaxHp = 100 + (10 * battle.floor * room.length);
-                            battle.enemyHp = battle.enemyMaxHp;
-                            
-                            const monsters = ['slime', 'bat', 'skeleton', 'orc']; 
-                            const randomMonster = monsters[Math.floor(Math.random() * monsters.length)];
-                            
-                            battle.processingTurn = false; // 解鎖
+                        setTimeout(() => {
+                            // 通知前端顯示獎勵畫面
+                            io.to(currentRoomId).emit('multiplayer_show_rewards');
+                        }, 1000); 
 
-                            io.to(currentRoomId).emit('multiplayer_battle_start', {
-                                enemyHp: battle.enemyMaxHp,
-                                enemyMaxHp: battle.enemyMaxHp,
-                                floor: battle.floor,
-                                monsterType: randomMonster
-                            });
-                        }
-                    }, 2000); 
+                    } else {
+                        // --- 沒有獎勵，直接進下一層 (維持原樣) ---
+                        setTimeout(() => {
+                            startNextFloor(currentRoomId);
+                        }, 2000); 
+                    } 
                 }
                 
                 if (isAllDead) {
@@ -307,31 +302,63 @@ export default function initSocket(server) {
         });
 
         // 修改監聽事件，接收 data 參數
-        socket.on('player_selected_reward', (data) => { // ★ 加上 data
+        socket.on('player_selected_reward', (data) => {
             if (!currentRoomId || !battles[currentRoomId]) return;
             const battle = battles[currentRoomId];
 
-            // --- ★ 新增：處理復活邏輯 ---
-            // 判斷傳來的 data 是否包含 rewardType 且為復活
-            if (data && (data.rewardType === 'REVIVE' || data.rewardType === 'revive')) {
-                const pState = battle.playerStates[socket.id];
-                
-                if (pState) {
-                    // 1. 恢復數值
-                    pState.isDead = false;
-                    pState.hp = pState.maxHp;
-                    pState.mp = pState.maxMp;
-
-                    // 2. ★ 關鍵：將玩家加回「存活名單 (alivePlayerIds)」
-                    // 如果不加回去，下一層開始時系統可能還是會判定該玩家已死，或是結算時被略過
-                    if (!battle.alivePlayerIds.includes(socket.id)) {
-                        battle.alivePlayerIds.push(socket.id);
-                    }
-                    
-                    // (選用) 可以廣播通知其他人：某某人復活了
-                    // io.to(currentRoomId).emit('player_revived', { socketId: socket.id });
+            if (battle.playerStates[socket.id] && data) {
+                // 1. 處理【復活】 (REVIVE)
+                // 必須在加血之前處理，因為復活通常是直接回滿
+                if (data.reward.rewardType === 'REVIVE' || data.reward.rewardType === 'revive') {
+                    battle.playerStates[socket.id].isDead = false;
+                    battle.playerStates[socket.id].hp = battle.playerStates[socket.id].maxHp;
+                    battle.playerStates[socket.id].mp = battle.playerStates[socket.id].maxMp;
+                     
+                     // ★ 重要：加回存活名單，否則下一層會被略過
+                     if (!battle.alivePlayerIds.includes(socket.id)) {
+                         battle.alivePlayerIds.push(socket.id);
+                     }
                 }
+                // 2. 處理【HP 回復】 (HP / HP_PERCENT)
+                else if (data.reward.rewardType  === 'HP') {
+                    let healAmount = 0;
+
+                    // 如果是百分比 (例如 0.3 代表 30%)
+                    if (data.reward.rewardPercent > 0) {
+                        const pct = parseFloat(data.reward.rewardPercent / 100) || 0; // 防呆
+                        healAmount = battle.playerStates[socket.id].maxHp * pct;
+                    } 
+                    // 如果是固定數值 (例如 50 點)
+                    else {
+                        healAmount = parseInt(data.reward.rewardValue) || 0; // 防呆
+                    }
+
+                    battle.playerStates[socket.id].hp = Math.floor(battle.playerStates[socket.id].hp + healAmount);
+
+                    // ★ 關鍵修正：不能超過最大血量
+                    if (battle.playerStates[socket.id].hp > battle.playerStates[socket.id].maxHp) battle.playerStates[socket.id].hp = battle.playerStates[socket.id].maxHp;
+                }
+                // 3. 處理【MP 回復】 (MP / MP_PERCENT)
+                else if (data.reward.rewardType === 'MP') {
+                    let recoverAmount = 0;
+
+                    if (data.reward.rewardPercent > 0 ) {
+                        const pct = parseFloat(data.reward.rewardPercent / 100) || 0;
+                        recoverAmount = battle.playerStates[socket.id].maxMp * pct;
+                    } else {
+                        recoverAmount = parseInt(data.reward.rewardValue) || 0;
+                    }
+
+                    battle.playerStates[socket.id].mp = Math.floor(battle.playerStates[socket.id].mp + recoverAmount);
+
+                    // ★ 關鍵修正：不能超過最大魔力
+                    if (battle.playerStates[socket.id].mp > battle.playerStates[socket.id].maxMp) battle.playerStates[socket.id].mp = battle.playerStates[socket.id].maxMp;
+                }
+                
+                // (選用) 為了方便除錯，可以在後端印出來看看
+                // console.log(`玩家 ${pState.nickname || socket.id} 狀態更新: HP=${pState.hp}/${pState.maxHp}`);
             }
+
             // ---------------------------
 
             // 記錄該玩家已選擇
@@ -387,20 +414,51 @@ export default function initSocket(server) {
             const battle = battles[roomId];
             if (!battle) return;
 
-            const room = rooms[roomId];
-            battle.floor++;
+            const room = rooms[roomId]; // 取得房間內的玩家原始資料
+            if (!room) return;
 
+            battle.floor++;
             battle.enemyMaxHp = 100 + 10 * (battle.floor * room.length);
             battle.enemyHp = battle.enemyMaxHp;
+            battle.processingTurn = false;
             
+            // 清空上一輪的動作與選擇
+            battle.pendingActions = [];
+            battle.rewardSelection = { isActive: false, selectedPlayers: [] };
+
             const monsters = ['slime', 'bat', 'skeleton', 'orc']; 
             const randomMonster = monsters[Math.floor(Math.random() * monsters.length)];
 
+            // ★★★ 關鍵修正：重新組裝玩家列表，包含「最新」的 HP/MP ★★★
+            // 我們必須從 battle.playerStates 讀取數據，因為那裡才是最新的
+            const updatedPlayersInfo = room.map(p => {
+                const combatState = battle.playerStates[p.socketId];
+                
+                // (選用) 同步回 rooms 資料，這樣如果有人斷線重連，能讀到正確數值
+                if (combatState) {
+                    p.state.playerHp = combatState.hp;
+                    p.state.playerMp = combatState.mp;
+                }
+
+                return {
+                    socketId: p.socketId,
+                    nickname: p.nickname,
+                    role: p.state.role,
+                    maxHp: combatState ? combatState.maxHp : 100,
+                    maxMp: combatState ? combatState.maxMp : 100,
+                    // 這裡一定要傳送 combatState 的數值，因為剛剛在 player_selected_reward 更新的是它
+                    hp: combatState ? combatState.hp : 100, 
+                    mp: combatState ? combatState.mp : 100
+                };
+            });
+
+            // 發送事件給前端，前端收到後會重繪介面
             io.to(roomId).emit('multiplayer_battle_start', {
                 enemyHp: battle.enemyMaxHp,
                 enemyMaxHp: battle.enemyMaxHp,
                 floor: battle.floor,
-                monsterType: randomMonster
+                monsterType: randomMonster,
+                players: updatedPlayersInfo // ★ 把這份最新的名單傳過去
             });
         }
     });
