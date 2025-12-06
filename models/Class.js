@@ -13,6 +13,14 @@ const Class = sequelize.define(
       type: DataTypes.STRING,
       allowNull: true,
     },
+    HP: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    MP: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
     STR: {
       type: DataTypes.INTEGER,
       allowNull: true,

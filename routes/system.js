@@ -43,8 +43,8 @@ router.get('/status', verifyToken, async (req, res, next) => {
     
     // 簡單計算一下屬性 (或是你在 getUser 裡算好也可以)
     const level = currentClass.level || 1;
-    const hp = Math.round(100 + ((level - 1) * (classData[0].dataValues.STR * 0.3 + classData[0].dataValues.CON * 0.7)))
-    const mp = Math.round(30 + ((level - 1) * (classData[0].dataValues.INT * 1)))
+    const hp = Math.round(classData[0].dataValues.HP + ((level - 1) * (classData[0].dataValues.STR * 0.3 + classData[0].dataValues.CON * 0.7)))
+    const mp = Math.round(classData[0].dataValues.MP + ((level - 1) * (classData[0].dataValues.INT * 1)))
 
     const renderData = {
         id: userData.id,

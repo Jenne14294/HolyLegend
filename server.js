@@ -132,8 +132,8 @@ export default function initSocket(server) {
                     playerStates[p.socketId] = {
                         hp: p.state.playerMaxHp || 100,
                         maxHp: p.state.playerMaxHp || 100,
-                        mp: p.state.playerMaxMp || 100,
-                        maxMp: p.state.playerMaxMp || 100,
+                        mp: p.state.playerMaxMp || 30,
+                        maxMp: p.state.playerMaxMp || 30,
                         isDead: false
                         
                     };
