@@ -599,8 +599,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btnReadyAccept.innerText = "接受";
 
         members.forEach(m => {
-            const roleName = m.state.role ? (m.state.role.charAt(0).toUpperCase() + m.state.role.slice(1).toLowerCase()) : 'Novice';
-            const imgSrc = `/holylegend/images/classes/${roleName}_1.png`;
+            const imgSrc = m.state.avatar;
 
             const slot = document.createElement('div');
             slot.className = 'ready-slot active'; // 標記有人
@@ -1070,8 +1069,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // 跳過自己，只顯示隊友
             if (p.socketId === socket.id) return;
 
-            const roleName = p.role ? (p.role.charAt(0).toUpperCase() + p.role.slice(1).toLowerCase()) : 'Novice';
-            const imgSrc = `/holylegend/images/classes/${roleName}_1.png`;
+            // const roleName = p.role ? (p.role.charAt(0).toUpperCase() + p.role.slice(1).toLowerCase()) : 'Novice';
+            const imgSrc = p.state.avatar;
 
             const card = document.createElement('div');
             card.className = 'tm-card';
@@ -1083,7 +1082,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             card.innerHTML = `
                 <div class="tm-avatar-box">
-                    <img src="${imgSrc}" onerror="this.src='/holylegend/images/classes/Novice_1.png'">
+                    <img src="${imgSrc}">
                 </div>
                 <div class="tm-info">
                     <div class="tm-name">${p.nickname}</div>
@@ -1153,14 +1152,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderTeammatesUI(players) {
         teammatesContainer.innerHTML = ''; 
 
+
         players.forEach(p => {
             if (p.socketId === socket.id) return;
             
             // 存起來
             teammatesData[p.socketId] = { maxHp: p.maxHp || 100, maxMp: p.maxMp || 50 };
-
-            const roleName = p.role ? (p.role.charAt(0).toUpperCase() + p.role.slice(1).toLowerCase()) : 'Novice';
-            const imgSrc = `/holylegend/images/classes/${roleName}_1.png`;
+            
+            const imgSrc = p.avatar;
 
             const card = document.createElement('div');
             card.className = 'tm-card';

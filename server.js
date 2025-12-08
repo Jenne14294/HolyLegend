@@ -116,10 +116,9 @@ export default function initSocket(server) {
                     maxHp: p.state.playerMaxHp,
                     maxMp: p.state.playerMaxMp,
                     hp: p.state.playerMaxHp, // 初始血量
-                    mp: p.state.playerMaxMp   // 初始魔力
+                    mp: p.state.playerMaxMp,   // 初始魔力
+                    avatar: p.state.avatar
                 }));
-                
-                console.log(playersPublicInfo)
                 
                 // 初始化戰鬥
                 const floor = 1;
@@ -371,8 +370,8 @@ export default function initSocket(server) {
                 };
 
                 const msg = isSuccess 
-                    ? `✨ ${player.nickname} 檢定成功！(請等待全員確認)` 
-                    : `💨 ${player.nickname} 檢定失敗...(請等待全員確認)`;
+                    ? `✨ ${player.nickname} 檢定成功！\n獲得 ${eventData.rewardType} +${eventData.rewardValue}\n(請等待全員確認)` 
+                    : `💨 ${player.nickname} 檢定失敗...\n損失 ${eventData.punishType} ${eventData.punishValue}\n(請等待全員確認)`;
                 
                 io.to(currentRoomId).emit('event_result', { success: isSuccess, msg: msg });
             }, 500);
@@ -408,8 +407,6 @@ export default function initSocket(server) {
                 const type = result.isSuccess ? result.rewardType : result.punishType;
                 const val = result.isSuccess ? result.rewardValue : result.punishValue;
                 const isPunish = !result.isSuccess;
-
-                console.log(STAT_MAP[type])
 
                 // ★★★ 關鍵更新邏輯：同步寫入 Server 端記憶體 ★★★
                 room.forEach(p => {
@@ -622,19 +619,38 @@ export default function initSocket(server) {
             // ★★★ 關鍵修正：重新組裝玩家列表，包含「最新」的 HP/MP ★★★
             // 我們必須從 battle.playerStates 讀取數據，因為那裡才是最新的
             const updatedPlayersInfo = room.map(p => {
+                // ★★★ 關鍵修正：優先從 battle state 讀取最新的 HP/MP ★★★
+                const combatState = battle.playerStates[p.socketId];
+                
+                // 為了保險，同步回 p.state
+                if (combatState) {
+                    p.state.playerHp = combatState.hp;
+                    p.state.playerMp = combatState.mp;
+                }
+
+                // 取出金幣與經驗增量
+                const goldDelta = p.state.goldCollected || 0;
+                const expDelta = p.state.AdditionEXP || 0;
+
+                // 重置增量 (避免重複加)
+                p.state.goldCollected = 0;
+                p.state.AdditionEXP = 0;
 
                 return {
                     socketId: p.socketId,
                     nickname: p.nickname,
                     role: p.state.role,
-                    maxHp: p.state ? p.state.maxHp : 100,
-                    maxMp: p.state ? p.state.maxMp : 100,
-                    // 這裡一定要傳送 p.state 的數值，因為剛剛在 player_selected_reward 更新的是它
-                    hp: p.state ? p.state.hp : 100, 
-                    mp: p.state ? p.state.mp : 100,
-                    AdditionState: p.state.AdditionState || [0, 0, 0, 0],
-                    goldCollected: p.state.goldCollected || 0,
-                    AdditionEXP: p.state.AdditionEXP || 0
+                    maxHp: combatState ? combatState.maxHp : 100,
+                    maxMp: combatState ? combatState.maxMp : 100,
+                    
+                    // ★ 這裡使用 combatState 的 hp/mp，確保是最新數值
+                    hp: combatState ? combatState.hp : (p.state.playerHp || 100), 
+                    mp: combatState ? combatState.mp : (p.state.playerMp || 100),
+                    
+                    AdditionState: p.state.AdditionState || [0, 0, 0, 0], // 屬性發送總量
+                    goldCollected: goldDelta, // 發送增量
+                    AdditionEXP: expDelta,    // 發送增量
+                    avatar: p.state.avatar
                 };
             });
 

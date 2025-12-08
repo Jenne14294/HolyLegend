@@ -112,8 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const avatarEl = document.getElementById('lobbyAvatar');
         if (avatarEl && avatarEl.src) {
-            const match = avatarEl.src.match(/\/([a-zA-Z]+)_\d+\.png$/);
-            if (match) role = match[1].toLowerCase();
+            window.Game.state.avatar = avatarEl.src;
         }
 
         return {
@@ -332,7 +331,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 card.innerHTML = `
                     ${kickBtnHtml}
                     <div class="member-avatar-box">
-                        <img src="${imgSrc}" class="member-avatar" onerror="this.src='/holylegend/images/classes/Novice_1.png'">
+                        <img src="${imgSrc}" class="member-avatar">
                         <div class="member-lv">${p.state.level}</div>
                     </div>
                     <div class="member-stats">
