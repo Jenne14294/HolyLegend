@@ -271,8 +271,8 @@ export default function initSocket(server) {
                 
                 if (isEnemyDead) {
                     // 伺服器端決定是否給獎勵 (15% 機率)
-                    // const eventRate = Math.floor(Math.random() * 100);
-                    const eventRate = 0 
+                    const eventRate = Math.floor(Math.random() * 100);
+                    // const eventRate = 0 
 
                     if (eventRate < 20) {
                         // --- 觸發事件流程 ---
@@ -303,8 +303,8 @@ export default function initSocket(server) {
                         return;
                     }
                     else {
-                        // const rewardRate = Math.floor(Math.random() * 100);
-                        const rewardRate = 0;
+                        const rewardRate = Math.floor(Math.random() * 100);
+                        // const rewardRate = 0;
                     
                         // 初始化獎勵選擇狀態
                         battle.rewardSelection = {
