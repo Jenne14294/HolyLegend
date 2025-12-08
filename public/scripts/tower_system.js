@@ -3,7 +3,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // DOM 元素
     const lobbyLayer = document.getElementById('lobby-layer');
     const towerLayer = document.getElementById('tower-layer');
-    const teamLayer = document.getElementById('team-layer');
+    const settingLayer = document.getElementById('settings-layer');
+    const teamLayer = document.getElementById('job-layer');
     const btnEnterTower = document.getElementById('btn-enter-tower');
     const btnExitTower = document.getElementById('btn-tower-exit');
     const btnAttack = document.getElementById('btn-attack');
@@ -149,6 +150,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         socket.on('multiplayer_battle_start', (initialData) => {
             readyCheckLayer.classList.add('hidden');
+            settingLayer.classList.add('hidden');
+
             state.currentFloor = initialData.floor;
             state.enemyMaxHp = initialData.enemyMaxHp;
             state.enemyHp = initialData.enemyHp;
@@ -156,7 +159,6 @@ document.addEventListener('DOMContentLoaded', () => {
             state.processingLevelUp = false;
             waitingForTurn = false;
             state.isTurnLocked = false;
-            readyCheckLayer.classList.add('hidden');
             rewardLayer.classList.add('hidden'); // ★ 確保這一行存在，不然下一層開始了獎勵視窗還在
 
             // 【新增】渲染隊友介面
