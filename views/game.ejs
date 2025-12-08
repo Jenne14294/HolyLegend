@@ -25,7 +25,7 @@
                 <div class="avatar-container">
                     <div class="avatar-frame">
                         <!-- EJS 變數注入範例 -->
-                        <img id="lobbyAvatar" src="/holylegend/images/classes/<%= user.role %>_1.png" class="pixel-art">
+                        <img id="lobbyAvatar" src="<%= user.avatar %>" class="pixel-art">
                     </div>
                     <div class="level-badge"><span id="lobbyLevel"><%= user.level %></span></div>
                 </div>
@@ -112,14 +112,6 @@
                 <div class="ready-subtitle">等待全員接受...</div>
 
                 <div id="ready-slots-container">
-                    <!-- JS 動態生成 4 個格子 -->
-                    <!-- 範例:
-                    <div class="ready-slot accepted">
-                        <img src="..." class="slot-avatar">
-                        <div class="slot-status">✔</div>
-                        <div class="slot-name">Player1</div>
-                    </div>
-                    -->
                 </div>
 
                 <div class="ready-actions">
@@ -150,21 +142,6 @@
 
             <!-- 【新增】隊友狀態列 (Teammates HUD) -->
             <div id="teammates-container">
-                <!-- JS 動態生成 -->
-                <!-- 範例結構:
-                <div class="tm-card" data-id="socket_id">
-                    <div class="tm-avatar-box">
-                        <img src="...">
-                    </div>
-                    <div class="tm-info">
-                        <div class="tm-name">隊友A</div>
-                        <div class="tm-bar-group">
-                            <div class="tm-hp-bar"><div class="fill" style="width:80%"></div></div>
-                            <div class="tm-mp-bar"><div class="fill" style="width:50%"></div></div>
-                        </div>
-                    </div>
-                </div>
-                -->
             </div>
 
             <!-- 3. 玩家狀態 (Player Status) -->
@@ -285,7 +262,7 @@
                         <!-- 範例：隊長 -->
                         <div class="member-card">
                             <div class="member-avatar-box">
-                                <img src="/holylegend/images/classes/<%=user.role %>_1.png" class="member-avatar">
+                                <img src="<%= user.avatar %>" class="member-avatar">
                                 <div class="member-lv"><%=user.level %></div>
                             </div>
                             <div class="member-stats">
@@ -358,7 +335,7 @@
                     
                     <div class="avatar-upload-area">
                         <div class="preview-box">
-                            <img id="settings-avatar-preview" src="/holylegend/images/classes/<%=user.role %>_1.png" class="pixel-art">
+                            <img id="settings-avatar-preview" src="<%= user.avatar %>" class="pixel-art">
                         </div>
                         <div class="upload-controls">
                             <label for="file-upload" class="btn-pixel-medium">

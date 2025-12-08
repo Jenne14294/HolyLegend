@@ -1,29 +1,87 @@
 import express from 'express';
+import multer from 'multer';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url'; // 必需：用於 ES Modules 定義 __dirname
+
+// 引入您的服務層 (Service)
 import { getRewards, getEvents } from '../services/system.js';
 import { getUser, verifyToken } from '../services/accountAuth.js';
 import { getClass } from '../services/classes.js';
+import {updateUserAvatar} from '../services/account.js';
 
 const router = express.Router();
+
+// --- ES Modules 修正 __dirname ---
+// 因為 type="module" 時沒有全域 __dirname，需手動建立
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// --- Multer 儲存設定 ---
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        // 1. 獲取 user_id (從 verifyToken 解析的 req.user 中獲取)
+        // 注意：這依賴於路由設定中 verifyToken 必須排在 upload 之前
+        const userId = req.user ? req.user.id : null;
+
+        if (!userId) {
+            return cb(new Error('未授權: 無法獲取 User ID'), null);
+        }
+
+        // 2. 定義目標資料夾路徑
+        // 這裡假設 system.js 在 routes/ 資料夾內，所以用 ../public 回到根目錄找 public
+        const uploadDir = path.join(__dirname, '../public', 'avatars', 'users', String(userId));
+
+        // 3. 檢查資料夾是否存在，不存在則建立 (recursive: true 代表可建立多層目錄)
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+
+        cb(null, uploadDir);
+    },
+    filename: function (req, file, cb) {
+        // 4. 處理檔名
+        // 取得原始檔案的副檔名 (例如 .jpg, .png)
+        const ext = path.extname(file.originalname);
+        
+        // 強制命名為 avatar + 原副檔名 (覆蓋舊檔)
+        cb(null, `avatar${ext}`);
+    }
+});
+
+// 過濾器：只允許圖片
+const fileFilter = (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+        cb(null, true);
+    } else {
+        cb(new Error('只允許上傳圖片檔案！'), false);
+    }
+};
+
+const upload = multer({ 
+    storage: storage,
+    fileFilter: fileFilter,
+    limits: { fileSize: 5 * 1024 * 1024 } // 5MB
+});
+
+// ===============================
+//            Routes
+// ===============================
 
 router.get('/rewards', async (req, res, next) => {
   try {
     const rewards = await getRewards();
-
     res.json({"success":true, data: rewards});
-  }
-
-  catch (err) {
+  } catch (err) {
     console.error(err);
     next(err);
   }
 });
 
-
 router.get('/status', verifyToken, async (req, res, next) => {
   try {
     // 1. 根據 Token (req.user.id) 撈取完整玩家資料
     const userData = await getUser({ id: req.user.id });
-    
 
     if (!userData) {
       return res.redirect('/holylegend/'); // 找不到人就踢回登入
@@ -31,45 +89,38 @@ router.get('/status', verifyToken, async (req, res, next) => {
 
     const classData = await getClass({ id: userData.jobId})
 
-    // 2. 資料整形 (Data Flattening) - 這一步很重要！
-    // 因為資料庫結構通常是 user.UserClasses[0].level
-    // 但你的 EJS 模板是寫 user.level
-    // 所以我們要在這裡把資料「鋪平」
+    // 2. 資料整形
     const currentClass = userData.UserClasses.find(
       uc => uc.jobId === userData.jobId
     );
-
-    console.log()
     
-    // 簡單計算一下屬性 (或是你在 getUser 裡算好也可以)
+    // 計算屬性
     const level = currentClass.level || 1;
     const hp = Math.round(classData[0].dataValues.HP + ((level - 1) * (classData[0].dataValues.STR * 0.3 + classData[0].dataValues.CON * 0.7)))
-    const mp = Math.round(classData[0].dataValues.MP + ((level - 1) * (classData[0].dataValues.INT * 1)))
+    const mp = Math.round(classData[0].dataValues.MP + ((level - 1) * (classData[0].dataValues.INT * 0.75)))
 
     const renderData = {
         id: userData.id,
-        nickname: userData.nickName, // 或是 userData.nickName，看資料庫欄位
-        role: userData.class.name, // 假設 User 表有 role 欄位
+        nickname: userData.nickName,
+        role: userData.class.name,
         level: level,
         exp: currentClass.currentEXP || 0,
         needEXP: 50 + (level - 1) * 20,
-        hp: hp,      // 目前先預設滿血
+        hp: hp,
         maxHp: hp,
         mp: mp,
         maxMp: mp,
-        currentFloor: 1, // 假設 User 表有紀錄樓層
+        currentFloor: 1,
         gold: 0,
         AdditionState: [
           classData[0].dataValues.STR,
           classData[0].dataValues.DEX,
           classData[0].dataValues.CON,
           classData[0].dataValues.INT
-        ]
+        ],
+        avatar: userData.avatar
     };
 
-    // 3. 傳輸資料進去渲染 (Render)
-    // 第一個參數 'game_scene' 是你的 ejs 檔名 (不含 .ejs)
-    // 第二個參數是用來傳資料的物件
     res.json({
         success: true,
         data: renderData
@@ -86,12 +137,10 @@ router.get('/classes', verifyToken, async (req, res, next) => {
     const userData = await getUser({id: req.user.id})
 
     if (!userData) {
-      return res.redirect('/holylegend/'); // 找不到人就踢回登入
+      return res.redirect('/holylegend/');
     }
 
-    // 1. 根據 Token (req.user.id) 撈取完整玩家資料
     const ClassData = await getClass({})
-
     
     res.json({
         success: true,
@@ -105,19 +154,44 @@ router.get('/classes', verifyToken, async (req, res, next) => {
   }
 });
 
-
 router.get('/events', async (req, res, next) => {
   try {
     const events = await getEvents();
-
     res.json({"success":true, data: events});
-  }
-
-  catch (err) {
+  } catch (err) {
     console.error(err);
     next(err);
   }
 });
 
+// --- 上傳頭像路由 ---
+// 重要：verifyToken 必須在 upload.single 之前執行
+router.post('/upload_avatar', verifyToken, upload.single('avatar_image'), async (req, res, next) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: '請選擇要上傳的圖片' });
+        }
+
+        const userId = req.user.id;
+        
+        // 構建回傳路徑 (假設 public 對應根目錄 /)
+        const fileUrl = `/holylegend/avatars/users/${userId}/${req.file.filename}`;
+
+        await updateUserAvatar({avatar: fileUrl, userId: req.user.id})
+        
+        res.json({
+            success: true, 
+            message: '頭像上傳成功', 
+            data: {
+                userId: userId,
+                path: fileUrl,
+                filename: req.file.filename
+            }
+        });
+    } catch (err) {
+        console.error('上傳錯誤:', err);
+        next(err);
+    }
+});
 
 export default router;

@@ -37,7 +37,8 @@ router.get('/', verifyToken, async (req, res, next) => {
         mp: mp,
         maxMp: mp,
         currentFloor: 1, // 假設 User 表有紀錄樓層
-        gold: 0
+        gold: 0,
+        avatar: userData.avatar || '/holylegend/images/classes/' + userData.class.name + '_1.png'
     };
 
     // 3. 傳輸資料進去渲染 (Render)
@@ -56,7 +57,6 @@ router.get('/', verifyToken, async (req, res, next) => {
 
 router.post('/save_status', verifyToken, async(req, res, next) => {
   try {
-    const userId = req.user.id;
     // 1. 抓取完整玩家資料
     const userData = await getUser({ id: req.user.id });
 

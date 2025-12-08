@@ -214,13 +214,17 @@ export default function initSocket(server) {
                 
                 let targetSocketId = null;
                 let damageTaken = 0;
+                let playerDefense = 0;
                 let deadPlayerId = null;
 
                 // 怪物反擊
                 if (!isEnemyDead && battle.alivePlayerIds.length > 0) {
                     const targetIndex = Math.floor(Math.random() * battle.alivePlayerIds.length);
                     targetSocketId = battle.alivePlayerIds[targetIndex];
-                    damageTaken = Math.round(5 + (2.5 * (battle.alivePlayerIds.length - 1))); 
+                    damageTaken = Math.round((5 + (2.5 * (battle.alivePlayerIds.length - 1))) * Math.pow(1.05,battle.floor)); 
+                    playerDefense = Math.round(action.AdditionState[0] / 7 + action.AdditionState[2] / 3);
+
+                    damageTaken = Math.max(1, damageTaken - playerDefense);
 
                     if (battle.playerStates[targetSocketId]) {
                         battle.playerStates[targetSocketId].hp -= damageTaken;
@@ -267,8 +271,8 @@ export default function initSocket(server) {
                 
                 if (isEnemyDead) {
                     // 伺服器端決定是否給獎勵 (15% 機率)
-                    const eventRate = Math.floor(Math.random() * 100);
-                    // const eventRate = 0 
+                    // const eventRate = Math.floor(Math.random() * 100);
+                    const eventRate = 0 
 
                     if (eventRate < 20) {
                         // --- 觸發事件流程 ---
@@ -299,8 +303,8 @@ export default function initSocket(server) {
                         return;
                     }
                     else {
-                        const rewardRate = Math.floor(Math.random() * 100);
-                        // const rewardRate = 0;
+                        // const rewardRate = Math.floor(Math.random() * 100);
+                        const rewardRate = 0;
                     
                         // 初始化獎勵選擇狀態
                         battle.rewardSelection = {
@@ -379,83 +383,100 @@ export default function initSocket(server) {
             if (!currentRoomId || !battles[currentRoomId]) return;
             const battle = battles[currentRoomId];
             
+            // 加入確認名單
             if (!battle.eventConfirmedPlayers.includes(socket.id)) {
                 battle.eventConfirmedPlayers.push(socket.id);
             }
 
+            // 檢查：是否所有「存活」玩家都已確認？
             const aliveCount = battle.alivePlayerIds.length;
             
             if (battle.eventConfirmedPlayers.length >= aliveCount) {
-                // --- 執行結算 ---
+                // --- 全員確認完畢，執行結算 ---
+                
                 const result = battle.pendingEventResult;
+                // 防呆：如果結果不存在，跳過結算
+                if (!result) {
+                    io.to(currentRoomId).emit('close_event_window');
+                    setTimeout(() => { startNextFloor(currentRoomId); }, 1000);
+                    return;
+                }
+
                 const room = rooms[currentRoomId];
 
-                // 決定要處理獎勵還是懲罰
-                let processType = null;
-                let processVal = 0;
-                let isGood = false;
+                // 判斷是獎勵還是懲罰
+                const type = result.isSuccess ? result.rewardType : result.punishType;
+                const val = result.isSuccess ? result.rewardValue : result.punishValue;
+                const isPunish = !result.isSuccess;
 
-                if (result && result.isSuccess) {
-                    processType = result.rewardType;
-                    processVal = result.rewardValue;
-                    isGood = true;
-                } else if (result && !result.isSuccess) {
-                    processType = result.punishType;
-                    processVal = result.punishValue;
-                    isGood = false;
-                }
+                console.log(STAT_MAP[type])
 
-                console.log(processType)
-
-                if (processType) {
-                    room.forEach(p => {
-                        // 1. 屬性 (STR, DEX, CON, INT) -> 修改 p.state.AdditionState (對應 window.Game.state)
-                        if (STAT_MAP[processType] !== undefined) {
-                            if (!p.state.AdditionState) p.state.AdditionState = [0,0,0,0];
-                            if (isGood) p.state.AdditionState[STAT_MAP[processType]] += processVal;
-                            else p.state.AdditionState[STAT_MAP[processType]] -= processVal;
-                        } 
-                        // 2. 金幣 (GOLD) -> 修改 p.state.goldCollected
-                        else if (processType === 'GOLD') {
-                            if (!p.state.goldCollected) p.state.goldCollected = 0;
-                            if (isGood) p.state.goldCollected += processVal;
-                            else p.state.goldCollected -= processVal;
+                // ★★★ 關鍵更新邏輯：同步寫入 Server 端記憶體 ★★★
+                room.forEach(p => {
+                    // 1. 屬性 (STR, DEX, CON, INT) -> 修改 p.state.AdditionState
+                    if (STAT_MAP[type] !== undefined) {
+                        if (!p.state.AdditionState) p.state.AdditionState = [0,0,0,0];
+                        
+                        if (isPunish) {
+                            p.state.AdditionState[STAT_MAP[type]] -= val;
+                            // 防止屬性變負數
+                            if (p.state.AdditionState[STAT_MAP[type]] < 0) p.state.AdditionState[STAT_MAP[type]] = 0;
+                        } else {
+                            p.state.AdditionState[STAT_MAP[type]] += val;
                         }
-                        // 3. 經驗 (EXP)
-                        else if (processType === 'EXP') {
-                            if (!p.state.AdditionEXP) p.state.AdditionEXP = 0;
-                            if (isGood) p.state.AdditionEXP += processVal;
-                        }
-                        // 4. HP -> 修改 battle.playerStates (戰鬥) + p.state (備份)
-                        else if (processType === 'HP') {
-                            const bState = battle.playerStates[p.socketId];
-                            if (isGood) bState.hp = Math.min(bState.maxHp, bState.hp + processVal);
-                            else bState.hp = Math.max(0, bState.hp - processVal);
-                            
-                            p.state.playerHp = bState.hp; // 同步
-                        }
-                        // 5. MP
-                        else if (processType === 'MP') {
-                            const bState = battle.playerStates[p.socketId];
-                            if (isGood) bState.mp = Math.min(bState.maxMp, bState.mp + processVal);
-                            else bState.mp = Math.max(0, bState.mp - processVal);
-                            
-                            p.state.playerMp = bState.mp; // 同步
-                        }
-                    });
+                    } 
+                    // 2. 經驗 (EXP) -> 修改 p.state.AdditionEXP
+                    else if (type === 'EXP') {
+                        if (!p.state.AdditionEXP) p.state.AdditionEXP = 0;
+                        if (isPunish) p.state.AdditionEXP = Math.max(0, p.state.AdditionEXP - val);
+                        else p.state.AdditionEXP += val;
+                    }
+                    // 3. 金幣 (GOLD) -> 修改 p.state.goldCollected
+                    else if (type === 'GOLD') {
+                        // 注意：這會假設 Server 端有正確的金幣數據。
+                        // 如果前端打怪金幣沒即時同步給 Server，這裡可能會導致金幣覆蓋問題。
+                        // 但為了讓事件金幣生效，我們必須更新它。
+                        if (!p.state.goldCollected) p.state.goldCollected = 0;
+                        if (isPunish) p.state.goldCollected = Math.max(0, p.state.goldCollected - val);
+                        else p.state.goldCollected += val;
+                    }
+                    // 4. HP -> 修改 battle (戰鬥用) + p.state (存檔用)
+                    else if (type === 'HP') {
+                        const pState = battle.playerStates[p.socketId];
+                        const change = isPunish ? -val : val;
+                        pState.hp = Math.min(pState.maxHp, Math.max(0, pState.hp + change));
+                        p.state.playerHp = pState.hp; // 同步
+                    } 
+                    // 5. MP -> 修改 battle + p.state
+                    else if (type === 'MP') {
+                        const pState = battle.playerStates[p.socketId];
+                        const change = isPunish ? -val : val;
+                        pState.mp = Math.min(pState.maxMp, Math.max(0, pState.mp + change));
+                        p.state.playerMp = pState.mp; // 同步
+                    }
+                });
 
-                    const sign = isGood ? '+' : '-';
-                    io.to(currentRoomId).emit('chat_message', { sender: '系統', text: `事件結算：全隊 ${processType} ${sign}${processVal}`, isSystem: true });
-                }
+                // 發送訊息
+                const actionText = isPunish ? '受到懲罰' : '獲得獎勵';
+                const sign = isPunish ? '-' : '+';
+                io.to(currentRoomId).emit('chat_message', { 
+                    sender: '系統', 
+                    text: `事件結束：全隊 ${actionText} ${type} ${sign}${val}`, 
+                    isSystem: true 
+                });
 
-                // 清理與下一層
+                // 清理狀態
                 battle.isEventActive = false;
                 battle.eventLock = null;
                 battle.pendingEventResult = null;
                 battle.eventConfirmedPlayers = [];
 
+                // 關閉視窗並進入下一層
                 io.to(currentRoomId).emit('close_event_window');
-                setTimeout(() => { startNextFloor(currentRoomId); }, 1000);
+                
+                setTimeout(() => {
+                    startNextFloor(currentRoomId);
+                }, 1000);
             }
         });
 
@@ -465,128 +486,92 @@ export default function initSocket(server) {
             // 實際建議前端都走 player_confirm_event
         });
 
-        // 修改監聽事件，接收 data 參數
+        // ---------------------------------------------------------
+        // 2. 玩家選擇層數獎勵 (Reward System) - ★ 關鍵修改處 ★
+        // ---------------------------------------------------------
         socket.on('player_selected_reward', (data) => {
             if (!currentRoomId || !battles[currentRoomId]) return;
             const battle = battles[currentRoomId];
+            const pState = battle.playerStates[socket.id];
+            
+            // 取得後端記憶體中的玩家資料 (用來存永久狀態)
+            const playerRoomData = rooms[currentRoomId].find(p => p.socketId === socket.id);
 
-            if (battle.playerStates[socket.id].isDead) return;
+            const rType = data.rewardType || (data.reward ? data.reward.rewardType : null);
+            const rPercent = data.rewardPercent || (data.reward ? data.reward.rewardPercent : 0);
+            const rValue = data.rewardValue || (data.reward ? data.reward.rewardValue : 0);
+            const targetSocketId = data.targetSocketId || null;
 
-            if (battle.playerStates[socket.id] && data) {
-                // 1. 處理【復活】 (REVIVE)
-                // 必須在加血之前處理，因為復活通常是直接回滿
-                if (data.reward.rewardType === 'REVIVE' || data.reward.rewardType === 'revive') {
-                    const deadPlayerIds = Object.keys(battle.playerStates).filter(id => 
-                        battle.playerStates[id].isDead
-                    );
-
+            if (pState && rType && playerRoomData) {
+                // --- 1. 屬性獎勵 (STR, DEX, CON, INT) ---
+                if (STAT_MAP[rType] !== undefined) {
+                    playerRoomData.state.AdditionState[STAT_MAP[rType]] += rValue;
+                }
+                // --- 2. 經驗值獎勵 (EXP) ---
+                else if (rType === 'EXP') {
+                    if (!playerRoomData.state.AdditionEXP) playerRoomData.state.AdditionEXP = 0;
+                    playerRoomData.state.AdditionEXP += rValue;
+                }
+                // --- 3. 金幣獎勵 (GOLD) ---
+                else if (rType === 'GOLD') {
+                    if (!playerRoomData.state.goldCollected) playerRoomData.state.goldCollected = 0;
+                    playerRoomData.state.goldCollected += rValue;
+                }
+                // --- 4. 復活 (REVIVE) ---
+                else if (rType === 'REVIVE' || rType === 'revive') {
+                    const deadPlayerIds = Object.keys(battle.playerStates).filter(id => battle.playerStates[id].isDead);
                     if (deadPlayerIds.length > 0) {
                         let finalTargetId = null;
-
-                        // ★ A. 如果有指定目標，且該目標確實死亡，就鎖定他
-                        if (targetSocketId && deadPlayerIds.includes(targetSocketId)) {
-                            finalTargetId = targetSocketId;
-                        } 
-                        // ★ B. 如果沒有指定(或目標錯誤)，則隨機選一個 (防呆)
-                        else {
-                            const randomIndex = Math.floor(Math.random() * deadPlayerIds.length);
-                            finalTargetId = deadPlayerIds[randomIndex];
-                        }
-
+                        if (targetSocketId && deadPlayerIds.includes(targetSocketId)) { finalTargetId = targetSocketId; } 
+                        else { const randomIndex = Math.floor(Math.random() * deadPlayerIds.length); finalTargetId = deadPlayerIds[randomIndex]; }
                         const targetState = battle.playerStates[finalTargetId];
+                        
+                        // 也要同步更新 target 在 rooms 裡的數據，確保同步
+                        const targetRoomData = rooms[currentRoomId].find(p => p.socketId === finalTargetId);
 
                         if (targetState) {
-                            // 3. 復活並恢復 30%
-                            targetState.isDead = false;
-                            targetState.hp = Math.round(targetState.maxHp * 0.3);
+                            targetState.isDead = false; 
+                            targetState.hp = Math.round(targetState.maxHp * 0.3); 
                             targetState.mp = Math.round(targetState.maxMp * 0.3);
                             
-                            // 加回存活名單 (關鍵)
-                            if (!battle.alivePlayerIds.includes(finalTargetId)) {
-                                battle.alivePlayerIds.push(finalTargetId);
+                            // 同步回 rooms
+                            if (targetRoomData) {
+                                targetRoomData.state.playerHp = targetState.hp;
+                                targetRoomData.state.playerMp = targetState.mp;
                             }
 
-                            // 取得暱稱發公告
-                            const roomMembers = rooms[currentRoomId];
-                            const targetMember = roomMembers ? roomMembers.find(m => m.socketId === finalTargetId) : null;
-                            const targetName = targetMember ? targetMember.nickname : '隊友';
-
-                            // 發送系統訊息通知大家
-                            io.to(currentRoomId).emit('chat_message', { 
-                                sender: '系統', 
-                                text: `${targetName} 被復活了！(HP/MP 恢復 30%)`, 
-                                isSystem: true 
-                            });
+                            if (!battle.alivePlayerIds.includes(finalTargetId)) { battle.alivePlayerIds.push(finalTargetId); }
+                            const targetName = targetRoomData ? targetRoomData.nickname : '隊友';
+                            io.to(currentRoomId).emit('chat_message', { sender: '系統', text: `${targetName} 被復活了！(HP/MP 恢復 30%)`, isSystem: true });
                         }
                     } else {
-                        // 如果沒人死掉，幫自己補 30%
-                        battle.playerStates[socket.id].hp += Math.round(battle.playerStates[socket.id].maxHp * 0.3);
-                        battle.playerStates[socket.id].mp += Math.round(battle.playerStates[socket.id].maxMp * 0.3);
-                        if (battle.playerStates[socket.id].hp > battle.playerStates[socket.id].maxHp) battle.playerStates[socket.id].hp = battle.playerStates[socket.id].maxHp;
-                        if (battle.playerStates[socket.id].mp > battle.playerStates[socket.id].maxMp) battle.playerStates[socket.id].mp = battle.playerStates[socket.id].maxMp;
+                        // 沒人死，補自己
+                        pState.hp += Math.round(pState.maxHp * 0.3); 
+                        pState.mp += Math.round(pState.maxMp * 0.3);
+                        if (pState.hp > pState.maxHp) pState.hp = pState.maxHp; 
+                        if (pState.mp > pState.maxMp) pState.mp = pState.maxMp;
+                        // 同步
+                        playerRoomData.state.playerHp = pState.hp;
+                        playerRoomData.state.playerMp = pState.mp;
                     }
+                } 
+                // --- 5. HP/MP 回復 ---
+                else if (['HP', 'HP_PERCENT'].includes(rType)) {
+                    let heal = 0; if (rType === 'HP_PERCENT') { heal = Math.round(pState.maxHp * (parseFloat(rPercent) / 100 || 0)); } else { heal = parseInt(rValue) || 0; }
+                    pState.hp += heal; if (pState.hp > pState.maxHp) pState.hp = pState.maxHp;
+                    playerRoomData.state.playerHp = pState.hp; // 同步
                 }
-                // 2. 處理【HP 回復】 (HP / HP_PERCENT)
-                else if (data.reward.rewardType  === 'HP') {
-                    let healAmount = 0;
-
-                    // 如果是百分比 (例如 0.3 代表 30%)
-                    if (data.reward.rewardPercent > 0) {
-                        const pct = parseFloat(data.reward.rewardPercent / 100) || 0; // 防呆
-                        healAmount = battle.playerStates[socket.id].maxHp * pct;
-                    } 
-                    // 如果是固定數值 (例如 50 點)
-                    else {
-                        healAmount = parseInt(data.reward.rewardValue) || 0; // 防呆
-                    }
-
-                    battle.playerStates[socket.id].hp = Math.floor(battle.playerStates[socket.id].hp + healAmount);
-
-                    // ★ 關鍵修正：不能超過最大血量
-                    if (battle.playerStates[socket.id].hp > battle.playerStates[socket.id].maxHp) battle.playerStates[socket.id].hp = battle.playerStates[socket.id].maxHp;
+                else if (['MP', 'MP_PERCENT'].includes(rType)) {
+                    let recover = 0; if (rType === 'MP_PERCENT') { recover = Math.round(pState.maxMp * (parseFloat(rPercent) / 100 || 0)); } else { recover = parseInt(rValue) || 0; }
+                    pState.mp += recover; if (pState.mp > pState.maxMp) pState.mp = pState.maxMp;
+                    playerRoomData.state.playerMp = pState.mp; // 同步
                 }
-                // 3. 處理【MP 回復】 (MP / MP_PERCENT)
-                else if (data.reward.rewardType === 'MP') {
-                    let recoverAmount = 0;
-
-                    if (data.reward.rewardPercent > 0 ) {
-                        const pct = parseFloat(data.reward.rewardPercent / 100) || 0;
-                        recoverAmount = battle.playerStates[socket.id].maxMp * pct;
-                    } else {
-                        recoverAmount = parseInt(data.reward.rewardValue) || 0;
-                    }
-
-                    battle.playerStates[socket.id].mp = Math.floor(battle.playerStates[socket.id].mp + recoverAmount);
-
-                    // ★ 關鍵修正：不能超過最大魔力
-                    if (battle.playerStates[socket.id].mp > battle.playerStates[socket.id].maxMp) battle.playerStates[socket.id].mp = battle.playerStates[socket.id].maxMp;
-                }
-                
             }
-
-            // ---------------------------
-
-            // 記錄該玩家已選擇
-            if (!battle.rewardSelection.selectedPlayers.includes(socket.id)) {
-                battle.rewardSelection.selectedPlayers.push(socket.id);
-            }
-
-            // 檢查：是否「所有存活玩家」都選完了？
-            // 注意：因為剛剛如果有人復活，alivePlayerIds 已經更新了，所以這裡的檢查會包含剛復活的人
-            const allSelected = battle.alivePlayerIds.every(id => 
-                battle.rewardSelection.selectedPlayers.includes(id)
-            );
-
-            if (allSelected) {
-                // 所有人選完，進入下一層
-                startNextFloor(currentRoomId);
-            } else {
-                // 還有隊友沒選，通知前端顯示等待訊息
-                socket.emit('waiting_for_teammates', { 
-                    current: battle.rewardSelection.selectedPlayers.length, 
-                    total: battle.alivePlayerIds.length 
-                });
-            }
+            
+            // ... (後面的選人檢查與 startNextFloor 觸發保持不變) ...
+            if (!battle.rewardSelection.selectedPlayers.includes(socket.id)) { battle.rewardSelection.selectedPlayers.push(socket.id); }
+            const allSelected = battle.alivePlayerIds.every(id => battle.rewardSelection.selectedPlayers.includes(id));
+            if (allSelected) { startNextFloor(currentRoomId); } else { socket.emit('waiting_for_teammates', { current: battle.rewardSelection.selectedPlayers.length, total: battle.alivePlayerIds.length }); }
         });
 
         // 離開戰鬥 (不解散房間，只是回到大廳)

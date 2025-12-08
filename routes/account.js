@@ -2,7 +2,7 @@ import express from 'express';
 import bcrypt from 'bcrypt';
 import { getUser, createUser, verifyToken} from '../services/accountAuth.js';
 import { getClass, updateUserClass, getUserClassRecord, addUserClassRecord } from '../services/classes.js';
-import { updateUser } from '../services/account.js';
+import { updateUserNickname} from '../services/account.js';
 import jwt from 'jsonwebtoken';
 
 const router = express.Router();
@@ -137,7 +137,7 @@ router.post('/updateProfile', verifyToken, async (req, res, next) => {
       return res.redirect('/holylegend'); // 找不到人就踢回登入
     }
 
-    await updateUser({name: req.body.name, userId: req.user.id})
+    await updateUserNickname({name: req.body.name, userId: req.user.id})
 
     return res.status(200).json({ success: true });
 

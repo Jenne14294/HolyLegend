@@ -106,21 +106,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            // A. 本地預覽 (FileReader)
             const reader = new FileReader();
             reader.onload = function(event) {
-                // 1. 更新預覽圖
-                avatarPreview.src = event.target.result;
-                
-                // 2. 這裡應該要呼叫後端 API 上傳
-                // uploadAvatar(file); 
-                
-                // 暫時模擬：直接更新大廳頭像
-                const lobbyAvt = document.getElementById('lobbyAvatar');
-                if (lobbyAvt) lobbyAvt.src = event.target.result;
-                
-                alert('頭像預覽已更新 (需實作後端上傳)');
+                // 更新設定介面的預覽圖
+                if (avatarPreview) avatarPreview.src = event.target.result;
             };
             reader.readAsDataURL(file);
+
+            // B. 上傳至後端
+            uploadAvatar(file);
         });
     }
 
@@ -162,6 +157,56 @@ document.addEventListener('DOMContentLoaded', () => {
                 btnSaveName.innerText = '修改';
             }
         });
+    }
+
+
+    async function uploadAvatar(file) {
+        // ★ 修正：不需要再從前端獲取 userId，後端會從 Cookie 解析
+        const formData = new FormData();
+        formData.append('avatar_image', file); 
+
+        try {
+            // 發送請求
+            const response = await fetch('/holylegend/system/upload_avatar', {
+                method: 'POST',
+                // 因為是同源請求 (Same-origin)，瀏覽器會自動帶上 Cookie (auth_token)
+                // 不需要設定 credentials: 'include' 除非是跨域
+                body: formData 
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                alert('頭像上傳成功！');
+                
+                // 加上時間戳記以防止瀏覽器快取舊圖片
+                const newAvatarUrl = `${result.data.path}?t=${new Date().getTime()}`;
+
+                // 1. 更新設定頁面預覽
+                if (avatarPreview) {
+                    avatarPreview.src = newAvatarUrl;
+                    avatarPreview.style.opacity = 1;
+                }
+
+                // 2. 更新大廳頭像
+                const lobbyAvt = document.getElementById('lobbyAvatar');
+                if (lobbyAvt) lobbyAvt.src = newAvatarUrl;
+
+                // 3. (選用) 更新 Socket 狀態，讓隊友也能看到新頭像
+                // if (window.Game.socket) {
+                //     window.Game.socket.emit('update_player_info', { avatar: newAvatarUrl });
+                // }
+
+            } else {
+                throw new Error(result.msg || result.message || '上傳失敗'); // 兼容 msg/message
+            }
+
+        } catch (error) {
+            console.error('上傳錯誤:', error);
+            // 如果是 401/403，verifyToken 會回傳錯誤訊息，這裡會捕捉到
+            alert('上傳失敗: ' + error.message);
+            // 失敗時恢復原本的預覽圖可能比較複雜，這裡暫時不還原，或可考慮重新整理
+        }
     }
 
 });

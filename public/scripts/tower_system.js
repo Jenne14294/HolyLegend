@@ -864,73 +864,88 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function applyReward(rewardData) {
-        // 1. 執行效果 (根據 rewardType)
-        if (isMultiplayerMode && socket && rewardData.rewardType === 'REVIVE') {
-            
-            // 1. 隱藏獎勵介面，讓玩家能看到隊友
-            rewardLayer.classList.add('hidden');
-            
-            // 2. 顯示提示
-            addBattleLog("請點擊一名 [死亡] 的隊友進行復活！", 'log-system');
-            alert("請點擊一名 [死亡] 的隊友頭像進行復活！\n(如果不小心關閉提示，直接點擊隊友即可)");
 
-            // 3. 進入選人模式：為隊友卡片加入點擊監聽
-            const cards = teammatesContainer.querySelectorAll('.tm-card');
+        // =================================================
+        // 🛑 路徑 A：多人模式 (Multiplayer)
+        //    只負責送出請求，不進行任何本地數值修改
+        // =================================================
+        if (isMultiplayerMode && socket) {
             
-            // 定義一次性點擊處理器
-            const handleTeammateSelect = (e) => {
-                const targetCard = e.currentTarget;
-                const targetId = targetCard.dataset.id;
+            // A-1. 特殊處理：復活 (REVIVE) 需要選目標
+            if (rewardData.rewardType === 'REVIVE') {
+                rewardLayer.classList.add('hidden');
+                addBattleLog("請點擊一名 [死亡] 的隊友進行復活！", 'log-system');
+                alert("請點擊一名 [死亡] 的隊友頭像進行復活！\n(可以直接點擊隊友卡片)");
+
+                const cards = teammatesContainer.querySelectorAll('.tm-card');
                 
-                // 確認
-                if (confirm("確定要復活這位隊友嗎？")) {
-                    // 發送 Socket 請求 (帶入目標 ID)
-                    socket.emit('player_selected_reward', { 
-                        reward: rewardData,
-                        targetSocketId: targetId
-                    });
+                const handleTeammateSelect = (e) => {
+                    const targetCard = e.currentTarget;
+                    const targetId = targetCard.dataset.id;
+                    
+                    if (confirm("確定要復活這位隊友嗎？")) {
+                        // 發送請求
+                        socket.emit('player_selected_reward', { 
+                            reward: rewardData,
+                            targetSocketId: targetId
+                        });
 
-                    // 清理：移除所有卡片的監聽器與樣式
+                        // 清理監聽
+                        cards.forEach(c => {
+                            c.removeEventListener('click', handleTeammateSelect);
+                            c.classList.remove('selectable');
+                        });
+
+                        // 顯示等待狀態
+                        rewardLayer.classList.remove('hidden');
+                        rewardCardsContainer.innerHTML = '<div style="color: white; font-size: 1.5rem;">等待隊友選擇...</div>';
+                    }
+                };
+
+                let foundDead = false;
+                cards.forEach(c => {
+                    c.classList.add('selectable'); 
+                    c.addEventListener('click', handleTeammateSelect);
+                    if (c.classList.contains('dead')) foundDead = true;
+                });
+
+                // 防呆：如果沒人死，直接送出 (後端會轉為補血)
+                if (!foundDead) {
+                    alert("目前無人陣亡，系統將自動為你恢復生命。");
                     cards.forEach(c => {
                         c.removeEventListener('click', handleTeammateSelect);
                         c.classList.remove('selectable');
                     });
-
-                    // 顯示等待訊息
+                    
+                    socket.emit('player_selected_reward', { reward: rewardData });
                     rewardLayer.classList.remove('hidden');
                     rewardCardsContainer.innerHTML = '<div style="color: white; font-size: 1.5rem;">等待隊友選擇...</div>';
                 }
-            };
-
-            // 綁定監聽器並增加視覺提示
-            let foundDead = false;
-            cards.forEach(c => {
-                // 可以只讓死亡的隊友可選，或是全部可選(後端防呆)
-                // 這裡我們讓所有隊友都可選，讓玩家自己決定
-                c.classList.add('selectable'); 
-                c.addEventListener('click', handleTeammateSelect);
-                if (c.classList.contains('dead')) foundDead = true;
-            });
-
-            // 如果沒有人死亡，自動跳過選人，直接送出(後端會幫自己補血)
-            if (!foundDead) {
-                alert("目前無人陣亡，系統將自動為你恢復生命。");
-                // 移除剛剛綁定的監聽
-                cards.forEach(c => {
-                    c.removeEventListener('click', handleTeammateSelect);
-                    c.classList.remove('selectable');
+            } 
+            
+            // A-2. 一般獎勵 (屬性、金幣、經驗、HP/MP)
+            else {
+                // 直接發送請求
+                socket.emit('player_selected_reward', { 
+                    reward: rewardData
                 });
                 
-                socket.emit('player_selected_reward', { reward: rewardData });
-                rewardLayer.classList.remove('hidden');
+                // 顯示等待狀態
                 rewardCardsContainer.innerHTML = '<div style="color: white; font-size: 1.5rem;">等待隊友選擇...</div>';
             }
 
-            return; // ★ 中斷函式，不執行下面的預設邏輯
+            // ★ 關鍵：直接 Return，不執行下方的單人邏輯
+            return; 
         }
 
+
+        // =================================================
+        // 👤 路徑 B：單人模式 (Single Player)
+        //    在本地直接計算數值並儲存
+        // =================================================
+        
         switch (rewardData.rewardType) {
-            case 'HP': // 資料庫是用 HP
+            case 'HP': 
                 if (rewardData.rewardPercent > 0) {
                     const heal = Math.floor(state.playerMaxHp * (rewardData.rewardPercent / 100));
                     state.playerHp = Math.min(state.playerMaxHp, state.playerHp + heal);
@@ -940,7 +955,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     addBattleLog(`恢復了 ${rewardData.rewardValue} 點生命！`, 'log-player');
                 }
                 break;
-            case 'MP': // 資料庫是用 MP
+            case 'MP': 
                 if (rewardData.rewardPercent > 0) {
                     const mana = Math.floor(state.playerMaxMp * (rewardData.rewardPercent / 100));
                     state.playerMp = Math.min(state.playerMaxMp, state.playerMp + mana);
@@ -954,17 +969,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.goldCollected += rewardData.rewardValue;
                 break;
             case 'EXP':
-                // 這裡暫時用 alert 提示，實際可加到一個暫存變數 bonusExp，結算時一併送出
-                // 如果後端結算API沒有接收 bonusExp，這裡僅為視覺效果
                 state.AdditionEXP += rewardData.rewardValue;
                 alert(`獲得 ${rewardData.rewardValue} 經驗值 (將於結算時發放)`);
                 break;
             case 'STR':
                 state.AdditionState[0] += rewardData.rewardValue;
+                alert(`${rewardData.name} 生效！(本次冒險屬性提升)`);
+                break;
             case 'DEX':
                 state.AdditionState[1] += rewardData.rewardValue;
+                alert(`${rewardData.name} 生效！(本次冒險屬性提升)`);
+                break;
             case 'CON':
                 state.AdditionState[2] += rewardData.rewardValue;
+                alert(`${rewardData.name} 生效！(本次冒險屬性提升)`);
+                break;
             case 'INT':
                 state.AdditionState[3] += rewardData.rewardValue;
                 alert(`${rewardData.name} 生效！(本次冒險屬性提升)`);
@@ -972,30 +991,20 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'REVIVE':
                 state.playerHp = state.playerMaxHp;
                 state.playerMp = state.playerMaxMp;
+                break;
             default:
                 console.log("未知的獎勵類型:", rewardData);
         }
 
-        // 3. 動畫結束後的行為
+        // 動畫結束後的行為 (單人)
         setTimeout(() => {
             updatePlayerUI();
             updateTopBarUI();
             
-            if (isMultiplayerMode && socket) {
-                // 多人模式：通知 Server 我選好了，並且不關閉遮罩(等待隊友)
-                socket.emit('player_selected_reward', { 
-                    reward: rewardData
-                });
-                
-                // 清空卡片，顯示等待訊息
-                rewardCardsContainer.innerHTML = '<div style="color: white; font-size: 1.5rem;">等待隊友選擇...</div>';
-                // 注意：不要移除 hidden，讓遮罩繼續蓋著，直到下一層開始
-            } else {
-                // 單人模式：直接進下一層
-                rewardLayer.classList.add('hidden');
-                state.currentFloor++;
-                startNewFloor();
-            }
+            // 單人模式：直接進下一層
+            rewardLayer.classList.add('hidden');
+            state.currentFloor++;
+            startNewFloor();
         }, 600);
     }
 
@@ -1003,7 +1012,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // 注意：這裡不要檢查 isTurnLocked，因為這就是解鎖的時刻
         if (state.isGameOver || state.processingLevelUp) return;
 
-        const dmg = 5;
+        let dmg = Math.round(5 * Math.pow(1.05, window.Game.state.currentFloor));
+        playerDefense = Math.round(window.Game.state.AdditionState[0] / 7 + window.Game.state.AdditionState[2] / 3);
+        dmg = Math.max(dmg - playerDefense, 1);
         state.isTurnLocked = false; // 解鎖
 
         playerTakeDamage(dmg);
@@ -1368,7 +1379,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         setTimeout(() => {
             const roll = Math.random() * 100;
-            const isSuccess = roll <= rate;
+            const isSuccess = roll <= rate || false;
 
             // ★ 分歧：多人模式
             if (isMultiplayerMode && socket) {

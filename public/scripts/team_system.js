@@ -305,8 +305,7 @@ document.addEventListener('DOMContentLoaded', () => {
             teamMembersList.innerHTML = ''; 
 
             memberList.forEach(p => {
-                const roleName = p.state.role ? (p.state.role.charAt(0).toUpperCase() + p.state.role.slice(1).toLowerCase()) : 'Novice';
-                const imgSrc = `/holylegend/images/classes/${roleName}_1.png`;
+                const imgSrc = p.state.avatar;
 
                 const hpPct = p.state.maxHp ? (p.state.hp / p.state.maxHp) * 100 : 100;
                 const mpPct = p.state.maxMp ? (p.state.mp / p.state.maxMp) * 100 : 100;

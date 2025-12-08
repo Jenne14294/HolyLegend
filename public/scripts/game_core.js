@@ -15,6 +15,7 @@ window.Game = {
         enemyMaxHp: 100,
         level: 1,
         role: 'novice', // 記錄當前職業
+        avatar: '',
         AdditionState: [],
         AdditionEXP: 0
     },
@@ -62,13 +63,9 @@ window.Game = {
                 
 
         const avatar = document.getElementById('lobbyAvatar');
-        if (avatar && data.role) {
+        if (avatar && data.avatar) {
             // 首字大寫處理
-            const roleName = data.role.charAt(0).toUpperCase() + data.role.slice(1).toLowerCase();
-            avatar.src = `/holylegend/images/classes/${roleName}_1.png`;
-            avatar.onerror = function() {
-                this.src = '/holylegend/images/classes/Novice_1.png';
-            };
+            avatar.src = data.avatar;
         }
     }
 };
@@ -103,6 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 Game.state.role = data.role; // 記錄職業
                 Game.state.AdditionState = data.AdditionState;
                 Game.state.AdditionEXP = 0;
+                Game.state.avatar = data.avatar;
                 Game.InitData.nickname = data.nickname;
                 
                 // 更新 UI
