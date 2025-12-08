@@ -117,7 +117,11 @@ export default function initSocket(server) {
                     maxMp: p.state.playerMaxMp,
                     hp: p.state.playerMaxHp, // 初始血量
                     mp: p.state.playerMaxMp,   // 初始魔力
-                    avatar: p.state.avatar
+                    avatar: p.state.avatar,
+                    AdditionEXP: 0,
+                    goldCollected: 0,
+                    AdditionState: p.state.AdditionState
+
                 }));
                 
                 // 初始化戰鬥
@@ -553,13 +557,25 @@ export default function initSocket(server) {
                     }
                 } 
                 // --- 5. HP/MP 回復 ---
-                else if (['HP', 'HP_PERCENT'].includes(rType)) {
-                    let heal = 0; if (rType === 'HP_PERCENT') { heal = Math.round(pState.maxHp * (parseFloat(rPercent) / 100 || 0)); } else { heal = parseInt(rValue) || 0; }
+                else if (rType == 'HP') {
+                    let heal = 0; 
+                    if (rPercent > 0) {
+                        heal = Math.round(pState.maxHp * (parseFloat(rPercent) / 100 || 0)); 
+                    } else { 
+                        heal = parseInt(rValue) || 0; 
+                    }
+
                     pState.hp += heal; if (pState.hp > pState.maxHp) pState.hp = pState.maxHp;
                     playerRoomData.state.playerHp = pState.hp; // 同步
                 }
-                else if (['MP', 'MP_PERCENT'].includes(rType)) {
-                    let recover = 0; if (rType === 'MP_PERCENT') { recover = Math.round(pState.maxMp * (parseFloat(rPercent) / 100 || 0)); } else { recover = parseInt(rValue) || 0; }
+                else if (rType == 'MP') {
+                    let recover = 0; 
+                    if (rPercent > 0) {
+                        recover = Math.round(pState.maxMp * (parseFloat(rPercent) / 100 || 0)); 
+                    } else { 
+                        recover = parseInt(rValue) || 0; 
+                    }
+
                     pState.mp += recover; if (pState.mp > pState.maxMp) pState.mp = pState.maxMp;
                     playerRoomData.state.playerMp = pState.mp; // 同步
                 }
@@ -568,7 +584,11 @@ export default function initSocket(server) {
             // ... (後面的選人檢查與 startNextFloor 觸發保持不變) ...
             if (!battle.rewardSelection.selectedPlayers.includes(socket.id)) { battle.rewardSelection.selectedPlayers.push(socket.id); }
             const allSelected = battle.alivePlayerIds.every(id => battle.rewardSelection.selectedPlayers.includes(id));
-            if (allSelected) { startNextFloor(currentRoomId); } else { socket.emit('waiting_for_teammates', { current: battle.rewardSelection.selectedPlayers.length, total: battle.alivePlayerIds.length }); }
+            if (allSelected) { 
+                startNextFloor(currentRoomId); 
+            } else { 
+                socket.emit('waiting_for_teammates', { current: battle.rewardSelection.selectedPlayers.length, total: battle.alivePlayerIds.length }); 
+            }
         });
 
         // 離開戰鬥 (不解散房間，只是回到大廳)
