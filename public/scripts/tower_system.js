@@ -319,7 +319,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 1. 觸發事件：顯示卡片
         socket.on('trigger_event', (eventData) => {
-            createAndShowEventCard(eventData);
+            if (state.playerHp > 0) {
+                createAndShowEventCard(eventData);
+            }
         });
 
         // 2. 事件被鎖定：有人正在檢定
@@ -780,7 +782,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
 
     async function showRewards() {
-         if (state.playerHp <= 0) {
+        if (state.playerHp <= 0) {
             console.log("玩家已死亡，跳過獎勵顯示");
             return;
         }
@@ -1234,6 +1236,11 @@ document.addEventListener('DOMContentLoaded', () => {
     //  核心：動態生成事件卡片 (Dynamic Render)
     // ==========================================
     function createAndShowEventCard(eventData) {
+        if (state.playerHp <= 0) {
+            console.log("玩家已死亡，跳過獎勵顯示");
+            return;
+        }
+        
         const layer = document.getElementById('event-layer');
         if (!layer) return;
 
