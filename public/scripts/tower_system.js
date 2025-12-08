@@ -171,11 +171,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (myInfo.AdditionState) {
                         state.AdditionState = myInfo.AdditionState;
                     }
-                    if (myInfo.goldCollected !== undefined) {
-                        state.goldCollected = myInfo.goldCollected;
+                    // 2. 金幣 (★ 累加：因為後端傳來的是事件獎勵的增量，不能覆蓋打怪賺的錢)
+                    if (myInfo.goldCollected) {
+                        state.goldCollected += myInfo.goldCollected;
+                        if (myInfo.goldCollected > 0) alert(`獲得事件獎勵金幣: ${myInfo.goldCollected}`);
+                        if (myInfo.goldCollected < 0) alert(`失去金幣: ${Math.abs(myInfo.goldCollected)}`);
                     }
-                    if (myInfo.AdditionEXP !== undefined) {
-                        state.AdditionEXP = myInfo.AdditionEXP;
+                    
+                    // 3. 經驗 (★ 累加)
+                    if (myInfo.AdditionEXP) {
+                        state.AdditionEXP += myInfo.AdditionEXP;
+                        if (myInfo.AdditionEXP > 0) alert(`獲得額外經驗: ${myInfo.AdditionEXP}`);
                     }
 
                     // 3. 更新大廳/UI 顯示 (如果有需要)
@@ -276,7 +282,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         socket.on('multiplayer_show_rewards', () => {
-            showRewards();
+            if (state.playerHp > 0) {
+                showRewards(); 
+            }
         });
 
         // ★ 新增：等待隊友選擇中
@@ -376,7 +384,10 @@ document.addEventListener('DOMContentLoaded', () => {
         btnReadyAccept.addEventListener('click', () => {
             if (!myReadyStatus) {
                 // 接受
-                socket.emit('respond_ready', true);
+                socket.emit('respond_ready', { 
+                    ready: true, 
+                    latestState: window.Game.state // 把乾淨的數值傳回去
+                });
                 myReadyStatus = true;
                 btnReadyAccept.innerText = "取消";
                 btnReadyAccept.style.backgroundColor = "#e67e22"; // 橘色
@@ -394,7 +405,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (btnReadyDecline) {
         btnReadyDecline.addEventListener('click', () => {
-            socket.emit('respond_ready', false); // 拒絕
+            socket.emit('respond_ready', { 
+                    ready: false, 
+                    latestState: window.Game.state // 把乾淨的數值傳回去
+                });
             // 回大廳
             readyCheckLayer.classList.add('hidden');
             lobbyLayer.classList.remove('hidden');
@@ -766,6 +780,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
 
     async function showRewards() {
+         if (state.playerHp <= 0) {
+            console.log("玩家已死亡，跳過獎勵顯示");
+            return;
+        }
         // 1. 顯示遮罩
         rewardLayer.classList.remove('hidden');
         // 顯示載入中提示

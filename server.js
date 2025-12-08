@@ -91,38 +91,66 @@ export default function initSocket(server) {
             io.to(currentRoomId).emit('init_ready_check', room);
         });
 
-        socket.on('respond_ready', (isAccepted) => {
-            if (!currentRoomId) return;
-            
-            if (!isAccepted) {
-                io.to(currentRoomId).emit('ready_check_canceled', { nickname: currentPlayer.nickname });
-                const room = rooms[currentRoomId];
-                if(room) room.forEach(p => p.isReady = false);
-                return; 
-            }
+        socket.on('respond_ready', (payload) => {
+             if (!currentRoomId) return;
+             
+             // 相容舊寫法 (如果 payload 是布林值)
+             const isReady = typeof payload === 'object' ? payload.ready : payload;
+             const clientState = typeof payload === 'object' ? payload.latestState : null;
 
-            currentPlayer.isReady = true;
-            io.to(currentRoomId).emit('update_ready_view', { socketId: socket.id, status: 'accepted' });
+             // 1. 拒絕準備
+             if (!isReady) { 
+                 io.to(currentRoomId).emit('ready_check_canceled', { nickname: currentPlayer.nickname }); 
+                 const room = rooms[currentRoomId]; 
+                 if(room) room.forEach(p => p.isReady = false); 
+                 return; 
+             }
 
-            const room = rooms[currentRoomId];
-            const allReady = room.every(p => p.isReady);
+             // 2. 接受準備
+             currentPlayer.isReady = true;
+             
+             // ★★★ 關鍵修改：如果前端有傳來最新狀態，更新後端記憶體 ★★★
+             // 這確保了第二局開始時，使用的是大廳的乾淨數值，而不是上一局的髒數據
+             if (clientState) {
+                 // 更新永久狀態
+                 currentPlayer.state = {
+                     ...currentPlayer.state, // 保留如 avatar 等欄位
+                     ...clientState,         // 覆蓋數值
+                     // 強制歸零累積資源 (雙重保險)
+                     goldCollected: 0,
+                     AdditionEXP: 0,
+                     // 確保屬性陣列是新的副本，避免參照問題
+                     AdditionState: [...(clientState.AdditionState || [0,0,0,0])]
+                 };
+             }
 
-            if (allReady) {
-                // 【新增】準備玩家公開資訊列表 (供前端繪製頭像)
-                const playersPublicInfo = room.map(p => ({
-                    socketId: p.socketId,
-                    nickname: p.nickname,
-                    role: p.state.role,
-                    maxHp: p.state.playerMaxHp,
-                    maxMp: p.state.playerMaxMp,
-                    hp: p.state.playerMaxHp, // 初始血量
-                    mp: p.state.playerMaxMp,   // 初始魔力
-                    avatar: p.state.avatar,
-                    AdditionEXP: 0,
-                    goldCollected: 0,
-                    AdditionState: p.state.AdditionState
+             io.to(currentRoomId).emit('update_ready_view', { socketId: socket.id, status: 'accepted' });
 
-                }));
+             // 3. 檢查全員準備
+             const room = rooms[currentRoomId]; 
+             const allReady = room.every(p => p.isReady);
+
+             if (allReady) {
+                 // 初始化第一層
+                 const playersPublicInfo = room.map(p => {
+                    // 再次確保狀態是滿的 (基於剛剛更新過的 state)
+                    p.state.playerHp = p.state.playerMaxHp;
+                    p.state.playerMp = p.state.playerMaxMp;
+                     
+                    return {
+                         socketId: p.socketId,
+                         nickname: p.nickname,
+                         role: p.state.role,
+                         avatar: p.state.avatar,
+                         maxHp: p.state.playerMaxHp,
+                         maxMp: p.state.playerMaxMp,
+                         hp: p.state.playerMaxHp, 
+                         mp: p.state.playerMaxMp,
+                         AdditionEXP: 0,
+                         goldCollected: 0,
+                         AdditionState: p.state.AdditionState
+                     };
+                 });
                 
                 // 初始化戰鬥
                 const floor = 1;
@@ -521,37 +549,52 @@ export default function initSocket(server) {
                 // --- 4. 復活 (REVIVE) ---
                 else if (rType === 'REVIVE' || rType === 'revive') {
                     const deadPlayerIds = Object.keys(battle.playerStates).filter(id => battle.playerStates[id].isDead);
+                    
                     if (deadPlayerIds.length > 0) {
                         let finalTargetId = null;
-                        if (targetSocketId && deadPlayerIds.includes(targetSocketId)) { finalTargetId = targetSocketId; } 
-                        else { const randomIndex = Math.floor(Math.random() * deadPlayerIds.length); finalTargetId = deadPlayerIds[randomIndex]; }
-                        const targetState = battle.playerStates[finalTargetId];
+                        if (targetSocketId && deadPlayerIds.includes(targetSocketId)) { 
+                            finalTargetId = targetSocketId; 
+                        } else { 
+                            const randomIndex = Math.floor(Math.random() * deadPlayerIds.length); 
+                            finalTargetId = deadPlayerIds[randomIndex]; 
+                        }
                         
-                        // 也要同步更新 target 在 rooms 裡的數據，確保同步
+                        const targetState = battle.playerStates[finalTargetId];
                         const targetRoomData = rooms[currentRoomId].find(p => p.socketId === finalTargetId);
 
                         if (targetState) {
+                            // 執行復活
                             targetState.isDead = false; 
                             targetState.hp = Math.round(targetState.maxHp * 0.3); 
                             targetState.mp = Math.round(targetState.maxMp * 0.3);
                             
-                            // 同步回 rooms
+                            // 同步回 rooms (確保 startNextFloor 讀到正確數值)
                             if (targetRoomData) {
                                 targetRoomData.state.playerHp = targetState.hp;
                                 targetRoomData.state.playerMp = targetState.mp;
                             }
 
-                            if (!battle.alivePlayerIds.includes(finalTargetId)) { battle.alivePlayerIds.push(finalTargetId); }
+                            // 加回存活名單
+                            if (!battle.alivePlayerIds.includes(finalTargetId)) { 
+                                battle.alivePlayerIds.push(finalTargetId); 
+                            }
+
+                            // ★★★ 關鍵修正：強制讓被復活者「已選擇」 ★★★
+                            // 因為被復活的人沒有跳出獎勵視窗，如果不加這行，系統會一直等他選獎勵，導致卡住
+                            if (!battle.rewardSelection.selectedPlayers.includes(finalTargetId)) {
+                                battle.rewardSelection.selectedPlayers.push(finalTargetId);
+                            }
+
                             const targetName = targetRoomData ? targetRoomData.nickname : '隊友';
                             io.to(currentRoomId).emit('chat_message', { sender: '系統', text: `${targetName} 被復活了！(HP/MP 恢復 30%)`, isSystem: true });
                         }
                     } else {
-                        // 沒人死，補自己
+                        // 沒人死，補自己 (當作喝水)
                         pState.hp += Math.round(pState.maxHp * 0.3); 
                         pState.mp += Math.round(pState.maxMp * 0.3);
                         if (pState.hp > pState.maxHp) pState.hp = pState.maxHp; 
                         if (pState.mp > pState.maxMp) pState.mp = pState.maxMp;
-                        // 同步
+                        
                         playerRoomData.state.playerHp = pState.hp;
                         playerRoomData.state.playerMp = pState.mp;
                     }
