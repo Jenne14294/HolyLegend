@@ -303,6 +303,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (teamMembersList) {
             teamMembersList.innerHTML = ''; 
 
+            console.log(memberList)
+
             memberList.forEach(p => {
                 const imgSrc = p.state.avatar;
 
@@ -335,7 +337,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="member-lv">${p.state.level}</div>
                     </div>
                     <div class="member-stats">
-                        <div class="member-name">${p.nickname} ${leaderBadge} ${readyStatus}</div>
+                        <div class="member-name">${p.nickname}_${p.state.role} ${leaderBadge} ${readyStatus}</div>
                         <div class="mini-bar-bg">
                             <div class="mini-bar-fill hp-fill" style="width: ${hpPct}%;"></div>
                         </div>

@@ -102,7 +102,7 @@ router.get('/status', verifyToken, async (req, res, next) => {
     const renderData = {
         id: userData.id,
         nickname: userData.nickName,
-        role: userData.class.name,
+        role: userData.class.nickname,
         level: level,
         exp: currentClass.currentEXP || 0,
         needEXP: 50 + (level - 1) * 20,
