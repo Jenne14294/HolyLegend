@@ -809,9 +809,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // 複製一份陣列以免影響原資料
             const pool = [...allRewards];
 
-            options.push(pool[18]);
-
-            for(let i=0; i<2; i++) {
+            for(let i=0; i<3; i++) {
                 if (pool.length === 0) break;
                 const randIndex = Math.floor(Math.random() * pool.length);
                 options.push(pool[randIndex]);
