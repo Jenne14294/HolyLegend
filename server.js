@@ -200,10 +200,7 @@ export default function initSocket(server) {
             if (battle.isEnding || battle.processingTurn) return; // 上鎖中
             
             // 死人不能行動
-            if (battle.playerStates[socket.id]?.isDead) {
-                console.log(battle)
-                return;
-            }
+            if (battle.playerStates[socket.id]?.isDead) return;
 
             // 紀錄動作
             let damage = 0;
@@ -666,39 +663,45 @@ export default function initSocket(server) {
         function startNextFloor(roomId) {
             const battle = battles[roomId];
             if (!battle) return;
-
-            const room = rooms[roomId]; // 取得房間內的玩家原始資料
-            if (!room) return;
+            const room = rooms[roomId]; if (!room) return;
 
             battle.floor++;
             battle.enemyMaxHp = 100 + 10 * (battle.floor * room.length);
             battle.enemyHp = battle.enemyMaxHp;
             battle.processingTurn = false;
-            
-            // 清空上一輪的動作與選擇
             battle.pendingActions = [];
             battle.rewardSelection = { isActive: false, selectedPlayers: [] };
 
             const monsters = ['slime', 'bat', 'skeleton', 'orc']; 
             const randomMonster = monsters[Math.floor(Math.random() * monsters.length)];
 
-            // ★★★ 關鍵修正：重新組裝玩家列表，包含「最新」的 HP/MP ★★★
-            // 我們必須從 battle.playerStates 讀取數據，因為那裡才是最新的
+            // ★ 步驟 1: 強制重建 alivePlayerIds (校正存活名單)
+            // 只要血量 > 0，就算活著，防止之前的邏輯有漏洞
+            battle.alivePlayerIds = [];
+            
+            // ★ 步驟 2: 準備發送給前端的數據
             const updatedPlayersInfo = room.map(p => {
-                // ★★★ 關鍵修正：優先從 battle state 讀取最新的 HP/MP ★★★
                 const combatState = battle.playerStates[p.socketId];
                 
-                // 為了保險，同步回 p.state
-                if (combatState) {
-                    p.state.playerHp = combatState.hp;
-                    p.state.playerMp = combatState.mp;
+                // 再次同步，確保無誤
+                if (combatState) { 
+                    // ★ 雙重保險：如果 HP > 0，強制 isDead = false
+                    if (combatState.hp > 0) combatState.isDead = false;
+                    
+                    // 如果還活著，加入名單
+                    if (!combatState.isDead) {
+                        battle.alivePlayerIds.push(p.socketId);
+                    }
+
+                    p.state.playerHp = combatState.hp; 
+                    p.state.playerMp = combatState.mp; 
                 }
 
-                // 取出金幣與經驗增量
+                // 取出增量
                 const goldDelta = p.state.goldCollected || 0;
                 const expDelta = p.state.AdditionEXP || 0;
 
-                // 重置增量 (避免重複加)
+                // 重置增量
                 p.state.goldCollected = 0;
                 p.state.AdditionEXP = 0;
 
@@ -706,27 +709,32 @@ export default function initSocket(server) {
                     socketId: p.socketId,
                     nickname: p.nickname,
                     role: p.state.role,
+                    
+                    // 戰鬥數值：優先使用 combatState
                     maxHp: combatState ? combatState.maxHp : 100,
                     maxMp: combatState ? combatState.maxMp : 100,
                     
-                    // ★ 這裡使用 combatState 的 hp/mp，確保是最新數值
+                    // ★ 這裡很重要：如果 combatState 存在，一定要用它的 hp
+                    // 如果 combatState.hp 是 0，那前端就會顯示 0 (死掉)
+                    // 如果剛剛復活了，這裡應該要是 maxHp * 0.3
                     hp: combatState ? combatState.hp : (p.state.playerHp || 100), 
                     mp: combatState ? combatState.mp : (p.state.playerMp || 100),
                     
-                    AdditionState: p.state.AdditionState || [0, 0, 0, 0], // 屬性發送總量
-                    goldCollected: goldDelta, // 發送增量
-                    AdditionEXP: expDelta,    // 發送增量
+                    AdditionState: p.state.AdditionState || [0, 0, 0, 0],
+                    goldCollected: goldDelta, 
+                    AdditionEXP: expDelta,
                     avatar: p.state.avatar
                 };
             });
 
-            // 發送事件給前端，前端收到後會重繪介面
+            // 如果有人復活，alivePlayerIds 應該已經更新了
+            // 廣播給前端
             io.to(roomId).emit('multiplayer_battle_start', {
-                enemyHp: battle.enemyMaxHp,
-                enemyMaxHp: battle.enemyMaxHp,
-                floor: battle.floor,
-                monsterType: randomMonster,
-                players: updatedPlayersInfo // ★ 把這份最新的名單傳過去
+                enemyHp: battle.enemyMaxHp, 
+                enemyMaxHp: battle.enemyMaxHp, 
+                floor: battle.floor, 
+                monsterType: randomMonster, 
+                players: updatedPlayersInfo
             });
         }
     });
