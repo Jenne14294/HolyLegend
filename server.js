@@ -200,7 +200,10 @@ export default function initSocket(server) {
             if (battle.isEnding || battle.processingTurn) return; // 上鎖中
             
             // 死人不能行動
-            if (battle.playerStates[socket.id]?.isDead) return;
+            if (battle.playerStates[socket.id]?.isDead) {
+                console.log(battle)
+                return;
+            }
 
             // 紀錄動作
             let damage = 0;
