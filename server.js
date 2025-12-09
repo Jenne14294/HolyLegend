@@ -334,8 +334,8 @@ export default function initSocket(server) {
                         return;
                     }
                     else {
-                        // const rewardRate = Math.floor(Math.random() * 100);
-                        const rewardRate = 0;
+                        const rewardRate = Math.floor(Math.random() * 100);
+                        // const rewardRate = 0;
                     
                         // 初始化獎勵選擇狀態
                         battle.rewardSelection = {
