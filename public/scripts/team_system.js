@@ -303,8 +303,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (teamMembersList) {
             teamMembersList.innerHTML = ''; 
 
-            console.log(memberList)
-
             memberList.forEach(p => {
                 const imgSrc = p.state.avatar;
 

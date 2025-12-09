@@ -138,6 +138,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 執行轉職 (修正為接收 ID)
     async function switchJob(targetJobName) {
+        const jobLayer = document.getElementById('job-layer');
+        const MainLayer = document.getElementById('lobby-layer');
+
         try {
             const res = await fetch('/holylegend/set_role', {
                 method: 'POST',
@@ -148,8 +151,21 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await res.json();
 
             if (result.success) {
-                window.location.reload();
+                const res = await fetch('/holylegend/system/status');
+                const result = await res.json();
 
+                console.log(result)
+
+                if (result.success) {
+                    const data = result.data;
+
+                    window.Game.updateLobbyUI(data);
+                    alert('轉職成功！')
+                    jobLayer.classList.add('hidden');
+                    MainLayer.classList.remove('hidden');
+                }
+
+                
             } else {
                 alert(result.msg || '轉職失敗');
             }

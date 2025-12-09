@@ -118,7 +118,7 @@ router.get('/status', verifyToken, async (req, res, next) => {
           classData[0].dataValues.CON,
           classData[0].dataValues.INT
         ],
-        avatar: userData.avatar
+        avatar: userData.avatar || `/holylegend/images/classes/${classData[0].dataValues.name}_1.png`
     };
 
     res.json({
