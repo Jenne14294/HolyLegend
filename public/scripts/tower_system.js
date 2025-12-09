@@ -4,7 +4,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const lobbyLayer = document.getElementById('lobby-layer');
     const towerLayer = document.getElementById('tower-layer');
     const settingLayer = document.getElementById('settings-layer');
-    const teamLayer = document.getElementById('job-layer');
+    const teamLayer = document.getElementById('team-layer');
+    const jobLayer = document.getElementById('job-layer');
     const btnEnterTower = document.getElementById('btn-enter-tower');
     const btnExitTower = document.getElementById('btn-tower-exit');
     const btnAttack = document.getElementById('btn-attack');
@@ -129,6 +130,8 @@ document.addEventListener('DOMContentLoaded', () => {
             renderReadyCheckModal(members);
             lobbyLayer.classList.add('hidden');
             teamLayer.classList.add('hidden');
+            jobLayer.classList.add('hidden');
+            settingLayer.classList.add('hidden');
             towerLayer.classList.remove('hidden');
             readyCheckLayer.classList.remove('hidden');
         });
@@ -150,7 +153,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         socket.on('multiplayer_battle_start', (initialData) => {
             readyCheckLayer.classList.add('hidden');
-            settingLayer.classList.add('hidden');
 
             state.currentFloor = initialData.floor;
             state.enemyMaxHp = initialData.enemyMaxHp;
