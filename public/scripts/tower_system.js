@@ -451,7 +451,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btnAttack.addEventListener('click', () => {
             // 【修正 1】加入 state.isTurnLocked 檢查
             // 防止玩家在怪物反擊的空檔連續攻擊 (強制回合制)
-            if (state.isGameOver || state.processingLevelUp || state.playerHp <= 0 || state.isTurnLocked) return;
+            if (state.isGameOver || state.processingLevelUp || state.isTurnLocked) return;
 
             // 【修正 2】立即上鎖，直到怪物反擊結束才能再按
             state.isTurnLocked = true;
@@ -809,7 +809,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // 複製一份陣列以免影響原資料
             const pool = [...allRewards];
 
-            for(let i=0; i<3; i++) {
+            options.push(pool[18]);
+
+            for(let i=0; i<2; i++) {
                 if (pool.length === 0) break;
                 const randIndex = Math.floor(Math.random() * pool.length);
                 options.push(pool[randIndex]);
