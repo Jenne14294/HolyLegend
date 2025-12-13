@@ -15,12 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const rewardLayer = document.getElementById('reward-layer');
     const rewardCardsContainer = document.getElementById('reward-cards-container');
     const readyCheckLayer = document.getElementById('ready-check-layer');
-    const readySlotsContainer = document.getElementById('ready-slots-container');
-    const btnReadyAccept = document.getElementById('btn-ready-accept');
-    const btnReadyDecline = document.getElementById('btn-ready-decline');
-
-    // 事件層 DOM (需要操作它)
-    const eventLayer = document.getElementById('event-layer');
+    const btnReady = document.getElementById('btn-ready-accept');
 
     const state = window.Game.state; 
     const socket = window.Game.socket; 
@@ -145,9 +140,8 @@ document.addEventListener('DOMContentLoaded', () => {
             readyCheckLayer.classList.add('hidden');
             towerLayer.classList.add('hidden');
             teamLayer.classList.remove('hidden');
-            btnReadyAccept.disabled = false;
-            btnReadyDecline.disabled = false;
-            btnReadyAccept.innerText = "接受";
+            btnReady.disabled = false;
+            btnReady.innerText = "接受";
             window.Game.playMusic('/holylegend/audio/game_lobby.ogg');
         });
 
@@ -364,7 +358,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // 這裡假設如果 team-status-text 顯示有房間號，就是多人
             const teamText = document.querySelector('.team-status-text');
             const isInTeam = teamText && teamText.innerText.includes('房號');
-            btnReadyAccept.style.backgroundColor = ""; // 恢復原色
+            btnReady.style.backgroundColor = ""; // 恢復原色
 
             if (isInTeam) {
                 // --- 多人模式 ---
@@ -386,8 +380,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // 準備確認按鈕
     // ===========================
     // 【新增】準備/取消按鈕邏輯
-    if (btnReadyAccept) {
-        btnReadyAccept.addEventListener('click', () => {
+    if (btnReady) {
+        btnReady.addEventListener('click', () => {
             if (!myReadyStatus) {
                 // 接受
                 socket.emit('respond_ready', { 
@@ -395,30 +389,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     latestState: window.Game.state // 把乾淨的數值傳回去
                 });
                 myReadyStatus = true;
-                btnReadyAccept.innerText = "取消";
-                btnReadyAccept.style.backgroundColor = "#e67e22"; // 橘色
-                btnReadyDecline.disabled = true; // 已準備就不能直接按拒絕，要先取消
+                btnReady.innerText = "取消準備";
+                btnReady.style.backgroundColor = "#e67e22"; // 橘色
             } else {
                 // 取消準備
-                socket.emit('cancel_ready');
-                myReadyStatus = false;
-                btnReadyAccept.innerText = "接受";
-                btnReadyAccept.style.backgroundColor = ""; // 恢復原色
-                btnReadyDecline.disabled = false;
-            }
-        });
-    }
-
-    if (btnReadyDecline) {
-        btnReadyDecline.addEventListener('click', () => {
-            socket.emit('respond_ready', { 
+                socket.emit('respond_ready', { 
                     ready: false, 
                     latestState: window.Game.state // 把乾淨的數值傳回去
                 });
-            // 回大廳
-            readyCheckLayer.classList.add('hidden');
-            lobbyLayer.classList.remove('hidden');
-            towerLayer.classList.add('hidden');
+                myReadyStatus = false;
+                btnReady.innerText = "準備";
+                btnReady.style.backgroundColor = ""; // 恢復原色
+            }
         });
     }
 
@@ -614,9 +596,8 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = '';
 
         // 復原按鈕
-        btnReadyAccept.disabled = false;
-        btnReadyDecline.disabled = false;
-        btnReadyAccept.innerText = "接受";
+        btnReady.disabled = false;
+        btnReady.innerText = "接受";
 
         members.forEach(m => {
             const imgSrc = m.state.avatar;
@@ -641,7 +622,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (status === 'accepted') {
                 slot.classList.add('accepted');
             } else if (status === 'declined') {
-                slot.classList.add('declined');
+                slot.classList.remove('accepted');
             }
         }
     }

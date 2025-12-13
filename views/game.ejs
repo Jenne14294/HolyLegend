@@ -115,8 +115,7 @@
                 </div>
 
                 <div class="ready-actions">
-                    <button id="btn-ready-accept" class="btn-pixel-medium btn-accept">接受</button>
-                    <button id="btn-ready-decline" class="btn-pixel-medium btn-decline">拒絕</button>
+                    <button id="btn-ready-accept" class="btn-pixel-medium btn-accept">準備</button>
                 </div>
             </div>
             
@@ -196,7 +195,8 @@
             <!-- ========================================== -->
             <!--  區塊 I: 隨機事件 (Event Layer)            -->
             <!-- ========================================== -->
-            <div id="event-layer" class="hidden"></div>
+            <div id="event-layer" class="hidden">
+            </div>
 
         </div>
 
@@ -258,32 +258,6 @@
                 <div class="section-members">
                     <div class="team-status-text">目前隊伍 (1/4)</div>
                     <div id="team-members-list">
-                        
-                        <!-- 範例：隊長 -->
-                        <div class="member-card">
-                            <div class="member-avatar-box">
-                                <img src="<%= user.avatar %>" class="member-avatar">
-                                <div class="member-lv"><%=user.level %></div>
-                            </div>
-                            <div class="member-stats">
-                                <div class="member-name"><%=user.nickname %><span class="badge-leader">隊長</span></div>
-                                <div class="mini-bar-bg">
-                                    <div class="mini-bar-fill hp-fill" style="width: 100%;"></div>
-                                </div>
-                                <div class="mini-bar-bg">
-                                    <div class="mini-bar-fill mp-fill" style="width: 100%;"></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 範例：空位 -->
-                        <div class="member-card empty">
-                            <div class="member-avatar-box empty-avatar">?</div>
-                            <div class="member-stats">
-                                <div class="member-name waiting">等待加入...</div>
-                            </div>
-                        </div>
-
                     </div>
                 </div>
 

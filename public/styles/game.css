@@ -501,10 +501,6 @@ html, body {
 .ready-slot.accepted .slot-status { display: flex; background-color: #2ecc71; content: "✔"; }
 .ready-slot.accepted .slot-status::after { content: "✔"; }
 
-/* 拒絕樣式 */
-.ready-slot.declined .slot-avatar { border-color: #e74c3c; filter: grayscale(100%); }
-.ready-slot.declined .slot-status { display: flex; background-color: #e74c3c; }
-.ready-slot.declined .slot-status::after { content: "✕"; }
 
 /* 按鈕區 */
 .ready-actions {

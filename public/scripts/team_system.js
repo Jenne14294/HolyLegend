@@ -292,7 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderTeamMembers(members) {
         const memberList = members || [];
-        const socket = window.Game.socket; // 需要用來比對 socket.id
+        const socket = window.Game.socket; 
 
         if (teamStatusText) {
             const text = myRoomId ? `目前隊伍 (${memberList.length}/4) - 房號: ${myRoomId}` : '目前隊伍 (0/4)';
@@ -302,56 +302,92 @@ document.addEventListener('DOMContentLoaded', () => {
         if (teamMembersList) {
             teamMembersList.innerHTML = ''; 
 
+            // ★★★ 關鍵修正 1：先在列表裡找出「我自己」，確認我現在是不是隊長 ★★★
+            // 不能依賴全域變數，因為列表更新時，全域變數可能還沒變
+            let amILeader = false;
+            
+            if (socket) {
+                const myEntry = memberList.find(p => 
+                    (p.socketId === socket.id) || 
+                    (p.nickname === window.Game.InitData.nickname)
+                );
+                if (myEntry && myEntry.isLeader) {
+                    amILeader = true;
+                }
+            }
+            // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
             memberList.forEach(p => {
-                const imgSrc = p.state.avatar;
+                // 處理資料顯示
+                const roleName = p.state.role ? (p.state.role.charAt(0).toUpperCase() + p.state.role.slice(1).toLowerCase()) : 'Novice';
+                const imgSrc = p.state.avatar || `/holylegend/images/classes/${roleName}_1.png`;
 
-                const hpPct = p.state.maxHp ? (p.state.hp / p.state.maxHp) * 100 : 100;
-                const mpPct = p.state.maxMp ? (p.state.mp / p.state.maxMp) * 100 : 100;
+                // 處理 HP/MP 顯示 (避免 undefined)
+                const maxHp = p.state.maxHp || p.state.playerMaxHp || 100;
+                const maxMp = p.state.maxMp || p.state.playerMaxMp || 100;
+                const curHp = (p.state.hp !== undefined) ? p.state.hp : (p.state.playerHp || maxHp);
+                const curMp = (p.state.mp !== undefined) ? p.state.mp : (p.state.playerMp || maxMp);
 
+                const hpPct = Math.min(100, Math.max(0, (curHp / maxHp) * 100));
+                const mpPct = Math.min(100, Math.max(0, (curMp / maxMp) * 100));
+
+                // 標記與狀態
                 const leaderBadge = p.isLeader ? '<span class="badge-leader">隊長</span>' : '';
                 const readyStatus = p.isReady ? '<span style="color:#2ecc71; font-size:0.8rem;">(準備)</span>' : '';
 
-                // 【重點】判斷是否顯示踢人按鈕
-                // 條件：我是隊長 && 這張卡片不是我
-                let kickBtnHtml = '';
+                // ★★★ 關鍵修正 2：按鈕顯示邏輯 ★★★
+                // 條件：(我現在是隊長) && (這張卡片不是我)
                 
-                // 假設 p 物件裡有 socketId，這最準確。如果沒有，可以用 nickname 比對
                 const isMe = (p.socketId === socket.id) || (p.nickname === window.Game.InitData.nickname);
                 
-                if (isLeader && !isMe) {
-                    // 我們將目標的 socketId 或 nickname 存在 data attribute 中
-                    // 建議後端 memberList 包含 socketId
-                    const targetId = p.socketId || p.nickname; 
-                    kickBtnHtml = `<button class="btn-kick" data-target="${targetId}">X</button>`;
+                let actionBtnsHtml = ''; // 用一個變數整合所有按鈕 HTML
+                
+                // 如果「我是隊長」且「對象不是我」，顯示管理按鈕
+                if (amILeader && !isMe) {
+                    const targetId = p.socketId; // 建議優先用 socketId
+                    
+                    // 1. 踢人按鈕 (右上)
+                    const kickBtn = `<button class="btn-kick" data-target="${targetId}">X</button>`;
+                    
+                    // 2. 指派隊長按鈕 (右下，使用之前設計的金色樣式)
+                    const leaderBtn = `<button class="btn-leader" data-target="${targetId}">👑 指派</button>`;
+                    
+                    actionBtnsHtml = kickBtn + leaderBtn;
                 }
 
                 const card = document.createElement('div');
                 card.className = 'member-card';
                 card.innerHTML = `
-                    ${kickBtnHtml}
+                    ${actionBtnsHtml}
                     <div class="member-avatar-box">
-                        <img src="${imgSrc}" class="member-avatar">
+                        <img src="${imgSrc}" class="member-avatar" onerror="this.src='/holylegend/images/classes/Novice_1.png'">
                         <div class="member-lv">${p.state.level}</div>
                     </div>
                     <div class="member-stats">
-                        <div class="member-name">${p.nickname}_${p.state.role} ${leaderBadge} ${readyStatus}</div>
-                        <div class="mini-bar-bg">
-                            <div class="mini-bar-fill hp-fill" style="width: ${hpPct}%;"></div>
-                        </div>
-                        <div class="mini-bar-bg">
-                            <div class="mini-bar-fill mp-fill" style="width: ${mpPct}%;"></div>
+                        <div class="member-name">
+                            ${p.nickname} ${leaderBadge} ${readyStatus}
                         </div>
                     </div>
                 `;
                 
-                // 【重點】綁定踢人按鈕事件
-                const kickBtn = card.querySelector('.btn-kick');
-                if (kickBtn) {
-                    kickBtn.addEventListener('click', (e) => {
-                        e.stopPropagation(); // 防止觸發其他卡片點擊效果
-                        const targetId = kickBtn.dataset.target;
-                        handleKickMember(targetId, p.nickname);
-                    });
+                // 綁定事件 (如果有按鈕的話)
+                if (amILeader && !isMe) {
+                    const kBtn = card.querySelector('.btn-kick');
+                    if (kBtn) {
+                        kBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            handleKickMember(kBtn.dataset.target, p.nickname);
+                        });
+                    }
+
+                    const lBtn = card.querySelector('.btn-leader');
+                    if (lBtn) {
+                        lBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            // 這裡呼叫你的切換隊長函式
+                            handleChangeLeader(lBtn.dataset.target, p.nickname);
+                        });
+                    }
                 }
 
                 teamMembersList.appendChild(card);
@@ -381,6 +417,20 @@ document.addEventListener('DOMContentLoaded', () => {
             // 發送踢人請求給 Server
             // Server 端需要監聽 'kick_member' 事件，並驗證發送者是否為該房間隊長
             socket.emit('kick_member', { 
+                roomId: myRoomId, 
+                targetSocketId: targetId // 建議後端用 socketId 踢人比較準
+            });
+        }
+    }
+
+    function handleChangeLeader(targetId, targetName) {
+        if (!confirm(`確定要將隊長給 [${targetName}] 嗎？`)) return;
+
+        const socket = window.Game.socket;
+        if (socket && myRoomId) {
+            // 發送踢人請求給 Server
+            // Server 端需要監聽 'kick_member' 事件，並驗證發送者是否為該房間隊長
+            socket.emit('change_leader', { 
                 roomId: myRoomId, 
                 targetSocketId: targetId // 建議後端用 socketId 踢人比較準
             });

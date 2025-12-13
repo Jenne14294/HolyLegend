@@ -229,6 +229,47 @@
     box-shadow: 1px 1px 0px rgba(0,0,0,0.5);
 }
 
+.btn-leader {
+    position: absolute;
+    /* 放在卡片右下角，避開右上角的踢人按鈕 */
+    bottom: 8px; 
+    right: 8px;
+    
+    /* 核心配色：深金色/橘黃色，不使用白色 */
+    background-color: #f39c12; 
+    color: #2c2c2c; /* 深色文字，對比清晰 */
+    border: 2px solid #000; /* 黑色邊框，強調像素感 */
+    
+    /* 字體設定 */
+    font-family: 'VT323', monospace;
+    font-size: 1.1rem;
+    padding: 2px 8px;
+    line-height: 1.2;
+    
+    cursor: pointer;
+    z-index: 10;
+    
+    /* ★ 關鍵：像素立體陰影效果 (高光 + 陰影) */
+    box-shadow: 
+        inset 2px 2px 0px rgba(255, 255, 255, 0.4), /* 內部左上高光 */
+        inset -2px -2px 0px rgba(0, 0, 0, 0.2),    /* 內部右下陰影 */
+        2px 2px 0px #000;                          /* 外部立體陰影 */
+        
+    transition: transform 0.05s;
+}
+
+/* 滑鼠懸停效果 */
+.btn-leader:hover {
+    background-color: #f1c40f; /* 變亮一點 */
+    filter: brightness(1.1);
+}
+
+/* 按下效果 */
+.btn-leader:active {
+    transform: translate(2px, 2px); /* 往下壓 */
+    box-shadow: none;               /* 陰影消失，模擬壓平 */
+}
+
 .member-card {
     position: relative; /* 讓踢人按鈕可以絕對定位 */
 }

@@ -123,6 +123,41 @@ export default function initSocket(server) {
             io.to(roomId).emit('chat_message', { sender: '系統', text: '一名隊員已被請離隊伍。', isSystem: true });
         });
 
+        socket.on('change_leader', ({ roomId, targetSocketId}) => {
+            // 1. 取得房間成員列表
+            const roomMembers = rooms[roomId];
+            if (!roomMembers) return;
+
+            // 2. 驗證: 找出發送請求的人 (requester)，確認他是隊長
+            const requester = roomMembers.find(p => p.socketId === socket.id);
+            
+            // 如果找不到人，或是這個人不是隊長，就拒絕執行
+            if (!requester || !requester.isLeader) {
+                socket.emit('error_msg', '權限不足：只有隊長可以指派隊長');
+                return;
+            }
+
+            let targetName = ""
+
+            roomMembers.forEach(p => {
+                if (p.socketId == targetSocketId) {
+                    p.isLeader = true;
+                    targetName = p.nickname;
+                }
+
+                else {
+                    p.isLeader = false;
+                }
+            });
+
+
+            // 5. 通知房間其他人更新列表
+            io.to(roomId).emit('team_update', rooms[roomId]);
+
+            // 發送系統訊息
+            io.to(roomId).emit('chat_message', { sender: '系統', text: `隊長已交接給 ${targetName}`, isSystem: true });
+        });
+
         socket.on('send_message', (text) => {
             if (currentRoomId && currentPlayer) {
                 io.to(currentRoomId).emit('chat_message', { sender: currentPlayer.nickname, text: text, isSystem: false });
@@ -147,10 +182,9 @@ export default function initSocket(server) {
 
              // 1. 拒絕準備
              if (!isReady) { 
-                 io.to(currentRoomId).emit('ready_check_canceled', { nickname: currentPlayer.nickname }); 
-                 const room = rooms[currentRoomId]; 
-                 if(room) room.forEach(p => p.isReady = false); 
-                 return; 
+                currentPlayer.isReady = false;
+                io.to(currentRoomId).emit('update_ready_view', { socketId: socket.id, status: 'declined' });
+                return;
              }
 
              // 2. 接受準備
@@ -733,11 +767,11 @@ export default function initSocket(server) {
             // ★ 步驟 1: 強制重建 alivePlayerIds (校正存活名單)
             // 只要血量 > 0，就算活著，防止之前的邏輯有漏洞
             battle.alivePlayerIds = [];
-            
+
             // ★ 步驟 2: 準備發送給前端的數據
             const updatedPlayersInfo = room.map(p => {
                 const combatState = battle.playerStates[p.socketId];
-                
+
                 // 再次同步，確保無誤
                 if (combatState) { 
                     // ★ 雙重保險：如果 HP > 0，強制 isDead = false
