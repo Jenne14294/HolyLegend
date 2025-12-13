@@ -38,6 +38,53 @@ export default function initSocket(server) {
             io.to(roomId).emit('chat_message', { sender: '系統', text: `${playerData.nickname} 加入了隊伍！`, isSystem: true });
         });
 
+        socket.on('player_job_changed', (data) => {
+            if (!currentRoomId || !currentPlayer) return;
+
+            const oldRole = currentPlayer.state.role;
+
+            // 1. 更新 currentPlayer 的永久狀態 (p.state)
+            if (data.newLevel) currentPlayer.state.level = data.newLevel;
+            if (data.newRole) currentPlayer.state.role = data.newRole;
+            if (data.newMaxHp) currentPlayer.state.playerMaxHp = data.newMaxHp;
+            if (data.newMaxMp) currentPlayer.state.playerMaxMp = data.newMaxMp;
+            if (data.avatar) currentPlayer.state.avatar = data.avatar;
+            
+            // 轉職成功後，HP/MP 通常會回滿，但我們以 Client 傳來的最新數值為主
+            if (data.currentHp !== undefined) currentPlayer.state.playerHp = data.currentHp;
+            if (data.currentMp !== undefined) currentPlayer.state.playerMp = data.currentMp;
+            
+            // 屬性更新 (這通常是整個陣列被覆蓋)
+            if (data.newAdditionState) currentPlayer.state.AdditionState = data.newAdditionState;
+
+            // 2. 更新戰鬥狀態 (如果正在爬塔)
+            const battle = battles[currentRoomId];
+            if (battle && battle.playerStates[socket.id]) {
+                const combatState = battle.playerStates[socket.id];
+                
+                // 更新戰鬥中的 Max HP/MP (很重要，影響血條長度)
+                combatState.maxHp = currentPlayer.state.playerMaxHp;
+                combatState.maxMp = currentPlayer.state.playerMaxMp;
+                
+                // 更新當前 HP/MP
+                combatState.hp = currentPlayer.state.playerHp;
+                combatState.mp = currentPlayer.state.playerMp;
+
+                // 確保復活旗標清除 (因為轉職通常意味著滿狀態復活)
+                if (combatState.hp > 0) {
+                    combatState.isDead = false;
+                }
+            }
+
+            // 3. 通知隊友更新隊伍列表
+            io.to(currentRoomId).emit('team_update', rooms[currentRoomId]);
+            io.to(currentRoomId).emit('chat_message', { 
+                sender: '系統', 
+                text: `${currentPlayer.nickname} 轉職成 [${data.newRole}]！`, 
+                isSystem: true 
+            });
+        });
+
         // 修改後的 kick_member
         socket.on('kick_member', ({ roomId, targetSocketId }) => {
             // 1. 取得房間成員列表
@@ -472,16 +519,24 @@ export default function initSocket(server) {
                     // 4. HP -> 修改 battle (戰鬥用) + p.state (存檔用)
                     else if (type === 'HP') {
                         const pState = battle.playerStates[p.socketId];
-                        const change = isPunish ? -val : val;
-                        pState.hp = Math.min(pState.maxHp, Math.max(0, pState.hp + change));
-                        p.state.playerHp = pState.hp; // 同步
+                        // ★ 修改：只有活著的人才受影響
+                        if (pState && !pState.isDead) {
+                            const change = isPunish ? -val : val;
+                            pState.hp = Math.min(pState.maxHp, Math.max(0, pState.hp + change));
+                            // 如果扣到死
+                            if (pState.hp === 0) pState.isDead = true;
+                            p.state.playerHp = pState.hp; // 同步
+                        }
                     } 
-                    // 5. MP -> 修改 battle + p.state
+                    // E. MP
                     else if (type === 'MP') {
                         const pState = battle.playerStates[p.socketId];
-                        const change = isPunish ? -val : val;
-                        pState.mp = Math.min(pState.maxMp, Math.max(0, pState.mp + change));
-                        p.state.playerMp = pState.mp; // 同步
+                        // ★ 修改：只有活著的人才受影響
+                        if (pState && !pState.isDead) {
+                            const change = isPunish ? -val : val;
+                            pState.mp = Math.min(pState.maxMp, Math.max(0, pState.mp + change));
+                            p.state.playerMp = pState.mp; // 同步
+                        }
                     }
                 });
 

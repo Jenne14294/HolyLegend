@@ -159,10 +159,36 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (result.success) {
                     const data = result.data;
 
+                    window.Game.state.role = data.role;
+                    window.Game.state.level = data.level;
+                    window.Game.state.maxHp = data.maxHp;
+                    window.Game.state.maxMp = data.maxMp;
+                    window.Game.state.playerMaxHp = data.maxHp; // 確保兩個變數名稱都同步
+                    window.Game.state.playerMaxMp = data.maxMp;
+                    window.Game.state.playerHp = data.maxHp;    // 轉職後通常滿血
+                    window.Game.state.playerMp = data.maxMp;
+                    window.Game.state.AdditionState = data.AdditionState; // 更新屬性陣列
+                    window.Game.state.avatar = data.avatar;
+
                     window.Game.updateLobbyUI(data);
                     alert('轉職成功！')
                     jobLayer.classList.add('hidden');
                     MainLayer.classList.remove('hidden');
+
+                    const socket = window.Game.socket;
+
+                    socket.emit('player_job_changed', {
+                        // 只傳送需要的變動資料，Server 會處理廣播
+                        newLevel: data.level,
+                        newRole: data.role,
+                        newMaxHp: data.maxHp,
+                        newMaxMp: data.maxMp,
+                        newAdditionState: data.AdditionState,
+                        // 確保隊友能知道這個人現在的血量 (通常是滿血)
+                        currentHp: data.hp, 
+                        currentMp: data.mp,
+                        avatar: data.avatar
+                    });
                 }
 
                 

@@ -103,7 +103,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function getMyPlayerData() {
         let nickname = window.Game.InitData.nickname;
 
-        
         // DOM 備援
         const nameEl = document.getElementById('lobbyName');
         const lvEl = document.getElementById('lobbyLevel');
