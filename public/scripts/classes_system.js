@@ -55,6 +55,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 生成卡片 HTML
     function renderJobCards(classes, user) {
+        const jobListContainer = document.getElementById('job-list-container');
+        if (!jobListContainer) return;
+
         jobListContainer.innerHTML = ''; 
 
         // 安全檢查
@@ -63,9 +66,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // ★ 注意這裡的變數名稱是 job
         classes.forEach(job => {
-            // 正確找進度：找該職業的 UserClass！
+            // 1. 找進度
             const progress = user.UserClasses.find(uc => uc.jobId === job.id);
             const level = progress ? progress.level : 1;
 
@@ -76,7 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const roleName = job.name.charAt(0).toUpperCase() + job.name.slice(1).toLowerCase();
             const imgSrc = `/holylegend/images/classes/${roleName}_1.png`;
 
-            // 4. 【關鍵補回】檢查轉職需求
+            // 4. 檢查轉職需求
             let isLocked = false;
             let lockReason = '';
 
@@ -84,52 +86,68 @@ document.addEventListener('DOMContentLoaded', () => {
             if (job.requireClassA && (!reqProgressA || reqProgressA.level < job.requireClassLevelA)) {
                 isLocked = true;
                 const reqClassDef = classes.find(c => c.id === job.requireClassA);
-                lockReason = `需 ${reqClassDef ? reqClassDef.nickname : '未知職業'} Lv.${job.requireClassLevelA}`;
+                lockReason = `需 ${reqClassDef ? reqClassDef.nickname : '職業A'} Lv.${job.requireClassLevelA}`;
             }
 
             const reqProgressB = user.UserClasses.find(uc => uc.jobId === job.requireClassB);
             if (!isLocked && job.requireClassB && (!reqProgressB || reqProgressB.level < job.requireClassLevelB)) {
                 isLocked = true;
                 const reqClassDef = classes.find(c => c.id === job.requireClassB);
-                lockReason = `需 ${reqClassDef ? reqClassDef.nickname : '未知職業'} Lv.${job.requireClassLevelB}`;
+                lockReason = `需 ${reqClassDef ? reqClassDef.nickname : '職業B'} Lv.${job.requireClassLevelB}`;
             }
 
-
-            // 按鈕狀態
+            // 按鈕與狀態文字
             let btnText = '切換';
             let btnDisabled = false;
-            let btnStyle = "";
+            let cardClass = 'job-card';
 
-            if (isCurrent) btnText = '當前', btnDisabled = true;
-            else if (isLocked) btnText = lockReason, btnDisabled = true;
+            if (isCurrent) {
+                btnText = '當前使用';
+                btnDisabled = true;
+                cardClass += ' active';
+            } else if (isLocked) {
+                btnText = '未解鎖'; // 按鈕顯示簡短文字
+                btnDisabled = true;
+                cardClass += ' locked';
+            }
 
-
-            // 建立卡片
+            // 建立卡片 DOM
             const card = document.createElement('div');
-            card.className = `job-card ${isCurrent ? 'active' : ''}`;
-            if (isLocked) card.style.opacity = "0.7";
+            card.className = cardClass;
+
+            // 如果鎖定，點擊卡片顯示詳細原因 (因為按鈕太小塞不下)
+            if (isLocked) {
+                card.title = lockReason; 
+                card.onclick = () => alert(`解鎖條件：\n${lockReason}`);
+            }
 
             card.innerHTML = `
+                <!-- 圓形頭像 -->
                 <div class="job-icon-frame">
-                    <img src="${imgSrc}" onerror="this.src='/holylegend/images/classes/Warrior_1.png'">
+                    <img src="${imgSrc}" onerror="this.src='/holylegend/images/classes/Novice_1.png'">
                 </div>
-                <div class="job-info">
-                    <div class="job-name">${job.nickname}</div>
-                    <div class="job-level">Lv. ${level}</div>
-                </div>
+                
+                <!-- 職業名稱 -->
+                <div class="job-name">${job.nickname}</div>
+
+                <!-- 等級標籤 (懸浮在右下) -->
+                <div class="job-level-badge">Lv.${level}</div>
+
+                <!-- 底部按鈕 -->
                 <button class="btn-pixel-small btn-select" 
-                    ${btnDisabled ? 'disabled' : ''} 
-                    style="${btnStyle}">
+                    ${btnDisabled ? 'disabled' : ''}>
                     ${btnText}
                 </button>
             `;
 
-            // 綁定事件
+            // 綁定切換事件
             const btn = card.querySelector('.btn-select');
             if (!isCurrent && !isLocked) {
-                // ★ 修正 1：這裡要用 job.id，不要用 jobDef (undefined)
-                // ★ 修正 2：直接傳數字 ID，不要傳整個物件
-                btn.addEventListener('click', () => switchJob(job.name));
+                // 傳遞 job.name 或 job.id 給切換函式
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation(); // 避免觸發卡片點擊
+                    switchJob(job.name);
+                });
             }
 
             jobListContainer.appendChild(card);

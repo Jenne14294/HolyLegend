@@ -365,7 +365,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     <div class="member-stats">
                         <div class="member-name">
-                            ${p.nickname} ${leaderBadge} ${readyStatus}
+                            ${p.nickname} - ${p.state.role} ${leaderBadge} ${readyStatus}
                         </div>
                     </div>
                 `;
