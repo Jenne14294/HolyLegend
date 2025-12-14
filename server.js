@@ -553,6 +553,34 @@ export default function initSocket(server) {
                     if (targetRoomData) targetRoomData.state.playerMp = targetState.mp; // 同步
                     used = true;
                 }
+
+                else if (item.effectType === 'REVIVE') {
+                    // 檢查：只有死人才能被復活
+                    if (!targetState.isDead) {
+                        return socket.emit('item_use_result', { success: false, msg: "目標尚未死亡，無法使用復活" });
+                    }
+
+                    const heal = item.isPercentage ? Math.round(targetState.maxHp * (item.effectValue/100)) : item.effectValue;
+                    const recover = item.isPercentage ? Math.round(targetState.maxMp * (item.effectValue/100)) : item.effectValue;
+
+                    // 復活：血量設為恢復量 (不是 +heal，因為原本是 0)
+                    targetState.hp = Math.min(targetState.maxHp, heal); 
+                    targetState.mp = Math.min(targetState.maxMp, targetState.mp + recover);
+                    targetState.isDead = false;
+
+                    // 同步回房間狀態
+                    if (targetRoomData) {
+                        targetRoomData.state.playerHp = targetState.hp;
+                        targetRoomData.state.playerMp = targetState.mp;
+                    }
+                    
+                    // ★★★ 關鍵：加回存活名單，這樣 processTurn 才會算他一份 ★★★
+                    if (!battle.alivePlayerIds.includes(finalTargetId)) {
+                        battle.alivePlayerIds.push(finalTargetId);
+                    }
+
+                    used = true;
+                }
             }
 
             if (used) {
