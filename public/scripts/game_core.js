@@ -17,7 +17,25 @@ window.Game = {
         role: 'novice', // 記錄當前職業
         avatar: '',
         AdditionState: [],
-        AdditionEXP: 0
+        AdditionEXP: 0,
+        AdditionAttribute: {
+            "Dodge": 0,
+            "Crit": 0,
+            "Reduce": 0
+        },
+        Inventory: [],
+        Skills: [],
+        Equipment: {
+            "slot_1": {},
+            "slot_2": {},
+            "slot_3": {},
+            "slot_4": {},
+            "slot_5": {},
+            "slot_6": {},
+            "slot_7": {},
+            "slot_8": {},
+            
+        },
     },
 
     InitData: {
@@ -67,6 +85,12 @@ window.Game = {
             // 首字大寫處理
             avatar.src = data.avatar;
         }
+    },
+
+    updateLocalGoldDisplay: function() {
+        if (goldDisplay && window.Game?.state) {
+            goldDisplay.innerText = window.Game.state.goldCollected || 0;
+        }
     }
 };
 
@@ -102,6 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 Game.state.AdditionEXP = 0;
                 Game.state.avatar = data.avatar;
                 Game.InitData.nickname = data.nickname;
+                Game.state.AdditionAttribute
                 
                 // 更新 UI
                 Game.updateLobbyUI(data);

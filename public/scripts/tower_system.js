@@ -17,6 +17,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const readyCheckLayer = document.getElementById('ready-check-layer');
     const btnReady = document.getElementById('btn-ready-accept');
 
+    // ★★★ 商店與背包 DOM ★★★
+    const shopLayer = document.getElementById('shop-layer');
+    const itemsGrid = document.getElementById('shop-items-grid');
+    const goldDisplay = document.getElementById('shop-gold-val');
+    const messageDisplay = document.getElementById('shop-message');
+    const btnCloseShop = document.getElementById('btn-close-shop'); 
+
+    const btnItem = document.getElementById('btn-item'); // 道具按鈕
+    let inventoryLayer = document.getElementById('inventory-layer'); // 背包層
+
     const state = window.Game.state; 
     const socket = window.Game.socket; 
 
@@ -25,6 +35,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let waitingForTurn = false; // 是否正在等待隊友行動
     let battleLogContainer = null; // 日誌容器
     let myReadyStatus = false; // 記錄自己的準備狀態
+    let shopSpendingAccumulator = 0;   // ★ 新增：商店消費累計 (用於防止雙重扣款)
+    let pendingBuyItem = null; // 暫存正在購買的物品
 
     // 獎勵圖示
     const REWARD_ICONS = {
@@ -50,8 +62,10 @@ document.addEventListener('DOMContentLoaded', () => {
         startNewFloor();
     });
 
-    // 執行 UI 初始化
+    // 初始化介面
     initBattleLogUI();
+    initInventoryUI(); // ★ 初始化背包介面
+    initShakeStyle(); 
 
     // ===========================
     // 初始化：動態建立戰鬥日誌 UI
@@ -99,6 +113,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function initInventoryUI() {
+        if (!document.getElementById('inventory-layer')) {
+            const div = document.createElement('div');
+            div.id = 'inventory-layer';
+            div.className = 'hidden';
+            div.style.cssText = "position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); z-index: 400; display: flex; justify-content: center; align-items: center;";
+            
+            div.innerHTML = `
+                <div class="shop-card-container" style="border-color: #3498db;">
+                    <div class="shop-header" style="background-color: #2980b9;">
+                        <span class="shop-title" style="color:white; font-size:1.5rem;">🎒 背包</span>
+                    </div>
+                    <div class="shop-body">
+                        <div id="inventory-grid" class="shop-grid"></div>
+                    </div>
+                    <div class="shop-footer">
+                        <button id="btn-close-inventory" class="btn-leave-shop" style="background-color:#7f8c8d;">關閉</button>
+                    </div>
+                </div>
+            `;
+            // 插入
+            const container = document.querySelector('.mobile-container') || document.body;
+            container.appendChild(div);
+            inventoryLayer = div;
+        }
+    }
+
     // 輔助：新增日誌訊息
     function addBattleLog(message, type = 'log-system') {
         if (!battleLogContainer) return;
@@ -136,7 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         socket.on('ready_check_canceled', (data) => {
-            alert(`${data.nickname} 拒絕了準備，取消戰鬥。`);
+            io.to(roomId).emit('chat_message', { sender: '系統', text: `${data.nickname} 拒絕了準備，取消戰鬥。`, isSystem: true });
             readyCheckLayer.classList.add('hidden');
             towerLayer.classList.add('hidden');
             teamLayer.classList.remove('hidden');
@@ -169,18 +210,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (myInfo.AdditionState) {
                         state.AdditionState = myInfo.AdditionState;
                     }
+
+                    let serverGoldDelta = myInfo.goldCollected || 0;
+                    let realGoldChange = serverGoldDelta + shopSpendingAccumulator;
+
                     // 2. 金幣 (★ 累加：因為後端傳來的是事件獎勵的增量，不能覆蓋打怪賺的錢)
-                    if (myInfo.goldCollected) {
-                        state.goldCollected += myInfo.goldCollected;
-                        if (myInfo.goldCollected > 0) alert(`獲得事件獎勵金幣: ${myInfo.goldCollected}`);
-                        if (myInfo.goldCollected < 0) alert(`失去金幣: ${Math.abs(myInfo.goldCollected)}`);
+                     if (realGoldChange !== 0) {
+                        state.goldCollected += realGoldChange;
                     }
                     
+                    shopSpendingAccumulator = 0;
+
                     // 3. 經驗 (★ 累加)
                     if (myInfo.AdditionEXP) {
                         state.AdditionEXP += myInfo.AdditionEXP;
-                        if (myInfo.AdditionEXP > 0) alert(`獲得額外經驗: ${myInfo.AdditionEXP}`);
                     }
+
+                    // ★ 同步背包
+                    if (myInfo.Inventory) state.Inventory = myInfo.Inventory;
 
                     // 3. 更新大廳/UI 顯示 (如果有需要)
                     if (window.Game.updateLobbyUI) {
@@ -347,6 +394,92 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.on('close_event_window', () => {
             closeEventLayer();
         });
+
+        // ---------------------------
+        //  商店相關監聽
+        // ---------------------------
+        socket.on('trigger_shop', (data) => {
+            if (state.playerHp > 0) {
+                renderShopItems(data.items);
+                // 暫存商品列表以便查詢價格
+                window.Game.currentShopItems = data.items;
+                
+                shopLayer.classList.remove('hidden');
+                if (goldDisplay) goldDisplay.innerText = state.goldCollected;
+                if (btnCloseShop) {
+                    btnCloseShop.disabled = false;
+                    btnCloseShop.innerText = "離開商店";
+                }
+                if (messageDisplay) messageDisplay.innerText = "歡迎光臨！";
+            } else {
+                socket.emit('player_leave_shop');
+            }
+        });
+
+        socket.on('shop_update', (data) => {
+            if (data.items) {
+                renderShopItems(data.items);
+                // 更新暫存
+                window.Game.currentShopItems = data.items;
+            }
+        });
+
+        // ★★★ 商店購買回饋 (修正版) ★★★
+        socket.on('shop_buy_result', (result) => {
+            if (result.success) {
+                // 1. 確認交易：累計已花費金額，用於之後 startNextFloor 的補償計算
+                if (pendingBuyItem) {
+                    shopSpendingAccumulator += pendingBuyItem.price;
+                    pendingBuyItem = null; // 清除暫存
+                }
+
+                // 2. 更新金幣顯示 (★ 注意：不使用 result.currentGold 覆蓋，避免跳成負數)
+                updateLocalGoldDisplay();
+                
+                // 3. 更新背包
+                if (result.newInventory) state.Inventory = result.newInventory;
+                if (inventoryLayer && !inventoryLayer.classList.contains('hidden')) {
+                    renderInventoryItems();
+                }
+
+                showMessage(result.msg || "購買成功！", '#2ecc71');
+            } else {
+                // 交易失敗：回滾 (把剛剛預扣的錢加回來)
+                if (pendingBuyItem) {
+                    state.goldCollected += pendingBuyItem.price;
+                    pendingBuyItem = null;
+                    updateLocalGoldDisplay();
+                }
+                
+                showMessage(result.msg || "購買失敗", '#e74c3c');
+                shakeShop();
+            }
+        });
+        
+        socket.on('close_shop_window', () => {
+             shopLayer.classList.add('hidden');
+        });
+
+        socket.on('item_use_result', (result) => {
+            if (result.success) {
+                if (result.newInventory) state.Inventory = result.newInventory;
+                if (result.hp !== undefined) state.playerHp = result.hp;
+                if (result.mp !== undefined) state.playerMp = result.mp;
+                
+                updatePlayerUI();
+                if (inventoryLayer && !inventoryLayer.classList.contains('hidden')) {
+                    renderInventoryItems();
+                }
+                addBattleLog(result.msg, 'log-player');
+                const p = document.createElement('div');
+                p.style.cssText = "position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:#2ecc71; font-size:2rem; font-weight:bold; z-index:999; animation: floatUp 1s forwards;";
+                p.innerText = "使用成功!";
+                document.body.appendChild(p);
+                setTimeout(() => p.remove(), 1000);
+            } else {
+                alert(result.msg);
+            }
+        });
     }
 
     // ===========================
@@ -425,6 +558,36 @@ document.addEventListener('DOMContentLoaded', () => {
             resetBattle();
         });
     }
+
+    if (btnCloseShop) {
+        btnCloseShop.addEventListener('click', () => {
+            if (isMultiplayerMode && socket) {
+                btnCloseShop.disabled = true;
+                btnCloseShop.innerText = "等待隊友...";
+                showMessage("正在整理行囊...", '#aaa');
+                socket.emit('player_leave_shop');
+            } else {
+                closeShopLayer();
+                startNewFloor(); // 單人直接下一層
+            }
+        });
+    }
+
+    if (btnItem) {
+        btnItem.addEventListener('click', () => {
+            if (inventoryLayer) {
+                inventoryLayer.classList.remove('hidden');
+                renderInventoryItems();
+            }
+        });
+    }
+
+    // 關閉背包按鈕 (Delegation)
+    document.addEventListener('click', (e) => {
+        if (e.target && e.target.id === 'btn-close-inventory') {
+            if (inventoryLayer) inventoryLayer.classList.add('hidden');
+        }
+    });
 
     // ===========================
     // 戰鬥邏輯：攻擊
@@ -518,30 +681,31 @@ document.addEventListener('DOMContentLoaded', () => {
         
         setTimeout(() => {
             if (state.isGameOver) return; 
-            if (isMultiplayerMode) {
-                // 多人模式：等待 Server 發送下一層指令 (或者 Server 直接發獎勵)
-                // 這裡暫時模擬：
-                // socket.emit('request_next_floor'); 
-            } else {
-                const eventRoll = Math.floor(Math.random() * 100);
-                // const eventRoll = 0;
+            if (!isMultiplayerMode) {
+                const eventRate = Math.floor(Math.random() * 100);
+                const rewardRate = Math.floor(Math.random() * 100);
+                const shopRate = Math.floor(Math.random() * 100);
+                // const shopRate = 0;
 
-                if (eventRoll < 20) { 
-                    tryTriggerSinglePlayerEvent(); // ★ 觸發事件
+                if (shopRate < 15) {
+                    tryTriggerSinglePlayerShop();
+                }
+                else {
+                    if (eventRate < 15) { 
+                        tryTriggerSinglePlayerEvent(); // ★ 觸發事件
                 } 
                 
                 else {
-                    const RewardRate = Math.floor(Math.random() * 100)
-
-                    if (RewardRate <= 14) {
+                    if (rewardRate <= 15) {
                         showRewards(); // 單人顯示獎勵
-                    }
+                }
 
                     else {
                         startNewFloor();
                     }
                 }
             }
+        }
         }, 500);
     }
 
@@ -559,6 +723,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (e) {
             console.error("事件載入失敗", e);
+            startNewFloor();
+        }
+    }
+
+
+    // 商店
+    async function tryTriggerSinglePlayerShop() {
+        try {
+            const response = await fetch('/holylegend/system/items');
+            const result = await response.json();
+            
+            if (result.success && result.data && result.data.length > 0) {
+                const pool = result.data;
+                // 洗牌
+                for (let i = pool.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [pool[i], pool[j]] = [pool[j], pool[i]];
+                }
+                // 選4個
+                const selectedItems = pool.slice(0, 6);
+                // 隨機庫存
+                selectedItems.forEach(item => {
+                    const max = item.maxStock || 5; 
+                    item.currentStock = Math.ceil(Math.random() * max);
+                });
+
+                // 暫存以便購買時扣庫存
+                window.Game.currentShopItems = selectedItems;
+                
+                renderShopItems(selectedItems);
+                openShopLayer("旅行商人：只有這些了，要買要快。");
+            } else {
+                console.warn("商店無商品，跳過");
+                startNewFloor();
+            }
+        } catch (e) {
+            console.error("商店載入失敗", e);
             startNewFloor();
         }
     }
@@ -1211,7 +1412,44 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
+    // ===========================
+    // 背包 UI 渲染
+    // ===========================
+    function renderInventoryItems() {
+        const grid = document.getElementById('inventory-grid');
+        if (!grid) return;
+        grid.innerHTML = '';
+        
+        const items = state.Inventory || [];
+        // 只顯示 POTION
+        const visibleItems = items.filter(i => i.category === 'POTION' && i.count > 0);
 
+        if (visibleItems.length === 0) {
+            grid.innerHTML = '<div style="color:#aaa; width:100%; text-align:center; padding:20px;">背包是空的</div>';
+            return;
+        }
+
+        visibleItems.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'shop-item'; // 重用樣式
+            const imgSrc = `/holylegend/images/items/${item.image}`;
+            
+            card.innerHTML = `
+                <div class="item-img-box">
+                    <img src="${imgSrc}" onerror="this.style.display='none';">
+                    <div class="stock-badge">x ${item.count}</div>
+                </div>
+                <div class="item-info">
+                    <div class="item-name">${item.name}</div>
+                    <div class="item-desc">${item.description}</div>
+                </div>
+                <button class="btn-buy" style="background-color:#2980b9; border-color:#1a5276;">使用</button>
+            `;
+            
+            card.querySelector('button').onclick = () => handleUseItem(item);
+            grid.appendChild(card);
+        });
+    }
 
 
 
@@ -1515,5 +1753,260 @@ document.addEventListener('DOMContentLoaded', () => {
             layer.classList.add('hidden');
             layer.innerHTML = ''; // 清空 DOM
         }
+    }
+
+    // ===========================
+    // 商店 UI 與邏輯函式
+    // ===========================
+
+    function openShopLayer(msg) {
+        shopLayer.classList.remove('hidden');
+        updateLocalGoldDisplay();
+        showMessage(msg, '#fff');
+        if (btnCloseShop) {
+            btnCloseShop.disabled = false;
+            btnCloseShop.innerText = "👋 離開商店";
+        }
+    }
+
+    function closeShopLayer() {
+        shopLayer.classList.add('hidden');
+    }
+
+    function renderShopItems(items) {
+        if (!itemsGrid) return;
+        itemsGrid.innerHTML = '';
+        if (!items || items.length === 0) {
+            itemsGrid.innerHTML = '<div style="color:#aaa; width:100%; text-align:center;">商品已售完</div>';
+            return;
+        }
+
+        items.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'shop-item';
+            
+            const isSoldOut = item.currentStock <= 0;
+            const canAfford = state.goldCollected >= item.price;
+            
+            if (isSoldOut) card.classList.add('sold-out');
+
+            const imgSrc = `/holylegend/images/items/${item.image}`;
+            
+            card.innerHTML = `
+                <div class="item-img-box">
+                    <img src="${imgSrc}" onerror="this.style.display='none';">
+                    <div class="stock-badge">剩 ${item.currentStock}</div>
+                </div>
+                <div class="item-info">
+                    <div class="item-name">${item.name}</div>
+                    <div class="item-desc">${item.description}</div>
+                    <div class="item-price" style="color: ${canAfford ? '#ffd700' : '#e74c3c'}">💰${item.price}</div>
+                </div>
+                <button class="btn-buy" ${isSoldOut ? 'disabled' : ''}>${isSoldOut ? '售罄' : '購買'}</button>
+            `;
+            const btnBuy = card.querySelector('.btn-buy');
+            if (!isSoldOut) {
+                btnBuy.addEventListener('click', () => handleBuyItem(item));
+            }
+            itemsGrid.appendChild(card);
+        });
+    }
+
+    function handleBuyItem(item) {
+        if (state.goldCollected < item.price) {
+            showMessage("金幣不足！", '#e74c3c');
+            shakeShop();
+            return;
+        }
+
+        if (isMultiplayerMode && socket) {
+            // ★ 多人模式：預先扣款 (Optimistic UI)
+            pendingBuyItem = item; // 暫存商品，等 server 確認
+            state.goldCollected -= item.price;
+            updateLocalGoldDisplay();
+            
+            socket.emit('player_buy_item', { itemId: item.id });
+        } else {
+            buyItemSinglePlayer(item);
+        }
+    }
+
+    function buyItemSinglePlayer(item) {
+        state.goldCollected -= item.price;
+        item.currentStock--;
+        let msg = `購買了 ${item.name}`;
+        if (item.category === 'STAT_BOOST') { applyEffectSinglePlayer(item); msg += " (屬性已提升)"; } 
+        else { 
+            if (!state.Inventory) state.Inventory = [];
+            const existing = state.Inventory.find(i => i.id === item.id);
+            if (existing) { 
+                existing.count++; 
+            } else { 
+                state.Inventory.push(
+                    { 
+                        id: item.id, 
+                        name: item.name, 
+                        image: item.image, 
+                        description: item.description, 
+                        category: item.category, 
+                        effectType: item.effectType, 
+                        effectValue: item.effectValue, 
+                        isPercentage: item.isPercentage, 
+                        count: 1 
+                    }
+                ); 
+            }
+            msg += " (已放入背包)";
+        }
+        updateLocalGoldDisplay();
+        renderShopItems(window.Game.currentShopItems); 
+        showMessage(msg, '#2ecc71');
+    }
+
+    function handleUseItem(item) {
+        // 0. 防呆檢查：如果遊戲結束、升級中或回合鎖定，不允許使用道具
+        if (state.isGameOver || state.processingLevelUp || state.isTurnLocked) {
+             alert("當前狀態無法使用道具！");
+             return;
+        }
+
+        // 1. 關閉背包
+        if (inventoryLayer) inventoryLayer.classList.add('hidden');
+
+        // 2. 單人模式：直接使用
+        if (!isMultiplayerMode) {
+            useItemSinglePlayer(item);
+            return;
+        }
+
+        // 3. 多人模式：選取目標 (Select Target)
+        if (socket) {
+            // 顯示提示文字
+            addBattleLog(`準備使用 ${item.name}，請選擇對象...`, 'log-system');
+            
+            // 建立一個全螢幕提示遮罩 (防止誤觸其他) 或簡單 Alert
+            // 這裡採用簡單 Alert 加上 DOM 操作
+            alert(`請點擊隊友頭像以使用 ${item.name}！\n(點擊下方自己血條可對自己使用)`);
+
+            // 讓隊友卡片可點擊
+            const cards = teammatesContainer.querySelectorAll('.tm-card');
+            const selfArea = document.querySelector('.tower-player-status'); // 自己的區域
+
+            // 清理函式
+            const cleanup = () => {
+                cards.forEach(c => {
+                    c.removeEventListener('click', handleTargetSelect);
+                    c.classList.remove('selectable');
+                });
+                if (selfArea) {
+                    selfArea.removeEventListener('click', handleSelfSelect);
+                    selfArea.classList.remove('selectable');
+                }
+            };
+
+            const handleTargetSelect = (e) => {
+                const targetId = e.currentTarget.dataset.id;
+                if (confirm(`確定對隊友使用 ${item.name} 嗎？`)) {
+                    // ★ 1. 鎖定回合狀態 (防止重複行動)
+                    waitingForTurn = true;
+                    updateControlsState(); // 讓攻擊按鈕變灰
+                    
+                    // ★ 2. 發送請求
+                    socket.emit('player_use_item', { 
+                        itemId: item.id,
+                        targetSocketId: targetId
+                    });
+                    cleanup();
+                }
+            };
+
+            const handleSelfSelect = () => {
+                if (confirm(`確定對自己使用 ${item.name} 嗎？`)) {
+                    // ★ 1. 鎖定回合狀態
+                    waitingForTurn = true;
+                    updateControlsState();
+                    
+                    // ★ 2. 發送請求
+                    socket.emit('player_use_item', { 
+                        itemId: item.id,
+                        targetSocketId: socket.id 
+                    });
+                    cleanup();
+                }
+            };
+
+            // 綁定事件 & 樣式
+            cards.forEach(c => {
+                c.classList.add('selectable');
+                c.addEventListener('click', handleTargetSelect);
+            });
+
+            if (selfArea) {
+                selfArea.classList.add('selectable');
+                selfArea.addEventListener('click', handleSelfSelect);
+            }
+        }
+    }
+
+    function useItemSinglePlayer(item) {
+        let used = false;
+        
+        if (item.category === 'POTION') {
+            if (item.effectType === 'HP') {
+                if (state.playerHp >= state.playerMaxHp) return alert("生命值已滿");
+                const heal = item.isPercentage ? Math.round(state.playerMaxHp * (item.effectValue/100)) : item.effectValue;
+                state.playerHp = Math.min(state.playerMaxHp, state.playerHp + heal);
+                used = true;
+            } else if (item.effectType === 'MP') {
+                if (state.playerMp >= state.playerMaxMp) return alert("魔力值已滿");
+                const heal = item.isPercentage ? Math.round(state.playerMaxMp * (item.effectValue/100)) : item.effectValue;
+                state.playerMp = Math.min(state.playerMaxMp, state.playerMp + heal);
+                used = true;
+            }
+        }
+
+        if (used) {
+            item.count--;
+            if (item.count <= 0) {
+                state.Inventory = state.Inventory.filter(i => i.id !== item.id);
+            }
+            updatePlayerUI();
+            addBattleLog(`使用了 ${item.name}`, 'log-player');
+            
+            // ★ 單人模式：使用道具也算一回合，觸發敵人攻擊
+            state.isTurnLocked = true;
+            updateControlsState();
+            setTimeout(enemyAttack, 500);
+
+        } else {
+            // alert("無法使用此道具");
+            // 如果沒使用，背包會再次打開，或者保持關閉
+        }
+    }
+
+    function updateLocalGoldDisplay() {
+        if (goldDisplay) goldDisplay.innerText = state.goldCollected || 0;
+    }
+
+    function showMessage(msg, color) {
+        if (messageDisplay) {
+            messageDisplay.style.color = color || '#fff';
+            messageDisplay.innerText = msg;
+        }
+    }
+
+    function shakeShop() {
+        const container = document.querySelector('.shop-card-container');
+        if (container) {
+            container.style.animation = 'none';
+            container.offsetHeight; 
+            container.style.animation = 'shake 0.3s';
+        }
+    }
+
+    function initShakeStyle() {
+        const style = document.createElement('style');
+        style.innerHTML = `@keyframes shake { 0% { transform: translateX(0); } 25% { transform: translateX(-5px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-5px); } 100% { transform: translateX(0); } }`;
+        document.head.appendChild(style);
     }
 });

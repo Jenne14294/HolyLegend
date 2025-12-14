@@ -5,7 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url'; // 必需：用於 ES Modules 定義 __dirname
 
 // 引入您的服務層 (Service)
-import { getRewards, getEvents } from '../services/system.js';
+import { getRewards, getEvents, getItems, getEnemies } from '../services/system.js';
 import { getUser, verifyToken } from '../services/accountAuth.js';
 import { getClass } from '../services/classes.js';
 import {updateUserAvatar} from '../services/account.js';
@@ -158,6 +158,26 @@ router.get('/events', async (req, res, next) => {
   try {
     const events = await getEvents();
     res.json({"success":true, data: events});
+  } catch (err) {
+    console.error(err);
+    next(err);
+  }
+});
+
+router.get('/items', async (req, res, next) => {
+  try {
+    const items = await getItems();
+    res.json({"success":true, data: items});
+  } catch (err) {
+    console.error(err);
+    next(err);
+  }
+});
+
+router.get('/enemy', async (req, res, next) => {
+  try {
+    const enemies = await getEnemies();
+    res.json({"success":true, data: enemies});
   } catch (err) {
     console.error(err);
     next(err);

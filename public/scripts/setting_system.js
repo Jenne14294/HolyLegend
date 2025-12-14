@@ -147,8 +147,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (lobbyName) lobbyName.innerText = newName;
                 }
                 
-
-                alert('暱稱修改成功！');
             } catch (e) {
                 console.error(e);
                 alert('修改失敗');
@@ -177,7 +175,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await response.json();
 
             if (result.success) {
-                alert('頭像上傳成功！');
                 
                 // 加上時間戳記以防止瀏覽器快取舊圖片
                 const newAvatarUrl = `${result.data.path}?t=${new Date().getTime()}`;

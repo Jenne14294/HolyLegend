@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="/holylegend/styles/class.css">
     <link rel="stylesheet" href="/holylegend/styles/setting.css">
     <link rel="stylesheet" href="/holylegend/styles/event.css">
+    <link rel="stylesheet" href="/holylegend/styles/reward.css">
+    <link rel="stylesheet" href="/holylegend/styles/shop.css">
     <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -197,6 +199,44 @@
             <!--  區塊 I: 隨機事件 (Event Layer)            -->
             <!-- ========================================== -->
             <div id="event-layer" class="hidden">
+            </div>
+
+
+            <!-- ========================================== -->
+            <!--  區塊 J: 商店介面 (Shop Layer)             -->
+            <!-- ========================================== -->
+            <div id="shop-layer" class="hidden">
+                <!-- 半透明背景遮罩 -->
+                <div class="shop-overlay"></div>
+
+                <div class="shop-card-container">
+                    <!-- ★ 新增：右上角關閉按鈕 -->
+                    <button id="btn-close-shop" class="btn-pixel-close">X</button>
+
+                    <!-- 1. 商店頂部 -->
+                    <div class="shop-header">
+                        <div class="shop-title-group">
+                            <span class="shop-npc-icon">👳‍♂️</span>
+                            <span class="shop-title">旅行商人</span>
+                        </div>
+                        <div class="shop-gold-display">
+                            <span class="gold-icon">💰</span>
+                            <span id="shop-gold-val" class="gold-val">0</span>
+                        </div>
+                    </div>
+
+                    <!-- 2. 商品列表 -->
+                    <div class="shop-body">
+                        <div id="shop-items-grid" class="shop-grid">
+                            <!-- JS 動態生成 -->
+                        </div>
+                    </div>
+
+                    <!-- 3. 底部 (只保留訊息提示) -->
+                    <div class="shop-footer">
+                        <div class="shop-message" id="shop-message">歡迎光臨，冒險者...</div>
+                    </div>
+                </div>
             </div>
 
         </div>

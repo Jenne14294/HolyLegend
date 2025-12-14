@@ -384,60 +384,105 @@ export default function initSocket(server) {
                 if (isEnemyDead) {
                     // 伺服器端決定是否給獎勵 (15% 機率)
                     const eventRate = Math.floor(Math.random() * 100);
-                    // const eventRate = 0 
+                    const rewardRate = Math.floor(Math.random() * 100);
+                    const shopRate = Math.floor(Math.random() * 100);
+                    // const shopRate = 0 
 
-                    if (eventRate < 20) {
-                        // --- 觸發事件流程 ---
-                        const response = await fetch('http://localhost:3000/holylegend/system/events');
-                        const result = await response.json();
+                    if (shopRate < 15) {
+                        try {
+                            // 呼叫 API 獲取商品
+                            const response = await fetch('http://localhost:3000/holylegend/system/items');
+                            const result = await response.json();
+                            
+                            if (result.success && result.data && result.data.length > 0) {
+                                const pool = result.data;
+                                
+                                const itemCount = 6;
+                                
+                                const selectedItems = [];
+                                // 隨機抽取
+                                for (let i = 0; i < itemCount; i++) {
+                                    if (pool.length === 0) break;
+                                    const idx = Math.floor(Math.random() * pool.length);
+                                    const itemTemplate = pool[idx];
+                                    
+                                    // 設定隨機庫存
+                                    const stock = Math.ceil(Math.random() * (itemTemplate.maxStock || 3));
+                                    
+                                    selectedItems.push({
+                                        ...itemTemplate,
+                                        currentStock: stock
+                                    });
+                                    // 這裡選擇不移除 pool，允許重複商品出現
+                                }
 
-                        const allEvents = result.data; // 資料庫裡的所有獎勵
-                        const eventId = Math.floor(Math.random() * allEvents.length)
-                        const event = allEvents[eventId]
+                                // ★ 存入共享商店狀態
+                                battle.sharedShopItems = selectedItems;
+                                battle.isShopActive = true;
+                                battle.shopConfirmedPlayers = []; // 紀錄誰按了離開
 
-                        if (!event) {
-                            socket.emit('player_confirm_event');
+                                // 廣播給所有人
+                                io.to(currentRoomId).emit('trigger_shop', { items: selectedItems });
+                                return;
+                            }
+                        } catch (e) {
+                            console.error("商店生成失敗:", e);
                         }
-
-                        else {
-                            io.to(currentRoomId).emit('trigger_event', event);
-                        }
-
-
-                        // 初始化事件狀態
-                        battle.isEventActive = true;
-                        battle.eventLock = null; // 誰正在嘗試
-                        battle.eventConfirmedPlayers = []; // 誰按了確認/離開
-                        battle.pendingEventResult = null; // 暫存結果
-                        battle.currentEventData = event; // 存起來備用
-
-                        // ★ return，不執行獎勵或下一層，等待事件交互
-                        return;
                     }
+
                     else {
-                        const rewardRate = Math.floor(Math.random() * 100);
-                        // const rewardRate = 0;
-                    
-                        // 初始化獎勵選擇狀態
-                        battle.rewardSelection = {
-                            isActive: false,
-                            selectedPlayers: [] // 紀錄誰已經選好了
-                        };
+                        if (eventRate < 15) {
+                            // --- 觸發事件流程 ---
+                            const response = await fetch('http://localhost:3000/holylegend/system/events');
+                            const result = await response.json();
 
-                        if (rewardRate <= 14) {
-                            // --- 沒有獎勵，直接進下一層 (維持原樣) ---
-                            setTimeout(() => {
-                                io.to(currentRoomId).emit('multiplayer_show_rewards')
-                            }, 1000); 
+                            const allEvents = result.data; // 資料庫裡的所有獎勵
+                            const eventId = Math.floor(Math.random() * allEvents.length)
+                            const event = allEvents[eventId]
 
-                        } else {
-                            // --- 沒有獎勵，直接進下一層 (維持原樣) ---
-                            setTimeout(() => {
-                                startNextFloor(currentRoomId);
-                            }, 2000); 
-                        } 
+                            if (!event) {
+                                socket.emit('player_confirm_event');
+                            }
+
+                            else {
+                                io.to(currentRoomId).emit('trigger_event', event);
+                            }
+
+
+                            // 初始化事件狀態
+                            battle.isEventActive = true;
+                            battle.eventLock = null; // 誰正在嘗試
+                            battle.eventConfirmedPlayers = []; // 誰按了確認/離開
+                            battle.pendingEventResult = null; // 暫存結果
+                            battle.currentEventData = event; // 存起來備用
+
+                            // ★ return，不執行獎勵或下一層，等待事件交互
+                            return;
+                        }
+                        else {
+                            
+                            // const rewardRate = 0;
+                        
+                            // 初始化獎勵選擇狀態
+                            battle.rewardSelection = {
+                                isActive: false,
+                                selectedPlayers: [] // 紀錄誰已經選好了
+                            };
+
+                            if (rewardRate <= 14) {
+                                // --- 沒有獎勵，直接進下一層 (維持原樣) ---
+                                setTimeout(() => {
+                                    io.to(currentRoomId).emit('multiplayer_show_rewards')
+                                }, 1000); 
+
+                            } else {
+                                // --- 沒有獎勵，直接進下一層 (維持原樣) ---
+                                setTimeout(() => {
+                                    startNextFloor(currentRoomId);
+                                }, 2000); 
+                            } 
+                        }
                     }
-                    
                 }
                 
                 if (isAllDead) {
@@ -449,6 +494,98 @@ export default function initSocket(server) {
                          if(room) room.forEach(p => p.isReady = false);
                      }, 1000);
                 }
+            }
+        });
+
+        socket.on('player_use_item', ({ itemId, targetSocketId }) => {
+            if (!currentRoomId || !battles[currentRoomId]) return;
+            const battle = battles[currentRoomId];
+            const pState = battle.playerStates[socket.id];
+            
+            // 0. 狀態檢查
+            if (battle.isEnding || battle.processingTurn) return; // 正在結算中不能用
+            if (pState?.isDead) return; // 死人不能用
+            
+            // ★ 檢查是否已行動 (如果這回合已經攻擊或用過道具，就不能再用)
+            if (battle.pendingActions.find(a => a.socketId === socket.id)) {
+                return socket.emit('item_use_result', { success: false, msg: "本回合已行動" });
+            }
+
+            const playerRoomData = rooms[currentRoomId].find(p => p.socketId === socket.id);
+            if (!playerRoomData || !playerRoomData.state.Inventory) return;
+            
+            const inventory = playerRoomData.state.Inventory;
+            const itemIndex = inventory.findIndex(i => i.id === itemId);
+            const item = inventory[itemIndex];
+
+            // 1. 檢查道具
+            if (!item || item.count <= 0) {
+                return socket.emit('item_use_result', { success: false, msg: "道具不足" });
+            }
+
+            // 2. 確定目標 (預設為自己，如果 targetSocketId 有傳且有效則用之)
+            let finalTargetId = socket.id; 
+            if (targetSocketId && battle.playerStates[targetSocketId]) {
+                finalTargetId = targetSocketId;
+            }
+            const targetState = battle.playerStates[finalTargetId];
+            const targetRoomData = rooms[currentRoomId].find(p => p.socketId === finalTargetId);
+            const targetName = targetRoomData ? targetRoomData.nickname : '目標';
+
+            // 3. 執行效果
+            let used = false;
+            
+            if (item.category === 'POTION') {
+                if (item.effectType === 'HP') {
+                    // 對目標使用
+                    if (targetState.hp >= targetState.maxHp) return socket.emit('item_use_result', { success: false, msg: "目標生命值已滿" });
+                    
+                    const heal = item.isPercentage ? Math.round(targetState.maxHp * (item.effectValue/100)) : item.effectValue;
+                    targetState.hp = Math.min(targetState.maxHp, targetState.hp + heal);
+                    if (targetRoomData) targetRoomData.state.playerHp = targetState.hp; // 同步
+                    used = true;
+                }
+                else if (item.effectType === 'MP') {
+                    if (targetState.mp >= targetState.maxMp) return socket.emit('item_use_result', { success: false, msg: "目標魔力值已滿" });
+
+                    const heal = item.isPercentage ? Math.round(targetState.maxMp * (item.effectValue/100)) : item.effectValue;
+                    targetState.mp = Math.min(targetState.maxMp, targetState.mp + heal);
+                    if (targetRoomData) targetRoomData.state.playerMp = targetState.mp; // 同步
+                    used = true;
+                }
+            }
+
+            if (used) {
+                // 4. 扣除數量
+                item.count -= 1;
+                if (item.count <= 0) {
+                    inventory.splice(itemIndex, 1); 
+                }
+
+                // 5. 通知前端成功
+                socket.emit('item_use_result', { 
+                    success: true, 
+                    msg: `對 ${targetName} 使用了 ${item.name}`,
+                    newInventory: inventory,
+                    hp: pState.hp, // 回傳自己的狀態
+                    mp: pState.mp
+                });
+                
+                io.to(currentRoomId).emit('chat_message', { sender: '系統', text: `${playerRoomData.nickname} 對 ${targetName} 使用了 ${item.name}。`, isSystem: true });
+                
+                // ★★★ 關鍵：視為已行動，加入 pendingActions ★★★
+                battle.pendingActions.push({ 
+                    socketId: socket.id, 
+                    type: 'use_item', 
+                    damage: 0 // 使用道具通常沒有傷害
+                });
+
+                // ★★★ 關鍵：檢查是否全員行動完畢，觸發回合結算 ★★★
+                if (battle.pendingActions.length >= battle.alivePlayerIds.length) {
+                    processTurn(currentRoomId);
+                }
+            } else {
+                socket.emit('item_use_result', { success: false, msg: "無法使用此道具" });
             }
         });
 
@@ -723,6 +860,113 @@ export default function initSocket(server) {
             }
         });
 
+        socket.on('player_buy_item', ({ itemId }) => {
+            if (!currentRoomId || !battles[currentRoomId]) return;
+            const battle = battles[currentRoomId];
+            const pState = battle.playerStates[socket.id];
+            
+            // 取得該玩家的永久數據 (Inventory 在這裡)
+            const playerRoomData = rooms[currentRoomId].find(p => p.socketId === socket.id);
+            if (!playerRoomData) return;
+
+            // 1. 驗證商品
+            const shopItem = battle.sharedShopItems.find(i => i.id === itemId);
+            if (!shopItem) return socket.emit('shop_buy_result', { success: false, msg: "商品不存在" });
+            if (shopItem.currentStock <= 0) return socket.emit('shop_buy_result', { success: false, msg: "已售罄" });
+
+            // 2. 驗證金幣 (假設金幣已同步到後端，或是允許負數由前端扣)
+            // 這裡我們直接扣 p.state.goldCollected，這會變成負數增量傳回前端
+            const price = shopItem.price;
+            
+            // 3. 執行交易
+            playerRoomData.state.goldCollected -= price;
+            shopItem.currentStock -= 1; // 扣除共享庫存
+
+            const cat = shopItem.category; // 'STAT_BOOST', 'POTION', etc.
+            const type = shopItem.effectType; // 'STR', 'HP'...
+            const val = shopItem.effectValue;
+
+            let msg = `購買了 ${shopItem.name}`;
+
+            // ★ 分流處理：強化 vs 背包
+            if (cat === 'STAT_BOOST') {
+                // A. 強化能力：直接作用
+                if (STAT_MAP[type] !== undefined) {
+                    if (!playerRoomData.state.AdditionState) playerRoomData.state.AdditionState = [0,0,0,0];
+                    playerRoomData.state.AdditionState[STAT_MAP[type]] += val;
+                    msg += " (能力已提升)";
+                }
+            } else {
+                // B. 其他 (藥水/技能石)：存入背包
+                if (!playerRoomData.state.Inventory) playerRoomData.state.Inventory = [];
+                const inventory = playerRoomData.state.Inventory;
+
+                console.log(inventory)
+
+                // ★ 堆疊邏輯：檢查是否有相同 ID 的物品
+                const existingItem = inventory.find(i => i.id === shopItem.id);
+
+                if (existingItem) {
+                    // 如果有，數量 +1
+                    existingItem.count = (existingItem.count || 1) + 1;
+                } else {
+                    // 如果沒有，新增物件 (只存需要的欄位，過濾掉 currentStock)
+                    inventory.push({
+                        id: shopItem.id,
+                        name: shopItem.name,
+                        description: shopItem.description,
+                        image: shopItem.image,
+                        category: shopItem.category,
+                        effectType: shopItem.effectType,
+                        effectValue: shopItem.effectValue,
+                        isPercentage: shopItem.isPercentage,
+                        count: 1
+                    });
+                }
+                msg += " (已放入背包)";
+            }
+
+            // 4. 廣播更新：讓所有人的商店介面庫存減少
+            io.to(currentRoomId).emit('shop_update', { items: battle.sharedShopItems });
+
+            // 5. 回傳給買家
+            socket.emit('shop_buy_result', { 
+                success: true, 
+                msg: msg,
+                // 回傳背包數據，讓前端更新
+                newInventory: playerRoomData.state.Inventory,
+                currentGold: playerRoomData.state.goldCollected
+            });
+        });
+
+
+        // ---------------------------------------------------------
+        // ★ 新增：離開商店 (等待所有人)
+        // ---------------------------------------------------------
+        socket.on('player_leave_shop', () => {
+            if (!currentRoomId || !battles[currentRoomId]) return;
+            const battle = battles[currentRoomId];
+            
+            if (!battle.shopConfirmedPlayers.includes(socket.id)) {
+                battle.shopConfirmedPlayers.push(socket.id);
+            }
+
+            // 檢查：是否所有「存活」玩家都已離開？
+            const aliveCount = battle.alivePlayerIds.length;
+            
+            if (battle.shopConfirmedPlayers.length >= aliveCount) {
+                // 全部完成，關閉商店
+                battle.isShopActive = false;
+                battle.shopConfirmedPlayers = [];
+                
+                io.to(currentRoomId).emit('close_shop_window');
+                
+                setTimeout(() => {
+                    startNextFloor(currentRoomId);
+                }, 1000);
+            }
+        });
+
         // 離開戰鬥 (不解散房間，只是回到大廳)
         socket.on('leave_battle', () => {
             if (currentRoomId && battles[currentRoomId]) {
@@ -810,6 +1054,7 @@ export default function initSocket(server) {
                     mp: combatState ? combatState.mp : (p.state.playerMp || 100),
                     
                     AdditionState: p.state.AdditionState || [0, 0, 0, 0],
+                    Inventory: p.state.Inventory || [],
                     goldCollected: goldDelta, 
                     AdditionEXP: expDelta,
                     avatar: p.state.avatar
@@ -825,6 +1070,183 @@ export default function initSocket(server) {
                 monsterType: randomMonster, 
                 players: updatedPlayersInfo
             });
+        }
+
+        async function processTurn(roomId) {
+            const battle = battles[roomId];
+            if (!battle) return;
+
+            battle.processingTurn = true; // 上鎖
+
+            // 1. 計算總傷害
+            let totalDamage = 0;
+            battle.pendingActions.forEach(a => {
+                if (a.damage) totalDamage += a.damage;
+            });
+            
+            battle.enemyHp -= totalDamage; 
+            if (battle.enemyHp < 0) battle.enemyHp = 0;
+
+            const isEnemyDead = battle.enemyHp <= 0;
+            
+            let targetSocketId = null; 
+            let damageTaken = 0; 
+            let deadPlayerId = null;
+
+            // 2. 怪物反擊
+            if (!isEnemyDead && battle.alivePlayerIds.length > 0) {
+                const targetIndex = Math.floor(Math.random() * battle.alivePlayerIds.length); 
+                targetSocketId = battle.alivePlayerIds[targetIndex];
+                damageTaken = Math.round((5 + (2.5 * (battle.alivePlayerIds.length - 1))) * Math.pow(1.05, battle.floor)); 
+                
+                // 簡單計算防禦 (這裡先不讀取 action，直接扣)
+                if (battle.playerStates[targetSocketId]) {
+                    battle.playerStates[targetSocketId].hp -= damageTaken;
+                    if (battle.playerStates[targetSocketId].hp <= 0) { 
+                        battle.playerStates[targetSocketId].hp = 0; 
+                        battle.playerStates[targetSocketId].isDead = true; 
+                        deadPlayerId = targetSocketId; 
+                        battle.alivePlayerIds = battle.alivePlayerIds.filter(id => id !== targetSocketId); 
+                    }
+                }
+            }
+
+            const isAllDead = battle.alivePlayerIds.length === 0;
+            
+            // 3. 準備回傳所有人的最新狀態
+            const playersStatusUpdate = {}; 
+            Object.keys(battle.playerStates).forEach(sid => { 
+                playersStatusUpdate[sid] = { 
+                    hp: battle.playerStates[sid].hp, 
+                    isDead: battle.playerStates[sid].isDead 
+                }; 
+            });
+
+            io.to(roomId).emit('turn_result', { 
+                damageDealt: totalDamage, targetSocketId, damageTaken, isEnemyDead, 
+                deadPlayerId, isAllDead, playersStatus: playersStatusUpdate 
+            });
+
+            // 4. 清理
+            battle.pendingActions = [];
+            
+            if (!isAllDead && !isEnemyDead) { 
+                battle.processingTurn = false; // 解鎖
+            }
+
+            // 5. 戰鬥結束處理
+            if (isEnemyDead) {
+                // 伺服器端決定是否給獎勵 (15% 機率)
+                    const eventRate = Math.floor(Math.random() * 100);
+                    const rewardRate = Math.floor(Math.random() * 100);
+                    // const shopRate = Math.floor(Math.random() * 100);
+                    const shopRate = 0 
+
+                    if (shopRate < 15) {
+                        try {
+                            // 呼叫 API 獲取商品
+                            const response = await fetch('http://localhost:3000/holylegend/system/items');
+                            const result = await response.json();
+                            
+                            if (result.success && result.data && result.data.length > 0) {
+                                const pool = result.data;
+                                
+                                const itemCount = 6;
+                                
+                                const selectedItems = [];
+                                // 隨機抽取
+                                for (let i = 0; i < itemCount; i++) {
+                                    if (pool.length === 0) break;
+                                    const idx = Math.floor(Math.random() * pool.length);
+                                    const itemTemplate = pool[idx];
+                                    
+                                    // 設定隨機庫存
+                                    const stock = Math.ceil(Math.random() * (itemTemplate.maxStock || 3));
+                                    
+                                    selectedItems.push({
+                                        ...itemTemplate,
+                                        currentStock: stock
+                                    });
+                                    // 這裡選擇不移除 pool，允許重複商品出現
+                                }
+
+                                // ★ 存入共享商店狀態
+                                battle.sharedShopItems = selectedItems;
+                                battle.isShopActive = true;
+                                battle.shopConfirmedPlayers = []; // 紀錄誰按了離開
+
+                                // 廣播給所有人
+                                io.to(currentRoomId).emit('trigger_shop', { items: selectedItems });
+                                return;
+                            }
+                        } catch (e) {
+                            console.error("商店生成失敗:", e);
+                        }
+                    }
+
+                    else {
+                        if (eventRate < 15) {
+                            // --- 觸發事件流程 ---
+                            const response = await fetch('http://localhost:3000/holylegend/system/events');
+                            const result = await response.json();
+
+                            const allEvents = result.data; // 資料庫裡的所有獎勵
+                            const eventId = Math.floor(Math.random() * allEvents.length)
+                            const event = allEvents[eventId]
+
+                            if (!event) {
+                                socket.emit('player_confirm_event');
+                            }
+
+                            else {
+                                io.to(currentRoomId).emit('trigger_event', event);
+                            }
+
+
+                            // 初始化事件狀態
+                            battle.isEventActive = true;
+                            battle.eventLock = null; // 誰正在嘗試
+                            battle.eventConfirmedPlayers = []; // 誰按了確認/離開
+                            battle.pendingEventResult = null; // 暫存結果
+                            battle.currentEventData = event; // 存起來備用
+
+                            // ★ return，不執行獎勵或下一層，等待事件交互
+                            return;
+                        }
+                        else {
+                            
+                            // const rewardRate = 0;
+                        
+                            // 初始化獎勵選擇狀態
+                            battle.rewardSelection = {
+                                isActive: false,
+                                selectedPlayers: [] // 紀錄誰已經選好了
+                            };
+
+                            if (rewardRate <= 14) {
+                                // --- 沒有獎勵，直接進下一層 (維持原樣) ---
+                                setTimeout(() => {
+                                    io.to(currentRoomId).emit('multiplayer_show_rewards')
+                                }, 1000); 
+
+                            } else {
+                                // --- 沒有獎勵，直接進下一層 (維持原樣) ---
+                                setTimeout(() => {
+                                    startNextFloor(currentRoomId);
+                                }, 2000); 
+                            } 
+                        }
+                    }
+                }
+            
+            if (isAllDead) {
+                  battle.isEnding = true;
+                  setTimeout(() => { 
+                      io.to(roomId).emit('game_over_all', { floor: battle.floor }); 
+                      delete battles[roomId]; 
+                      if(rooms[roomId]) rooms[roomId].forEach(p => p.isReady = false); 
+                  }, 1000);
+            }
         }
     });
 

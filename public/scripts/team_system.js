@@ -54,7 +54,6 @@ document.addEventListener('DOMContentLoaded', () => {
             isLeader = true;
             isReady = false;
             
-            alert(`隊伍創建成功！房間號碼：${myRoomId}`);
             renderTeamMembers(data.members);
             appendMessage('系統', `房間 ${myRoomId} 已建立，等待隊友加入...`, true);
             

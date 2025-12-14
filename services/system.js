@@ -24,4 +24,26 @@ catch (err) {
   }
 };
 
-export {getRewards, getEvents}
+const getItems = async () => {
+  try {
+      const Items = await models.Item.findAll({
+      });
+      return Items;
+      }   
+  catch (err) {  
+      throw err;
+    }
+};
+
+const getEnemies = async () => {
+  try {
+      const Enemies = await models.Enemy.findAll({
+      });
+      return Enemies;
+      }   
+  catch (err) {  
+      throw err;
+    }
+};
+
+export {getRewards, getEvents, getItems, getEnemies}
