@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url'; // 必需：用於 ES Modules 定義 __dirn
 // 引入您的服務層 (Service)
 import { getRewards, getEvents, getItems, getEnemies } from '../services/system.js';
 import { getUser, verifyToken } from '../services/accountAuth.js';
-import { getClass } from '../services/classes.js';
+import { getClass, getInventory, getEquipments } from '../services/user.js';
 import {updateUserAvatar} from '../services/account.js';
 
 const router = express.Router();
@@ -141,11 +141,15 @@ router.get('/classes', verifyToken, async (req, res, next) => {
     }
 
     const ClassData = await getClass({})
+    const inventory = await getInventory({userId: req.user.id})
+    const Equipment = await getEquipments({userId: req.user.id})
     
     res.json({
         success: true,
         userData: userData,
-        classData: ClassData
+        classData: ClassData,
+        inventoryData: inventory,
+        equipmentData: Equipment
     });
 
   } catch (err) {

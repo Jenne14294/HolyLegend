@@ -1,7 +1,7 @@
 import express from 'express';
 import bcrypt from 'bcrypt';
 import { getUser, createUser, verifyToken} from '../services/accountAuth.js';
-import { getClass, updateUserClass, getUserClassRecord, addUserClassRecord } from '../services/classes.js';
+import { getClass, updateUserClass, getUserClassRecord, addUserClassRecord, addUserEquipments } from '../services/user.js';
 import { updateUserNickname} from '../services/account.js';
 import jwt from 'jsonwebtoken';
 
@@ -22,12 +22,14 @@ router.post('/auth/register', async (req, res, next) => {
 
   const hash = await bcrypt.hash(req.body.password, 10);
 
-  await createUser({
+  const Newuser = await createUser({
     name: req.body.username,
     password: hash,
     jobId: -1,
     gameIntro: false
   });
+
+  await addUserEquipments({userId: Newuser.id})
 
   return res.status(200).json({ success: true, msg: '註冊成功' });
 });

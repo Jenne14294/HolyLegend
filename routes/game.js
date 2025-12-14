@@ -1,6 +1,6 @@
 import express from 'express';
 import { getUser, verifyToken } from '../services/accountAuth.js';
-import { getClass, getUserClasses, updateUserClassRecord } from '../services/classes.js';
+import { getClass, updateUserClassRecord, updateUserEquipment, updateUserInventory } from '../services/user.js';
 
 const router = express.Router();
 
@@ -104,6 +104,29 @@ router.post('/save_status', verifyToken, async(req, res, next) => {
     await updateUserClassRecord(userData, updateData);
 
     return res.json({ success: true, data: updateData });
+
+  } catch (err) {
+    console.error(err);
+    next(err);
+  }
+});
+
+router.post('/save_skill', verifyToken, async(req, res, next) => {
+  try {
+    // 1. 抓取完整玩家資料
+    const userData = await getUser({ id: req.user.id });
+
+    if (!userData) {
+      return res.redirect('/holylegend/'); 
+    }
+
+    const inv_data = req.body.inventory;
+    const equip_data = req.body.equipment;
+
+    await updateUserEquipment(req.user.id, equip_data);
+    await updateUserInventory(req.user.id, inv_data);
+
+    return res.json({ success: true});
 
   } catch (err) {
     console.error(err);

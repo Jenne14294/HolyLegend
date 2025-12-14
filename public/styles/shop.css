@@ -10,7 +10,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 10px; /* 縮小邊距 */
+    padding: 10px;
     
     opacity: 0;
     pointer-events: none;
@@ -26,36 +26,69 @@
 
 /* 商店卡片本體 */
 .shop-card-container {
+    /* ★ 關鍵：設為相對定位，讓裡面的絕對定位元素(叉叉)參考此容器 */
+    position: relative;
+    
     width: 100%;
     max-width: 420px;
-    height: 85vh; /* 固定高度，確保不跑版 */
+    
+    /* 使用 dvh (動態視口高度) 避免手機網址列遮擋，若不支援則用 vh */
+    height: 80vh; 
+    height: 80dvh; 
     max-height: 600px;
     
     background-color: #3e2723;
     border: 4px solid #1a1a1a;
     border-radius: 8px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    
     display: flex;
     flex-direction: column;
     overflow: hidden;
 }
 
+/* ★ 新增：右上角關閉按鈕 */
+.btn-pixel-close {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 32px;
+    height: 32px;
+    
+    background-color: #c0392b;
+    color: #fff;
+    border: 2px solid #fff;
+    border-radius: 4px;
+    
+    font-family: 'VT323', monospace;
+    font-size: 1.2rem;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 20; /* 確保在最上層 */
+    box-shadow: 2px 2px 0 rgba(0,0,0,0.5);
+    
+    display: flex; align-items: center; justify-content: center;
+}
+.btn-pixel-close:active { transform: translate(2px, 2px); box-shadow: none; }
+
 /* 頂部 Header */
 .shop-header {
     background-color: #5d4037;
-    padding: 8px 15px;
+    padding: 12px 15px; /* 增加一點高度給叉叉 */
     border-bottom: 4px solid #281d1a;
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex: 0 0 auto;
 }
-/* ... (Header 內部文字樣式保持不變，可沿用之前的) ... */
-.shop-title { color: #ffb74d; font-size: 1.4rem; font-weight: bold; font-family: 'VT323', monospace; }
+.shop-title-group { display: flex; align-items: center; gap: 5px; }
+.shop-npc-icon { font-size: 1.5rem; }
+.shop-title { color: #ffb74d; font-size: 1.4rem; font-weight: bold; font-family: 'VT323', monospace; text-shadow: 2px 2px 0 #000; }
+.shop-gold-display { margin-right: 40px; /* ★ 右邊留空隙給叉叉，避免重疊 */ }
 .gold-val { color: #ffd700; font-family: 'VT323', monospace; font-size: 1.2rem; }
 
 
-/* ★★★ 核心修改：中間商品區 (不可滾動，強制網格) ★★★ */
+/* 中間商品區 */
 .shop-body {
     flex: 1;
     overflow: hidden; /* 禁止滑動 */
@@ -68,61 +101,50 @@
     width: 100%;
     height: 100%;
     display: grid;
-    /* 強制 3 欄 (一排 3 個) */
+    /* 強制 3 欄 x 2 列 */
     grid-template-columns: repeat(3, 1fr); 
-    /* 強制 2 列 (自動填滿高度) */
     grid-template-rows: repeat(2, 1fr);    
-    gap: 6px;
+    gap: 8px;
 }
 
-/* 商品卡片 (緊湊版) */
+/* 商品卡片 */
 .shop-item {
     background-color: #4e342e;
     border: 2px solid #1a1a1a;
     border-radius: 6px;
-    padding: 4px;
+    padding: 5px;
     
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: space-between; /* 上下撐開 */
+    justify-content: space-between;
     
     position: relative;
     transition: transform 0.1s;
-    min-height: 0; /* 允許內容壓縮 */
+    min-height: 0; 
+    overflow: hidden; /* 防止內容爆出去 */
 }
 
-.shop-item:hover {
-    transform: translateY(-2px);
-    border-color: #ffb74d;
-}
+.shop-item:hover { transform: translateY(-2px); border-color: #ffb74d; }
 
-/* 圖片框縮小 */
+/* 圖片框 */
 .item-img-box {
-    width: 45px;
-    height: 45px;
+    width: 40px; height: 40px; /* 稍微縮小預設值 */
     background-color: #1a1a1a;
     border: 2px solid #6d4c41;
     border-radius: 4px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    display: flex; justify-content: center; align-items: center;
     position: relative;
-    flex: 0 0 auto; /* 不壓縮 */
+    flex: 0 0 auto;
 }
-
 .item-img-box img { width: 100%; height: 100%; object-fit: cover; }
 
 /* 庫存標籤 */
 .stock-badge {
-    position: absolute;
-    top: -4px; right: -4px;
-    background-color: #c0392b;
-    color: #fff;
-    font-size: 0.7rem;
-    padding: 0 3px;
-    border-radius: 2px;
-    border: 1px solid #fff;
+    position: absolute; top: -5px; right: -5px;
+    background-color: #c0392b; color: #fff;
+    font-size: 0.6rem; padding: 0 3px;
+    border-radius: 2px; border: 1px solid #fff;
 }
 
 .item-info {
@@ -132,58 +154,64 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    flex: 1; /* 佔據剩餘空間 */
+    flex: 1; 
+    gap: 2px;
 }
 
 .item-name {
-    color: #fff;
-    font-size: 0.9rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    color: #fff; font-size: 0.9rem;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-/* 描述文字縮小或隱藏 */
+/* 描述文字 */
 .item-desc {
-    color: #bcaaa4;
-    font-size: 0.7rem;
-    line-height: 1.1;
-    max-height: 2.2em;
-    overflow: hidden;
-    margin: 2px 0;
-    /* 如果畫面太小，可以考慮隱藏描述 */
+    color: #bcaaa4; font-size: 0.7rem; line-height: 1;
+    max-height: 2em; overflow: hidden;
 }
 
-.item-price {
-    color: #ffd700;
-    font-weight: bold;
-    font-size: 1rem;
-}
+.item-price { color: #ffd700; font-weight: bold; font-size: 1rem; }
 
 /* 購買按鈕 */
 .btn-buy {
-    width: 100%;
-    background-color: #27ae60;
-    color: #fff;
-    border: 2px solid #145a32;
-    border-radius: 4px;
-    padding: 2px 0;
-    font-family: 'VT323', monospace;
-    font-size: 1rem;
-    cursor: pointer;
-    flex: 0 0 auto;
+    width: 100%; background-color: #27ae60; color: #fff;
+    border: 2px solid #145a32; border-radius: 4px;
+    padding: 2px 0; font-family: 'VT323', monospace; font-size: 1rem;
+    cursor: pointer; flex: 0 0 auto;
 }
 .shop-item.sold-out { filter: grayscale(100%); opacity: 0.6; }
 
 /* 底部區域 */
 .shop-footer {
-    background-color: #5d4037;
-    padding: 8px;
+    background-color: #5d4037; padding: 5px;
     border-top: 4px solid #281d1a;
-    text-align: center;
-    flex: 0 0 auto;
+    text-align: center; flex: 0 0 auto;
+    min-height: 30px; display: flex; align-items: center; justify-content: center;
 }
-.btn-pixel-close {
-    width: 100%; padding: 8px; font-size: 1.2rem;
-    background-color: #d35400; color: #fff; border: 3px solid #1a1a1a;
+.shop-message { color: #ffcc80; font-size: 0.9rem; font-family: 'VT323', monospace; }
+
+/* --- ★ 手機版/小螢幕 強制優化 ★ --- */
+@media (max-width: 480px) {
+    .shop-card-container {
+        height: 70vh; /* 手機上不要太高，留空間給瀏覽器 */
+    }
+    .shop-grid {
+        gap: 4px; /* 間距縮到最小 */
+    }
+    .item-desc {
+        display: none; /* ★ 關鍵：手機上隱藏描述，避免跑版 */
+    }
+    .item-name {
+        font-size: 0.8rem; /* 字體再縮小 */
+    }
+    .item-img-box {
+        width: 36px; height: 36px; /* 圖片再縮小 */
+    }
+    .btn-buy {
+        font-size: 0.9rem;
+        padding: 0;
+    }
+    .shop-gold-display {
+        font-size: 0.9rem;
+        margin-right: 35px; /* 確保不擋到 X 按鈕 */
+    }
 }

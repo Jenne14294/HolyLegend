@@ -408,7 +408,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (goldDisplay) goldDisplay.innerText = state.goldCollected;
                 if (btnCloseShop) {
                     btnCloseShop.disabled = false;
-                    btnCloseShop.innerText = "離開商店";
+                    btnCloseShop.innerText = "";
                 }
                 if (messageDisplay) messageDisplay.innerText = "歡迎光臨！";
             } else {
@@ -780,7 +780,12 @@ document.addEventListener('DOMContentLoaded', () => {
         
         document.body.style.backgroundColor = '#500';
         setTimeout(() => document.body.style.backgroundColor = '', 100);
-        addBattleLog(`你受到 ${amount} 點傷害！`, 'log-enemy');
+        if (amount > 0) {
+            addBattleLog(`你受到 ${amount} 點傷害！`, 'log-enemy');
+        } else {
+            addBattleLog(`你閃避了攻擊！`, 'log-enemy');
+        }
+       
 
         if (state.playerHp <= 0 && !isMultiplayerMode) {
             addBattleLog("你已倒下！戰鬥結束。", 'log-enemy');
@@ -886,9 +891,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 Game.state.AdditionState = data.AdditionState;
                 Game.state.AdditionEXP = 0;
                 Game.InitData.nickname = data.nickname;
+                Game.InitData.exp = data.exp;
+                Game.InitData.needEXP = data.needEXP;
                 
                 // 更新 UI
-                Game.updateLobbyUI(data);
+                Game.updateLobbyUI(Game);
             } else {
                 console.warn("API 回傳失敗");
             }
@@ -1217,9 +1224,17 @@ document.addEventListener('DOMContentLoaded', () => {
         // 注意：這裡不要檢查 isTurnLocked，因為這就是解鎖的時刻
         if (state.isGameOver || state.processingLevelUp) return;
 
-        let dmg = Math.round(5 * Math.pow(1.05, window.Game.state.currentFloor));
-        playerDefense = Math.round(window.Game.state.AdditionState[0] / 7 + window.Game.state.AdditionState[2] / 3);
+        const dodgeRate = Math.ceil(Math.random() * 100)
+
+        let dmg = Math.round(5 * Math.pow(1.05, state.currentFloor));
+        playerDefense = Math.round(state.AdditionState[0] / 7 + state.AdditionState[2] / 3);
         dmg = Math.max(dmg - playerDefense, 1);
+
+        playerDodge = Math.round(state.AdditionState[1] * 0.5 + state.AdditionState[3] * 0.2)
+
+        if (playerDodge >= dodgeRate) {
+            dmg = 0
+        }
         state.isTurnLocked = false; // 解鎖
 
         playerTakeDamage(dmg);
@@ -1765,7 +1780,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showMessage(msg, '#fff');
         if (btnCloseShop) {
             btnCloseShop.disabled = false;
-            btnCloseShop.innerText = "👋 離開商店";
+            btnCloseShop.innerText = "X";
         }
     }
 

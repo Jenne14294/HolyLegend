@@ -1,0 +1,187 @@
+/* 技能層遮罩 */
+#skill-layer {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    background-color: rgba(0, 0, 0, 0.9);
+    z-index: 400; /* 比商店更高 */
+    display: flex; justify-content: center; align-items: center;
+}
+#skill-layer.hidden { display: none; }
+
+/* 主面板 (石頭質感) */
+.skill-panel {
+    width: 95%; max-width: 420px; height: 90vh;
+    background-color: #2b2b2b; /* 深灰底色 */
+    border: 4px solid #5a5a5a; /* 石頭邊框 */
+    border-radius: 12px;
+    box-shadow: 
+        inset 0 0 20px #000,
+        0 10px 30px rgba(0,0,0,0.8);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    
+    /* 石頭紋理背景 */
+    background-image: 
+        radial-gradient(circle at 50% 50%, rgba(255,255,255,0.05) 0%, transparent 10%),
+        repeating-linear-gradient(45deg, #2b2b2b 0, #2b2b2b 10px, #262626 10px, #262626 20px);
+}
+
+/* 頂部 */
+.skill-header {
+    background-color: #1a1a1a;
+    padding: 10px;
+    border-bottom: 4px solid #3e3e3e;
+    display: flex; justify-content: space-between; align-items: center;
+}
+.forge-title {
+    color: #a8a8a8; /* 石頭白 */
+    font-size: 1.5rem;
+    font-family: 'VT323', monospace;
+    text-shadow: 2px 2px 0 #000;
+    letter-spacing: 2px;
+}
+/* 沿用之前的關閉按鈕樣式，稍微調整顏色以搭配石頭 */
+.btn-pixel-close {
+    /* 確保有引入之前的 CSS，或是這裡重寫 */
+    background-color: #c0392b; border: 2px solid #fff; color: #fff;
+    width: 30px; height: 30px; cursor: pointer;
+}
+
+/* --- 上半部：鍛造台 (圓形佈局) --- */
+.forge-stage {
+    flex: 0 0 320px; /* 固定高度 */
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: radial-gradient(circle, #3a3a3a 0%, #1a1a1a 70%);
+    border-bottom: 4px solid #000;
+}
+
+.forge-pedestal {
+    position: relative;
+    width: 240px; height: 240px;
+    border: 4px dashed #444;
+    border-radius: 50%;
+    /* 旋轉動畫讓它看起來像在運作 */
+    /* animation: spin 60s linear infinite; */ 
+}
+
+/* 中心火焰 */
+.soul-fire {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 3rem;
+    filter: drop-shadow(0 0 10px #e67e22);
+    animation: pulse-fire 2s infinite;
+}
+
+@keyframes pulse-fire {
+    0% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
+    50% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
+}
+
+/* 插槽樣式 */
+.skill-slot {
+    position: absolute;
+    width: 48px; height: 48px;
+    background-color: #111;
+    border: 3px solid #555;
+    border-radius: 8px; /* 稍微圓角 */
+    box-shadow: inset 0 0 10px #000;
+    display: flex; justify-content: center; align-items: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    
+    /* 預設在中心，後續用 nth-child 移開 */
+    top: 50%; left: 50%;
+    margin-top: -24px; margin-left: -24px; 
+}
+
+.skill-slot:hover { border-color: #f1c40f; transform: scale(1.1); }
+.skill-slot.filled { border-color: #3498db; background-color: #222; }
+.skill-slot img { width: 100%; height: 100%; object-fit: cover; border-radius: 4px; }
+
+/* 圓形排列魔法：利用三角函數定位 (假設半徑 100px) */
+/* 角度：0, 45, 90, 135, 180, 225, 270, 315 */
+.slot-1 { transform: translate(0px, -100px); }   /* 12點鐘 */
+.slot-2 { transform: translate(70px, -70px); }   /* 1點半 */
+.slot-3 { transform: translate(100px, 0px); }    /* 3點鐘 */
+.slot-4 { transform: translate(70px, 70px); }    /* 4點半 */
+.slot-5 { transform: translate(0px, 100px); }    /* 6點鐘 */
+.slot-6 { transform: translate(-70px, 70px); }   /* 7點半 */
+.slot-7 { transform: translate(-100px, 0px); }   /* 9點鐘 */
+.slot-8 { transform: translate(-70px, -70px); }  /* 10點半 */
+
+.forge-info {
+    position: absolute;
+    bottom: 5px; right: 10px;
+    color: #888; font-size: 0.9rem;
+    font-family: 'VT323', monospace;
+}
+
+/* --- 下半部：倉庫 --- */
+.inventory-area {
+    flex: 1;
+    background-color: #222;
+    padding: 10px;
+    overflow-y: auto;
+    border-top: 2px solid #444;
+}
+
+.inventory-label {
+    color: #aaa; text-align: center; font-size: 1rem; margin-bottom: 10px;
+    font-family: 'VT323', monospace;
+}
+
+.inventory-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+    gap: 8px;
+}
+
+.inv-item {
+    width: 50px; height: 50px;
+    background-color: #333;
+    border: 2px solid #555;
+    border-radius: 4px;
+    position: relative;
+    cursor: pointer;
+}
+.inv-item:hover { border-color: #f1c40f; }
+.inv-item img { width: 100%; height: 100%; object-fit: cover; }
+
+.count-badge {
+    position: absolute; bottom: 0; right: 0;
+    background: rgba(0,0,0,0.8); color: #fff;
+    font-size: 0.7rem; padding: 0 2px;
+    font-family: 'VT323', monospace;
+}
+
+.empty-msg { grid-column: 1 / -1; text-align: center; color: #555; margin-top: 20px; }
+
+/* --- 底部按鈕 --- */
+.skill-footer {
+    flex: 0 0 auto;
+    padding: 10px;
+    display: flex; gap: 10px;
+    background-color: #1a1a1a;
+    border-top: 4px solid #3e3e3e;
+}
+
+.btn-forge {
+    flex: 1;
+    background-color: #555;
+    color: #fff;
+    border: 3px solid #333;
+    padding: 10px;
+    font-family: 'VT323', monospace;
+    font-size: 1.2rem;
+    cursor: pointer;
+    box-shadow: inset 2px 2px 0 rgba(255,255,255,0.1), 2px 2px 0 #000;
+}
+.btn-forge:active { transform: translateY(2px); box-shadow: none; }
+.btn-forge.btn-action { background-color: #d35400; border-color: #a04000; }

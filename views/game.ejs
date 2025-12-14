@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="/holylegend/styles/game.css">
     <link rel="stylesheet" href="/holylegend/styles/tower.css"> <!-- 新增戰鬥專用樣式 -->
     <link rel="stylesheet" href="/holylegend/styles/team.css"> <!-- 新增戰鬥專用樣式 -->
+    <link rel="stylesheet" href="/holylegend/styles/skill.css">
     <link rel="stylesheet" href="/holylegend/styles/class.css">
     <link rel="stylesheet" href="/holylegend/styles/setting.css">
     <link rel="stylesheet" href="/holylegend/styles/event.css">
@@ -94,10 +95,19 @@
 
             <!-- 底部選單 -->
             <footer class="bottom-menu">
-                <button class="menu-btn"><span class="icon">⚔️</span>職業</button>
-                <button class="menu-btn"><span class="icon">📜</span>技能</button>
-                <button class="menu-btn"><span class="icon">⚙️</span>選單</button>
+                <button class="menu-btn" id="btn-open-job">
+                    <span class="icon">⚔️</span>職業
+                </button>
 
+                <!-- ★ 修改這裡：加入 id="btn-open-skill" -->
+                <button class="menu-btn" id="btn-open-skill">
+                    <span class="icon">⚒️</span>符文
+                </button>
+
+                <!-- 設定按鈕 -->
+                <button class="menu-btn" id="btn-open-settings">
+                    <span class="icon">⚙️</span>選單
+                </button>
             </footer>
         </div>
 
@@ -216,7 +226,7 @@
                     <!-- 1. 商店頂部 -->
                     <div class="shop-header">
                         <div class="shop-title-group">
-                            <span class="shop-npc-icon">👳‍♂️</span>
+                            <span class="shop-npc-icon">👜</span>
                             <span class="shop-title">旅行商人</span>
                         </div>
                         <div class="shop-gold-display">
@@ -386,6 +396,80 @@
         </div>
 
 
+        <!-- ========================================== -->
+        <!--  區塊 K: 技能工坊 (Skill Forge Layer)      -->
+        <!-- ========================================== -->
+        <div id="skill-layer" class="hidden">
+            <div class="skill-overlay"></div>
+
+            <div class="skill-panel">
+                <!-- 1. 頂部：標題與關閉 -->
+                <div class="skill-header">
+                    <div class="forge-title">⚒️ 技能工坊</div>
+                    <button id="btn-close-skill" class="btn-pixel-close">X</button>
+                </div>
+
+                <!-- ★★★ 修改：將裝備盤與屬性面板包在一起，進行並排佈局 ★★★ -->
+                <div class="forge-main-row">
+
+                    <!-- 3. 右側：屬性面板 -->
+                    <div class="stats-area" id="stats-area">
+                        <div class="stats-grid">
+                            <!-- 第一排 -->
+                            <div class="stat-item"><span class="s-icon">💓</span><span class="s-label">生命</span><span id="val-hp-bonus" class="s-val">0</span></div>
+                            <div class="stat-item"><span class="s-icon">💧</span><span class="s-label">魔力</span><span id="val-mp-bonus" class="s-val">0</span></div>
+                            <!-- 第二排 -->
+                            <div class="stat-item"><span class="s-icon">⚔️</span><span class="s-label">攻擊</span><span id="val-atk" class="s-val">0%</span></div>
+                            <div class="stat-item"><span class="s-icon">🪄</span><span class="s-label">技能</span><span id="val-atk" class="s-val">0%</span></div>
+                            <div class="stat-item"><span class="s-icon">🛡️</span><span class="s-label">減傷</span><span id="val-dmg-red" class="s-val">0%</span></div>
+                            <!-- 第三排 -->
+                            <div class="stat-item"><span class="s-icon">💥</span><span class="s-label">爆擊</span><span id="val-crit" class="s-val">0%</span></div>
+                            <div class="stat-item"><span class="s-icon">🦶</span><span class="s-label">閃避</span><span id="val-dodge" class="s-val">0%</span></div>
+                            <!-- 第四排 -->
+                            <div class="stat-item"><span class="s-icon">🌱</span><span class="s-label">再生</span><span id="val-regen" class="s-val">0%</span></div>
+                            <div class="stat-item"><span class="s-icon">💧</span><span class="s-label">回魔</span><span id="val-regen" class="s-val">0%</span></div>
+                            <div class="stat-item"><span class="s-icon">✨</span><span class="s-label">經驗</span><span id="val-exp" class="s-val">0%</span></div>
+                        </div>
+                    </div>
+                    
+                    <!-- 2. 左側：裝備盤 (圓形排列) -->
+                    <div class="forge-stage">
+                        <div class="forge-pedestal">
+                            <div class="soul-fire">🔥</div>
+                            <div class="skill-slot slot-1" data-slot="1"></div>
+                            <div class="skill-slot slot-2" data-slot="2"></div>
+                            <div class="skill-slot slot-3" data-slot="3"></div>
+                            <div class="skill-slot slot-4" data-slot="4"></div>
+                            <div class="skill-slot slot-5" data-slot="5"></div>
+                            <div class="skill-slot slot-6" data-slot="6"></div>
+                            <div class="skill-slot slot-7" data-slot="7"></div>
+                            <div class="skill-slot slot-8" data-slot="8"></div>
+                        </div>
+                        <div class="forge-info">已裝備: <span id="equipped-count">0</span>/8</div>
+                    </div>
+
+                    
+
+                </div>
+                <!-- ★★★ 修改結束 ★★★ -->
+
+                <!-- 4. 下半部：技能石倉庫 -->
+                <div class="inventory-area">
+                    <div class="inventory-label">--- 符文倉庫 ---</div>
+                    <div id="skill-inventory-grid" class="inventory-grid">
+                        <div class="empty-msg">沒有可用的技能石</div>
+                    </div>
+                </div>
+
+                <!-- 5. 底部功能按鈕 -->
+                <div class="skill-footer">
+                    <button id="btn-open-bag" class="btn-forge">🎒 背包</button>
+                    <button id="btn-synthesis" class="btn-forge btn-action">🔥 冶煉</button>
+                </div>
+            </div>
+        </div>
+
+
         
 
     </div>
@@ -393,7 +477,8 @@
     <!-- 引入邏輯腳本 -->
     <script src="/holylegend/scripts/game_core.js"></script>
     <script src="/holylegend/scripts/tower_system.js"></script>
-    <script src="/holylegend/scripts/classes_system.js"></script>
+    <script src="/holylegend/scripts/class_system.js"></script>
+    <script src="/holylegend/scripts/skill_system.js"></script>
     <script src="/holylegend/scripts/team_system.js"></script>
     <script src="/holylegend/scripts/setting_system.js"></script>
     <script src="/holylegend/scripts/game_audio.js"></script>
