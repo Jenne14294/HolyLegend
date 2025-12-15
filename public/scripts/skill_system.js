@@ -325,14 +325,29 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 合成邏輯
     function addToSynthesis(item) {
+        // ★★★ 檢查等級：如果是 III 階 (Max Level)，不可放入 ★★★
+        const info = getItemLevelInfo(item.name);
+        if (info.level >= 3) {
+            alert("此符文已達最高階 (III)，無法再進行熔煉！");
+            return;
+        }
+
         const emptyIdx = synthesisSlots.findIndex(s => s === null);
-        if (emptyIdx === -1) return; 
+        
+        if (emptyIdx === -1) {
+            return; // 滿了
+        }
+
         const firstItem = synthesisSlots.find(s => s !== null);
-        if (firstItem && firstItem.id !== item.id) { alert("合成必須使用 3 個相同的符文！"); return; }
+        if (firstItem && firstItem.id !== item.id) {
+            alert("合成必須使用 3 個相同的符文！");
+            return;
+        }
+
         synthesisSlots[emptyIdx] = item;
-        renderSynthesisUI(); renderInventory();
+        renderSynthesisUI();
+        renderInventory(); 
     }
 
     function removeFromSynthesis(index) {
@@ -502,6 +517,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // 輔助：找物品資料
     async function getSkills() {
         const response = await fetch('/holylegend/system/classes');
         const result = await response.json();
@@ -529,7 +545,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 輔助：找物品資料
+    function getItemLevelInfo(name) {
+        if (!name) return { baseName: '', level: 0 };
+
+        const romanMap = { 'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5 };
+        // Regex: 匹配結尾的 I, II, III...
+        const match = name.match(/^(.*)\s(I|II|III|IV|V)$/);
+        
+        if (match) {
+            return {
+                baseName: match[1], // "生命符文"
+                roman: match[2],    // "I"
+                level: romanMap[match[2]] // 1
+            };
+        }
+        return { baseName: name, roman: '', level: 0 };
+    }
+
+
     function findItemData(item) {
         if (!item.image) item.image = 'default_skill.png'
         return {id:item.id, image: item.image };

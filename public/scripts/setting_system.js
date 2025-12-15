@@ -17,6 +17,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const toggleBgm = document.getElementById('toggle-bgm');
     const toggleSfx = document.getElementById('toggle-sfx');
 
+    const btnLogout = document.getElementById('btn-logout');
+
     // 取得 Game Core 參考
     const bgMusic = document.getElementById('bg-music-source');
 
@@ -90,6 +92,26 @@ document.addEventListener('DOMContentLoaded', () => {
             window.Game.state.sfxEnabled = isEnabled;
         }
     }
+
+    if (btnLogout) {
+        btnLogout.addEventListener('click', () => {
+            if (confirm("確定要登出遊戲嗎？")) {
+                // 1. 清除 Cookie (將過期時間設為過去)
+                // 注意：path 必須設定為 '/' 確保清除正確
+                document.cookie = "auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                
+                // 2. (選用) 斷開 Socket
+                const socket = window.Game?.socket;
+                if (socket) {
+                    socket.disconnect();
+                }
+                
+                // 3. 導回首頁
+                window.location.href = '/holylegend';
+            }
+        });
+    }
+ 
 
     // ===========================
     // 3. 頭像上傳 (預覽)
