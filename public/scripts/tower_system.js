@@ -228,19 +228,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     // ★ 同步背包
                     if (myInfo.Inventory) state.Inventory = myInfo.Inventory;
-
-                    // 3. 更新大廳/UI 顯示 (如果有需要)
-                    if (window.Game.updateLobbyUI) {
-                        // 構建一個符合 updateLobbyUI 格式的物件
-                        const uiData = {
-                            ...state,
-                            maxHp: myInfo.maxHp,
-                            maxMp: myInfo.maxMp,
-                            hp: myInfo.hp,
-                            mp: myInfo.mp
-                        };
-                        window.Game.updateLobbyUI(uiData);
-                    }
                 }
             }
             
@@ -307,6 +294,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const myStatus = result.playersStatus[socket.id];
                 if (myStatus) {
                     state.playerHp = myStatus.hp;
+                    state.playerMaxHp = myStatus.maxHp;
+                    state.playerMp = myStatus.mp;
+                    state.playerMaxMp = myStatus.maxMp;
                     updatePlayerUI();
                 }
             }
@@ -408,7 +398,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (goldDisplay) goldDisplay.innerText = state.goldCollected;
                 if (btnCloseShop) {
                     btnCloseShop.disabled = false;
-                    btnCloseShop.innerText = "";
+                    btnCloseShop.innerText = "X";
                 }
                 if (messageDisplay) messageDisplay.innerText = "歡迎光臨！";
             } else {
@@ -617,7 +607,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 socket.emit('player_action', { 
                     type: 'attack',
                     currentHp: state.playerHp,
-                    AdditionState: state.AdditionState
+                    AdditionState: state.AdditionState,
+                    AdditionAttribute: state.AdditionAttribute
                 });
             } else {
                 // --- 單人模式 (原邏輯) ---
@@ -1293,7 +1284,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 注意：這裡不要檢查 isTurnLocked，因為這就是解鎖的時刻
         if (state.isGameOver || state.processingLevelUp) return;
 
-        const dodgeRate = Math.ceil(Math.random() * 100)
+        const SystemDodge = Math.ceil(Math.random() * 100)
 
         let dmg = Math.round(5 * Math.pow(1.05, state.currentFloor));
         playerDefense = Math.round(state.AdditionState[0] / 7 + state.AdditionState[2] / 3);
@@ -1302,7 +1293,7 @@ document.addEventListener('DOMContentLoaded', () => {
         dmg = (dmg - playerDefense) * DamageReduce
         dmg = Math.max(dmg, 1);
 
-        if (state.AdditionAttribute.dodge >= dodgeRate) {
+        if (DodgeRate >= SystemDodge) {
             dmg = 0
         }
         state.isTurnLocked = false; // 解鎖
