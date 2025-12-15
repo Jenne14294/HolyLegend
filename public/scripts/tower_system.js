@@ -555,7 +555,8 @@ document.addEventListener('DOMContentLoaded', () => {
         btnCloseShop.addEventListener('click', () => {
             if (isMultiplayerMode && socket) {
                 btnCloseShop.disabled = true;
-                btnCloseShop.innerText = "等待隊友...";
+                btnCloseShop.innerText = "X";
+                closeShopLayer();
                 showMessage("正在整理行囊...", '#aaa');
                 socket.emit('player_leave_shop');
             } else {

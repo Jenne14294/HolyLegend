@@ -466,13 +466,13 @@ export default function initSocket(server) {
                 // 暫存結果，不立即發放
                 battle.pendingEventResult = {
                     isSuccess: isSuccess,
-                    executorName: player ? player.InitData.nickname : '隊友',
+                    executorName: player ? player.nickname : '隊友',
                     ...eventData
                 };
 
                 const msg = isSuccess 
-                    ? `✨ ${player.InitData.nickname} 檢定成功！\n獲得 ${eventData.rewardType} +${eventData.rewardValue}\n(請等待全員確認)` 
-                    : `💨 ${player.InitData.nickname} 檢定失敗...\n損失 ${eventData.punishType} ${eventData.punishValue}\n(請等待全員確認)`;
+                    ? `✨ ${player.nickname} 檢定成功！\n獲得 ${eventData.rewardType} +${eventData.rewardValue}\n(請等待全員確認)` 
+                    : `💨 ${player.nickname} 檢定失敗...\n損失 ${eventData.punishType} ${eventData.punishValue}\n(請等待全員確認)`;
                 
                 io.to(currentRoomId).emit('event_result', { success: isSuccess, msg: msg });
             }, 500);
@@ -633,7 +633,6 @@ export default function initSocket(server) {
                             targetState.hp = Math.round(targetState.maxHp * 0.3); 
                             targetState.mp = Math.round(targetState.maxMp * 0.3);
                             
-                            // 同步回 rooms (確保 startNextFloor 讀到正確數值)
                             if (targetRoomData) {
                                 targetRoomData.state.playerHp = targetState.hp;
                                 targetRoomData.state.playerMp = targetState.mp;
@@ -689,7 +688,6 @@ export default function initSocket(server) {
                 }
             }
             
-            // ... (後面的選人檢查與 startNextFloor 觸發保持不變) ...
             if (!battle.rewardSelection.selectedPlayers.includes(socket.id)) { battle.rewardSelection.selectedPlayers.push(socket.id); }
             const allSelected = battle.alivePlayerIds.every(id => battle.rewardSelection.selectedPlayers.includes(id));
             if (allSelected) { 
@@ -922,10 +920,6 @@ export default function initSocket(server) {
                 }
             }
 
-            // 1. 初始化基礎值 (如果還沒存過)
-            if (permState.baseMaxHp === undefined) permState.baseMaxHp = permState.playerMaxHp;
-            if (permState.baseMaxMp === undefined) permState.baseMaxMp = permState.playerMaxMp;
-
             // 2. 取得累計的屬性加成
             const [addStr, addDex, addCon, addInt] = permState.AdditionState || [0, 0, 0, 0];
             const attr = permState.AdditionAttribute || {}; 
@@ -939,8 +933,8 @@ export default function initSocket(server) {
             const bonusHp = (addCon * HP_PER_CON) + (addStr * HP_PER_STR) + (attr.hpBonus || 0);
             const bonusMp = (addInt * MP_PER_INT) + (attr.mpBonus || 0);
 
-            const newMaxHp = Math.floor(permState.baseMaxHp + bonusHp);
-            const newMaxMp = Math.floor(permState.baseMaxMp + bonusMp);
+            const newMaxHp = Math.floor(permState.playerBaseMaxHp + bonusHp);
+            const newMaxMp = Math.floor(permState.playerBaseMaxMp + bonusMp);
 
             // 5. 計算差值 (Diff)
             const hpDiff = newMaxHp - oldMaxHp;
@@ -1013,14 +1007,14 @@ export default function initSocket(server) {
             if (!isEnemyDead && battle.alivePlayerIds.length > 0) {
                 const targetIndex = Math.floor(Math.random() * battle.alivePlayerIds.length); 
                 targetSocketId = battle.alivePlayerIds[targetIndex];
-                const target = room.find(p => p.socketId = targetSocketId)
+                const target = room.find(p => p.socketId == targetSocketId)
 
-                damageReduce = target.state.AdditionAttribute.dmgReduce
-                damageReduce = 1 - (damageReduce / 100)
                 damageTaken = (5 + (2.5 * (battle.alivePlayerIds.length - 1))) * Math.pow(1.05, battle.floor); 
 
+                // 減傷
+                damageReduce = target.state.AdditionAttribute.dmgReduce
+                damageReduce = 1 - (damageReduce / 100)
                 damageTaken = Math.max(Math.round(damageTaken * damageReduce), 1)
-
 
                 // 閃避
                 const SystemDodge = Math.random() * 100
