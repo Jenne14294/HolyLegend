@@ -1000,7 +1000,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.processingLevelUp = false; 
 
         if (!isMultiplayerInit) {
-            state.enemyMaxHp = 100 + (state.currentFloor * 10);
+            state.enemyMaxHp = 100 + 10 * Math.pow(1.05, state.currentFloor);
             state.enemyHp = state.enemyMaxHp;
         }
         
