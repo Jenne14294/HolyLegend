@@ -1034,16 +1034,6 @@ export default function initSocket(server) {
                 // 簡單計算防禦 (這裡先不讀取 action，直接扣)
                 if (battle.playerStates[targetSocketId]) {
                     battle.playerStates[targetSocketId].hp -= damageTaken;
-
-                    // 回血回魔
-                    if (battle.playerStates[targetSocketId].hp > 0) {
-                        battle.playerStates[targetSocketId].hp += target.state.AdditionAttribute.regen;
-                    }
-
-                    if (!battle.playerStates[targetSocketId].isDead) {
-                        battle.playerStates[targetSocketId].mp += target.state.AdditionAttribute.manaReflow;
-                    }
-
                     if (battle.playerStates[targetSocketId].hp <= 0) { 
                         battle.playerStates[targetSocketId].hp = 0; 
                         battle.playerStates[targetSocketId].isDead = true; 
@@ -1051,6 +1041,30 @@ export default function initSocket(server) {
                         battle.alivePlayerIds = battle.alivePlayerIds.filter(id => id !== targetSocketId); 
                     }
                 }
+
+                room.forEach(p => {
+                const pState = battle.playerStates[p.socketId];
+                // 確保玩家還在戰鬥中且活著
+                if (pState && !pState.isDead) {
+                    const stats = p.state.AdditionAttribute || {};
+                    const regen = stats.regen || 0;
+                    const manaReflow = stats.manaReflow || 0; // 確保前端傳來的是這個變數名 (注意大小寫)
+
+                    // 再生 (HP Regen)
+                    if (regen > 0 && pState.hp < pState.maxHp) {
+                        pState.hp = Math.min(pState.maxHp, pState.hp + regen);
+                    }
+
+                    // 回魔 (Mana Reflow)
+                    if (manaReflow > 0 && pState.mp < pState.maxMp) {
+                        pState.mp = Math.min(pState.maxMp, pState.mp + manaReflow);
+                    }
+                    
+                    // 同步回永久狀態 (選用，視設計而定，通常戰鬥結束才同步，但這裡同步較保險)
+                    p.state.playerHp = pState.hp;
+                    p.state.playerMp = pState.mp;
+                }
+            });
             }
 
             const isAllDead = battle.alivePlayerIds.length === 0;
