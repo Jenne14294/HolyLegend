@@ -172,8 +172,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const res = await fetch('/holylegend/system/status');
                 const result = await res.json();
 
-                console.log(result)
-
                 if (result.success) {
                     const data = result.data;
 
@@ -188,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     window.Game.state.AdditionState = data.AdditionState; // 更新屬性陣列
                     window.Game.state.avatar = data.avatar;
 
-                    window.Game.updateLobbyUI(data);
+                    window.Game.updateLobbyUI(window.Game);
                     alert('轉職成功！')
                     jobLayer.classList.add('hidden');
                     MainLayer.classList.remove('hidden');
