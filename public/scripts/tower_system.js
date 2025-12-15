@@ -1309,8 +1309,7 @@ document.addEventListener('DOMContentLoaded', () => {
         playerDefense = Math.round(state.AdditionState[0] / 7 + state.AdditionState[2] / 3);
         DamageReduce = 1 - (state.AdditionAttribute.dmgReduce / 100)
         DodgeRate = state.AdditionAttribute.dodge + state.AdditionState[1] * 0.5 + state.AdditionState[3] * 0.2
-        dmg = (dmg - playerDefense) * DamageReduce
-        dmg = Math.max(dmg, 1);
+        dmg = Math.max(Math.round((dmg - playerDefense) * DamageReduce), 1)
 
         if (DodgeRate >= SystemDodge) {
             dmg = 0

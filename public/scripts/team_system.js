@@ -290,7 +290,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderTeamMembers(members) {
-        console.log(members)
         const memberList = members || [];
         const socket = window.Game.socket; 
 

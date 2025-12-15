@@ -134,40 +134,87 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+
+    function switchMode(mode) {
+        currentMode = mode;
+        
+        if (mode === 'inventory') {
+            // 顯示：背包組件
+            if (forgeStage) forgeStage.style.display = 'flex';
+            if (statsArea) statsArea.style.display = 'flex';
+            if (synthesisContainer) synthesisContainer.style.display = 'none';
+
+            // 按鈕
+            if (btnSynthesis) btnSynthesis.style.display = 'block';
+            if (btnUnequipAll) btnUnequipAll.style.display = 'block';
+            if (btnOpenBag) btnOpenBag.style.display = 'none';
+
+            renderInventory(); 
+            renderEquipment(); 
+            Game.renderStats();
+        } 
+        else if (mode === 'synthesis') {
+            // 顯示：合成組件
+            if (forgeStage) forgeStage.style.display = 'none';
+            if (statsArea) statsArea.style.display = 'none';
+            if (synthesisContainer) synthesisContainer.style.display = 'flex'; // Flex 排版
+
+            // 按鈕
+            if (btnSynthesis) btnSynthesis.style.display = 'none';
+            if (btnUnequipAll) btnUnequipAll.style.display = 'none';
+            if (btnOpenBag) btnOpenBag.style.display = 'block';
+
+            // 清空合成槽
+            synthesisSlots = [null, null, null];
+            renderSynthesisUI();
+            renderInventory(); // 重繪背包 (點擊事件會改變)
+        }
+    }
+
     // ==========================================
     //  模式切換邏輯
     // ==========================================
-    function switchMode(mode) {
-        currentMode = mode;
+    function renderSynthesisUI() {
+        if (!synthesisContainer) return;
+        
+        // 檢查是否可以合成 (3格都有東西且ID相同)
+        const isReady = synthesisSlots.every(item => item !== null) &&
+                        (synthesisSlots[0].id === synthesisSlots[1].id && synthesisSlots[1].id === synthesisSlots[2].id);
 
-        if (mode === 'inventory') {
-            // ★ 切換到倉庫模式：顯示裝備區
-            if (forgeStage) forgeStage.style.display = 'flex';
-
-            // 顯示倉庫，隱藏合成
-            if (invArea) invArea.style.display = 'block';
-            if (synthesisContainer) synthesisContainer.style.display = 'none';
+        synthesisContainer.innerHTML = `
+            <div class="inventory-label">--- 符文熔煉 ---</div>
             
-            // 按鈕顯示控制：在倉庫時，隱藏「背包按鈕」，顯示「合成按鈕」
-            if (btnOpenBag) btnOpenBag.style.display = 'none';
-            if (btnSynthesis) btnSynthesis.style.display = 'block';
+            <div class="syn-slots-row">
+                ${synthesisSlots.map((item, idx) => `
+                    <div class="syn-slot ${item ? 'filled' : ''}" data-index="${idx}">
+                        ${item ? `<img src="/holylegend/images/items/${item.image}">` : ''}
+                    </div>
+                    ${idx < 2 ? '<div class="syn-plus">+</div>' : ''}
+                `).join('')}
+            </div>
 
-            renderInventory(); // 重繪倉庫
-            renderEquipment(); // 重繪裝備 (確保顯示更新)
-        } 
-        else if (mode === 'synthesis') {
-            // ★ 切換到合成模式：隱藏裝備區
-            if (forgeStage) forgeStage.style.display = 'none';
+            <div class="anvil-section">
+                <!-- 鐵砧圖片 (請確保路徑正確) -->
+                <img src="/holylegend/images/other/anvil.png" class="anvil-img">
+                <button id="btn-do-synthesis" class="btn-do-synthesis" ${isReady ? '' : 'disabled'}>
+                    ⚡ 開始熔煉
+                </button>
+            </div>
+        `;
 
-            // 顯示合成，隱藏倉庫
-            if (invArea) invArea.style.display = 'none';
-            if (synthesisContainer) synthesisContainer.style.display = 'block';
+        // 綁定插槽移除事件
+        const slots = synthesisContainer.querySelectorAll('.syn-slot');
+        slots.forEach(slot => {
+            slot.addEventListener('click', () => {
+                const idx = parseInt(slot.dataset.index);
+                removeFromSynthesis(idx);
+            });
+        });
 
-            // 按鈕顯示控制：在合成時，顯示「背包按鈕」，隱藏「合成按鈕」
-            if (btnOpenBag) btnOpenBag.style.display = 'block';
-            if (btnSynthesis) btnSynthesis.style.display = 'none';
-            
-            // TODO: renderSynthesis() 
+        // 綁定合成按鈕
+        const btnDo = document.getElementById('btn-do-synthesis');
+        if (btnDo) {
+            btnDo.addEventListener('click', performSynthesis);
         }
     }
 
@@ -204,7 +251,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (itemData) {
                     slot.classList.add('filled');
-                    slot.innerHTML = `<img src="/holylegend/images/items/${itemData.image}">`;
+                    slot.innerHTML = `
+                    <img src="/holylegend/images/items/${item.image}">
+                    <div class="skill_level-badge">${item.name.split(' ')[1]}</div>
+                    `;
                     count++;
                     
                     // ★ 綁定移除事件：點擊直接卸下
@@ -226,14 +276,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     //  渲染技能倉庫 (可點擊裝備)
     // ==========================================
+    // ==========================================
+    //  ★ 修改：背包渲染 (支援兩種模式)
+    // ==========================================
     function renderInventory() {
         if (!invGrid) return;
         invGrid.innerHTML = '';
         
-        // 過濾出技能石
         const items = state.Skills || [];
+        // 只顯示技能石
         const skillStones = items.filter(i => 
-            (i.category === 'SKILL' || i.category === 'CLASS_SKILL' || i.category === 'GENERAL_SKILL') && (i.quantity - i.equipped) > 0
+            (i.category === 'SKILL' || i.category === 'CLASS_SKILL' || i.category === 'GENERAL_SKILL') 
         );
 
         if (skillStones.length === 0) {
@@ -242,20 +295,113 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         skillStones.forEach(item => {
-            const el = document.createElement('div');
-            el.className = 'inv-item';
-            el.innerHTML = `
-                <img src="/holylegend/images/items/${item.image}">
-                <div class="count-badge">${item.quantity - item.equipped}</div>
-            `;
-            
-            // 點擊事件：裝備
-            el.onclick = () => {
-                equipSkill(item);
-            };
-            
-            invGrid.appendChild(el);
+            // 計算可用數量：總數 - 已裝備 - (若在合成模式)已放入合成槽的數量
+            let inSynthesisCount = 0;
+            if (currentMode === 'synthesis') {
+                inSynthesisCount = synthesisSlots.filter(s => s && s.id === item.id).length;
+            }
+
+            const available = (item.quantity || item.count) - (item.equipped || 0) - inSynthesisCount;
+
+            if (available > 0) {
+                const el = document.createElement('div');
+                el.className = 'inv-item';
+                el.innerHTML = `
+                    <img src="/holylegend/images/items/${item.image}">
+                    <div class="count-badge">${available}</div>
+                    <div class="skill_level-badge">${item.name.split(' ')[1]}</div>
+                `;
+                
+                // ★ 關鍵：根據模式綁定不同事件
+                el.onclick = () => { 
+                    if (currentMode === 'inventory') {
+                        equipSkill(item); 
+                    } else {
+                        addToSynthesis(item);
+                    }
+                };
+                invGrid.appendChild(el);
+            }
         });
+    }
+
+    // 合成邏輯
+    function addToSynthesis(item) {
+        const emptyIdx = synthesisSlots.findIndex(s => s === null);
+        if (emptyIdx === -1) return; 
+        const firstItem = synthesisSlots.find(s => s !== null);
+        if (firstItem && firstItem.id !== item.id) { alert("合成必須使用 3 個相同的符文！"); return; }
+        synthesisSlots[emptyIdx] = item;
+        renderSynthesisUI(); renderInventory();
+    }
+
+    function removeFromSynthesis(index) {
+        if (synthesisSlots[index] === null) return;
+        synthesisSlots[index] = null;
+        renderSynthesisUI(); renderInventory();
+    }
+
+    async function performSynthesis() {
+        if (!confirm("確定要消耗這 3 顆符文進行熔煉嗎？")) return;
+
+        const baseItem = synthesisSlots[0];
+        
+        // 1. 扣除背包數量 (永久扣除)
+        // 因為 synthesisSlots 存的是參照，所以這裡要操作 state.Inventory
+        const invItem = state.Skills.find(i => i.id === baseItem.id);
+        if (invItem) {
+            invItem.quantity = (invItem.quantity || 0) - 3;
+            // 如果歸零，這裡選擇不移除物件，只是 count=0，下次 fetch 會消失
+        }
+
+        // 2. 產生新物品
+        // 假設邏輯：下階 ID = 當前 ID + 1 (例如 22->23)
+        // 實際應由後端邏輯決定
+        const newItemId = baseItem.id + 1;
+        
+        // 檢查背包是否已有該高階物品
+        let newInvItem = state.Skills.find(i => i.id === newItemId);
+        
+        if (newInvItem) {
+            newInvItem.quantity = (newInvItem.quantity || 0) + 1;
+        } else {
+            // 模擬新物品 (名稱加強)
+            // 實際上應該去 DB 撈或是依賴 Socket 回傳，這裡做前端模擬
+            try {
+                const response = await fetch('/holylegend/system/items');
+                const result = await response.json();
+
+                if (result.success) {
+                    const data = result.data;
+                    const newItem = data.find(item => item.id == newItemId)
+
+                    state.Skills.push({
+                        id: newItemId,
+                        name: newItem.name,
+                        description: newItem.description,
+                        image: newItem.image,
+                        quantity: 1,
+                        equipped: 0,
+                        category: newItem.category,
+                        effectType: newItem.effectType,
+                        effectValue: newItem.effectValue,
+                        isPercentage: newItem.isPercentage,
+                        requiredClass: newItem.requiredClass
+                    });
+                }
+            } catch (e) {
+                console.error("伺服器錯誤", e)
+            }
+        }
+
+        // 3. 重置
+        synthesisSlots = [null, null, null];
+        hasUnsavedChanges = true; // 標記存檔
+
+        // 4. 更新介面
+        renderSynthesisUI();
+        renderInventory();
+        alert("🔥 熔煉成功！");
     }
 
     // ==========================================

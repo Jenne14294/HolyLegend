@@ -409,28 +409,7 @@
                     <button id="btn-close-skill" class="btn-pixel-close">X</button>
                 </div>
 
-                <!-- ★★★ 修改：將裝備盤與屬性面板包在一起，進行並排佈局 ★★★ -->
                 <div class="forge-main-row">
-
-                    <!-- 3. 右側：屬性面板 -->
-                    <div class="stats-area" id="stats-area">
-                        <div class="stats-grid">
-                            <!-- 第一排 -->
-                            <div class="stat-item"><span class="s-icon">💓</span><span class="s-label">生命</span><span id="val-hp-bonus" class="s-val">0</span></div>
-                            <div class="stat-item"><span class="s-icon">💧</span><span class="s-label">魔力</span><span id="val-mp-bonus" class="s-val">0</span></div>
-                            <!-- 第二排 -->
-                            <div class="stat-item"><span class="s-icon">⚔️</span><span class="s-label">攻擊</span><span id="val-atk" class="s-val">0%</span></div>
-                            <div class="stat-item"><span class="s-icon">🪄</span><span class="s-label">技能</span><span id="val-skill" class="s-val">0%</span></div>
-                            <div class="stat-item"><span class="s-icon">🛡️</span><span class="s-label">減傷</span><span id="val-dmg-red" class="s-val">0%</span></div>
-                            <!-- 第三排 -->
-                            <div class="stat-item"><span class="s-icon">💥</span><span class="s-label">爆擊</span><span id="val-crit" class="s-val">0%</span></div>
-                            <div class="stat-item"><span class="s-icon">🦶</span><span class="s-label">閃避</span><span id="val-dodge" class="s-val">0%</span></div>
-                            <!-- 第四排 -->
-                            <div class="stat-item"><span class="s-icon">🌱</span><span class="s-label">再生</span><span id="val-regen" class="s-val">0%</span></div>
-                            <div class="stat-item"><span class="s-icon">💧</span><span class="s-label">回魔</span><span id="val-mana-reflow" class="s-val">0%</span></div>
-                            <div class="stat-item"><span class="s-icon">✨</span><span class="s-label">經驗</span><span id="val-exp" class="s-val">0%</span></div>
-                        </div>
-                    </div>
                     
                     <!-- 2. 左側：裝備盤 (圓形排列) -->
                     <div class="forge-stage">
@@ -448,12 +427,46 @@
                         <div class="forge-info">已裝備: <span id="equipped-count">0</span>/8</div>
                     </div>
 
-                    
+                    <!-- 3. 右側：屬性面板 -->
+                    <div class="stats-area" id="stats-area">
+                        <div class="stats-grid">
+                            <div class="stat-item"><span class="s-icon">💓</span><span class="s-label">生命</span><span id="val-hp-bonus" class="s-val">+0</span></div>
+                            <div class="stat-item"><span class="s-icon">💧</span><span class="s-label">魔力</span><span id="val-mp-bonus" class="s-val">+0</span></div>
+                            <div class="stat-item"><span class="s-icon">⚔️</span><span class="s-label">攻擊</span><span id="val-atk" class="s-val">+0%</span></div>
+                            <div class="stat-item"><span class="s-icon">🪄</span><span class="s-label">技能</span><span id="val-skill-dmg" class="s-val">+0%</span></div>
+                            <div class="stat-item"><span class="s-icon">🛡️</span><span class="s-label">減傷</span><span id="val-dmg-red" class="s-val">0%</span></div>
+                            <div class="stat-item"><span class="s-icon">💥</span><span class="s-label">爆擊</span><span id="val-crit" class="s-val">0%</span></div>
+                            <div class="stat-item"><span class="s-icon">🦶</span><span class="s-label">閃避</span><span id="val-dodge" class="s-val">0%</span></div>
+                            <div class="stat-item"><span class="s-icon">🌱</span><span class="s-label">再生</span><span id="val-regen" class="s-val">0/s</span></div>
+                            <div class="stat-item"><span class="s-icon">💧</span><span class="s-label">回魔</span><span id="val-mana-reflow" class="s-val">0/s</span></div>
+                            <div class="stat-item"><span class="s-icon">✨</span><span class="s-label">經驗</span><span id="val-exp" class="s-val">+0%</span></div>
+                        </div>
+                    </div>
+
+                    <!-- ★★★ 4. 冶煉面板 (預設隱藏) ★★★ -->
+                    <!-- 結構已經寫死，JS 負責更新內容 -->
+                    <div id="synthesis-area" class="synthesis-container" style="display: none;">
+                        <div class="inventory-label">--- 符文熔煉 ---</div>
+                        
+                        <div class="syn-slots-row">
+                            <div class="syn-slot" data-index="0"></div>
+                            <div class="syn-plus">+</div>
+                            <div class="syn-slot" data-index="1"></div>
+                            <div class="syn-plus">+</div>
+                            <div class="syn-slot" data-index="2"></div>
+                        </div>
+
+                        <div class="anvil-section">
+                            <img src="/holylegend/images/other/anvil.png" class="anvil-img" onerror="this.src='/holylegend/images/items/default.png'">
+                            <button id="btn-do-synthesis" class="btn-do-synthesis" disabled>
+                                ⚡ 開始熔煉
+                            </button>
+                        </div>
+                    </div>
 
                 </div>
-                <!-- ★★★ 修改結束 ★★★ -->
 
-                <!-- 4. 下半部：技能石倉庫 -->
+                <!-- 5. 下半部：技能石倉庫 -->
                 <div class="inventory-area">
                     <div class="inventory-label">--- 符文倉庫 ---</div>
                     <div id="skill-inventory-grid" class="inventory-grid">
@@ -461,7 +474,7 @@
                     </div>
                 </div>
 
-                <!-- 5. 底部功能按鈕 -->
+                <!-- 6. 底部功能按鈕 -->
                 <div class="skill-footer">
                     <button id="btn-open-bag" class="btn-forge">🎒 背包</button>
                     <button id="btn-unequip-all" class="btn-forge" style="background-color: #c0392b; border-color: #922b21;">🔻 全部卸下</button>
