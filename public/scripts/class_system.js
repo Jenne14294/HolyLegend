@@ -174,19 +174,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (result.success) {
                     const data = result.data;
-
-                    window.Game.state.role = data.role;
+   
+                    window.Game.state.playerBaseMaxHp = data.maxHp;
+                    window.Game.state.playerBaseMaxMp = data.maxMp;
                     window.Game.state.level = data.level;
-                    window.Game.state.maxHp = data.maxHp;
-                    window.Game.state.maxMp = data.maxMp;
-                    window.Game.state.playerMaxHp = data.maxHp; // 確保兩個變數名稱都同步
-                    window.Game.state.playerMaxMp = data.maxMp;
-                    window.Game.state.playerHp = data.maxHp;    // 轉職後通常滿血
-                    window.Game.state.playerMp = data.maxMp;
-                    window.Game.state.AdditionState = data.AdditionState; // 更新屬性陣列
+                    window.Game.state.currentFloor = 1;
+                    window.Game.state.role = data.role; // 記錄職業
+                    window.Game.state.AdditionState = data.AdditionState;
+                    window.Game.state.AdditionEXP = 0;
                     window.Game.state.avatar = data.avatar;
+                    window.Game.InitData.nickname = data.nickname;
+                    window.Game.InitData.exp = data.exp;
+                    window.Game.InitData.needEXP = data.needEXP;
 
+                    window.Game.renderStats();
                     window.Game.updateLobbyUI(window.Game);
+                    
                     alert('轉職成功！')
                     jobLayer.classList.add('hidden');
                     MainLayer.classList.remove('hidden');

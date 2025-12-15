@@ -125,13 +125,10 @@ window.Game = {
             
         });
 
-        // 1. 確保有基礎數值 (如果沒有，就暫時用當前的當作基礎)
-        if (!state.baseMaxHp) state.baseMaxHp = state.playerMaxHp;
-        if (!state.baseMaxMp) state.baseMaxMp = state.playerMaxMp;
 
         // 2. 計算新的上限 = 基礎 + 加成
-        const newMaxHp = state.baseMaxHp + Math.floor(extraStats.hpBonus);
-        const newMaxMp = state.baseMaxMp + Math.floor(extraStats.mpBonus);
+        const newMaxHp = state.playerBaseMaxHp + Math.floor(extraStats.hpBonus);
+        const newMaxMp = state.playerBaseMaxMp + Math.floor(extraStats.mpBonus);
 
         // 3. 處理當前血量 (選擇性：是否要補滿增加的部分？)
         // 這裡的邏輯是：如果上限增加了，當前血量也按比例或固定值增加，避免看起來像扣血
