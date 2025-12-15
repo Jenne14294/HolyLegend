@@ -123,9 +123,9 @@ router.post('/save_skill', verifyToken, async(req, res, next) => {
     const inv_data = req.body.inventory;
     const equip_data = req.body.equipment;
 
-    await updateUserEquipment(req.user.id, equip_data);
     await updateUserInventory(req.user.id, inv_data);
-
+    await updateUserEquipment(req.user.id, equip_data);
+    
     return res.json({ success: true});
 
   } catch (err) {

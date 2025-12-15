@@ -25,7 +25,7 @@ window.Game = {
             "hpBonus": 0,
             "mpBonus": 0,
             "regen": 0,
-            "ManaReturn": 0,
+            "manaReflow": 0,
             "atkBonus": 0, 
             "skillBonus": 0,
             "expBonus": 0,
@@ -93,7 +93,6 @@ window.Game = {
     renderStats: function() {
         const state = window.Game.state;
         const equipments = state.Equipment || [];
-        const baseStats = state.AdditionState || [0, 0, 0, 0]; // [STR, DEX, CON, INT]
         const extraStats = {
             "dodge": 0,
             "crit": 0,
@@ -101,18 +100,11 @@ window.Game = {
             "hpBonus": 0,
             "mpBonus": 0,
             "regen": 0,
-            "ManaReturn": 0,
+            "manaReflow": 0,
             "atkBonus": 0, 
             "skillBonus": 0,
             "expBonus": 0,
         }
-
-
-        // 2. 基礎屬性換算 (範例公式，可依需求調整)
-        // STR -> Atk, DEX -> Crit/Dodge, CON -> HP/Regen, INT -> MP/Skill
-        extraStats.atkBonus += Math.round((baseStats[0] + baseStats[1] + baseStats[2] + baseStats[3]) * 0.25);
-        extraStats.crit += Math.round(baseStats[1] * 0.25 + baseStats[3] * 0.15);
-        extraStats.dodge += Math.round(baseStats[1] * 0.5 + baseStats[3] * 0.2);
 
         // 3. 遍歷已裝備的技能石，累加效果
         equipments.forEach(item => {
@@ -124,7 +116,7 @@ window.Game = {
                     case 'HP_BONUS': extraStats.hpBonus += item.effectValue; break;
                     case 'MP_BONUS': extraStats.mpBonus += item.effectValue; break;
                     case 'REGEN': extraStats.regen += item.effectValue; break;
-                    case 'MANA_RETURN': extraStats.ManaReturn += item.effectValue; break;
+                    case 'MANA_RETURN': extraStats.manaReflow += item.effectValue; break;
                     case 'ATK_BONUS': extraStats.atkBonus += item.effectValue; break;
                     case 'SKILL_BONUS': extraStats.skillBonus += item.effectValue; break;
                     case 'EXP_BONUS': extraStats.expBonus += item.effectValue; break;
@@ -156,6 +148,8 @@ window.Game = {
         // 4. 套用新上限
         state.playerMaxHp = newMaxHp;
         state.playerMaxMp = newMaxMp;
+        state.playerHp = newMaxHp;
+        state.playerMp = newMaxMp;
 
         // 4. 更新 DOM 文字
         this.safeSetText('val-hp-bonus', `+${Math.floor(extraStats.hpBonus)}`);
@@ -163,13 +157,13 @@ window.Game = {
         this.safeSetText('val-dmg-red', `${Math.min(80, extraStats.dmgReduce).toFixed(1)}%`); // 上限 80%
         
         this.safeSetText('val-atk', `+${extraStats.atkBonus.toFixed(1)}%`);
-        this.safeSetText('val-skill-dmg', `+${extraStats.skillBonus.toFixed(1)}%`);
-        this.safeSetText('val-regen', `${extraStats.regen.toFixed(1)}/s`);
+        this.safeSetText('val-skill', `+${extraStats.skillBonus.toFixed(1)}%`);
+        this.safeSetText('val-regen', `${extraStats.regen.toFixed(1)}/R`);
         
         this.safeSetText('val-dodge', `${extraStats.dodge.toFixed(1)}%`);
         this.safeSetText('val-crit', `${extraStats.crit.toFixed(1)}%`);
         this.safeSetText('val-exp', `+${extraStats.expBonus}%`);
-        this.safeSetText('val-mana-reflow', `${extraStats.manaReflow}/s`);
+        this.safeSetText('val-mana-reflow', `${extraStats.manaReflow.toFixed(1)}/R`);
 
         window.Game.state.AdditionAttribute = extraStats;
         return extraStats;

@@ -644,16 +644,18 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         const system_critRate = Math.random() * 100
-        let critRate = (state.AdditionState.DEX * 0.25 + state.AdditionState.INT * 0.15)
+        CritRate = state.AdditionAttribute.crit + state.AdditionState[1] * 0.25 + state.AdditionState[3] * 0.15
         let CritMultiply = 1;
 
-        if (system_critRate < critRate)
+        if (CritRate > system_critRate)
         {
             CritMultiply = 2;
         }
 
         let damageMultiply = 0.8 + Math.random() * 0.4
-        damage = Math.round(damage * damageMultiply * CritMultiply);
+        let AttackMultiply = 1 + (state.AdditionAttribute.atkBonus / 100)
+
+        damage = Math.round(damage * damageMultiply * CritMultiply * AttackMultiply);
         // 若有屬性加成...
         
         state.enemyHp -= damage;
@@ -664,7 +666,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state.enemyHp <= 0) {
             handleMonsterDeath();
         } else {
-            setTimeout(enemyAttack, 500); // 單人怪物反擊
+            setTimeout(enemyAttack, 100); // 單人怪物反擊
         }
     }
 
@@ -784,6 +786,23 @@ document.addEventListener('DOMContentLoaded', () => {
             addBattleLog(`你受到 ${amount} 點傷害！`, 'log-enemy');
         } else {
             addBattleLog(`你閃避了攻擊！`, 'log-enemy');
+        }
+
+        // 額外回血回魔
+        if (state.AdditionAttribute.regen && state.playerHp > 0) {
+            state.playerHp += state.AdditionAttribute.regen
+
+            if (state.playerHp > state.playerMaxHp) {
+                state.playerHp = state.playerMaxHp
+            }
+        }
+
+        if (state.AdditionAttribute.ManaReturn) {
+            state.playerMp += state.AdditionAttribute.ManaReturn
+
+            if (state.playerMp > state.playerMaxMp) {
+                state.playerMp = state.playerMaxMp
+            }
         }
        
 
@@ -907,6 +926,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function saveProgress() {
         const expGained = calculateGameOver();
+        await saveSkillStone();
         alert(`你已在 ${state.currentFloor} 層\n獲得點 ${expGained} 經驗值`)
         try {
             await fetch('/holylegend/game_lobby/save_status', { 
@@ -934,7 +954,55 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         EXPgained += state.AdditionEXP;
+        const multiplier = 1 + (state.AdditionAttribute.expBonus / 100); // 1.3
+        EXPgained = Math.round(EXPgained * multiplier);
+
         return EXPgained;
+    }
+
+    async function saveSkillStone() {
+        const inventory = state.Inventory;
+        const skills = state.Skills;
+
+        const items = inventory.filter(item => item.category.includes('SKILL'))
+
+        items.forEach(item => {
+            const existed_skill = skills.find(skill => item.id == skill.id)
+
+            if (existed_skill) {
+                existed_skill.quantity += item.count;
+            }
+
+            else {
+                skills.push({
+                    id: item.id,
+                    equipped: 0,
+                    quantity: item.count,
+
+                })
+            }
+        })
+
+        try {
+            const response = await fetch('/holylegend/game_lobby/save_skill', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    inventory: state.Skills,
+                    equipment: state.Equipment
+                })
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                Game.updateLobbyUI(window.Game)
+            }
+
+            } catch {
+                console.error("符文儲存失敗", e);
+            }
+
+        state.Inventory = [];
     }
 
     function startNewFloor(isMultiplayerInit = false, specifiedMonster = null) {
@@ -1210,6 +1278,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 動畫結束後的行為 (單人)
         setTimeout(() => {
+            recalculateDerivedStats()
             updatePlayerUI();
             updateTopBarUI();
             
@@ -1228,11 +1297,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let dmg = Math.round(5 * Math.pow(1.05, state.currentFloor));
         playerDefense = Math.round(state.AdditionState[0] / 7 + state.AdditionState[2] / 3);
-        dmg = Math.max(dmg - playerDefense, 1);
+        DamageReduce = 1 - (state.AdditionAttribute.dmgReduce / 100)
+        DodgeRate = state.AdditionAttribute.dodge + state.AdditionState[1] * 0.5 + state.AdditionState[3] * 0.2
+        dmg = (dmg - playerDefense) * DamageReduce
+        dmg = Math.max(dmg, 1);
 
-        playerDodge = Math.round(state.AdditionState[1] * 0.5 + state.AdditionState[3] * 0.2)
-
-        if (playerDodge >= dodgeRate) {
+        if (state.AdditionAttribute.dodge >= dodgeRate) {
             dmg = 0
         }
         state.isTurnLocked = false; // 解鎖
@@ -1464,6 +1534,53 @@ document.addEventListener('DOMContentLoaded', () => {
             card.querySelector('button').onclick = () => handleUseItem(item);
             grid.appendChild(card);
         });
+    }
+
+    // 重新計算最大生命和魔力
+    function recalculateDerivedStats() {
+        const state = window.Game.state;
+
+        // 1. 初始化基礎值 (如果還沒存過)
+        // 這是玩家進塔時的原始血量 (不含塔內獲得的屬性加成)
+        if (state.baseMaxHp === undefined) state.baseMaxHp = state.playerMaxHp;
+        if (state.baseMaxMp === undefined) state.baseMaxMp = state.playerMaxMp;
+
+        // 2. 定義轉換公式 (您可以自由調整倍率)
+        // 例如：1 點體質 = 5 點血，1 點力量 = 1 點血
+        const HP_PER_CON = 0.7; 
+        const HP_PER_STR = 0.3;
+        const MP_PER_INT = 0.75;
+
+        // 3. 取得累計的屬性加成 [STR, DEX, CON, INT]
+        const [addStr, addDex, addCon, addInt] = state.AdditionState || [0, 0, 0, 0];
+
+        // 4. 計算新的上限
+        // 公式：基礎值 + (屬性 * 倍率)
+        const bonusHp = (addCon * HP_PER_CON) + (addStr * HP_PER_STR) + state.AdditionAttribute.hpBonus;
+        const bonusMp = (addInt * MP_PER_INT) + state.AdditionAttribute.mpBonus;
+
+        const newMaxHp = state.baseMaxHp + Math.floor(bonusHp);
+        const newMaxMp = state.baseMaxMp + Math.floor(bonusMp);
+
+        // 5. 處理血量變化
+        // 如果上限變高了，當前血量也要補上差額 (像是獲得了生命祝福)
+        if (newMaxHp > state.playerMaxHp) {
+            const diff = newMaxHp - state.playerMaxHp;
+            state.playerHp += diff;
+            addBattleLog(`生命上限提升 ${diff} 點！`, 'log-player');
+        }
+        
+        if (newMaxMp > state.playerMaxMp) {
+            const diff = newMaxMp - state.playerMaxMp;
+            state.playerMp += diff;
+        }
+
+        // 6. 寫回狀態
+        state.playerMaxHp = newMaxHp;
+        state.playerMaxMp = newMaxMp;
+
+        // 更新介面
+        updatePlayerUI();
     }
 
 
@@ -1727,6 +1844,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 window.Game.state.AdditionEXP += eventData.rewardValue;
             }
+
+            recalculateDerivedStats()
             
         } else {
             alert("💨 檢定失敗，你好像損失了什麼...。");
@@ -1850,7 +1969,10 @@ document.addEventListener('DOMContentLoaded', () => {
         state.goldCollected -= item.price;
         item.currentStock--;
         let msg = `購買了 ${item.name}`;
-        if (item.category === 'STAT_BOOST') { applyEffectSinglePlayer(item); msg += " (屬性已提升)"; } 
+        if (item.category === 'STAT_BOOST') { 
+            applyEffectSinglePlayer(item); 
+            msg += " (屬性已提升)"; 
+        } 
         else { 
             if (!state.Inventory) state.Inventory = [];
             const existing = state.Inventory.find(i => i.id === item.id);
@@ -1876,6 +1998,18 @@ document.addEventListener('DOMContentLoaded', () => {
         updateLocalGoldDisplay();
         renderShopItems(window.Game.currentShopItems); 
         showMessage(msg, '#2ecc71');
+    }
+
+    function applyEffectSinglePlayer(item) {
+        const type = item.effectType;
+        const val = item.effectValue;
+
+        if (STAT_CONFIG[type] !== undefined) {
+             state.AdditionState[STAT_CONFIG[type]] += val;
+             // ★ 屬性改變後，立刻重算血魔上限
+             recalculateDerivedStats();
+        } 
+        updatePlayerUI();
     }
 
     function handleUseItem(item) {

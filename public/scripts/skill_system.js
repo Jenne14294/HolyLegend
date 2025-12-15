@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 底部切換按鈕
     const btnOpenBag = document.getElementById('btn-open-bag');     // 切換到倉庫
+    const btnUnequipAll = document.getElementById('btn-unequip-all');   
     const btnSynthesis = document.getElementById('btn-synthesis');  // 切換到合成
 
     // 狀態變數
@@ -68,11 +69,13 @@ document.addEventListener('DOMContentLoaded', () => {
     //  全域介面控制
     // ==========================================
     window.SkillSystem = {
-        open: () => {
+        open: async() => {
             hasUnsavedChanges = false;
             
             switchMode('inventory'); // 預設開啟倉庫模式
+            await getSkills();
             renderEquipment(); 
+            renderInventory();
             Game.renderStats(); // ★ 開啟時計算屬性
             skillLayer.classList.remove('hidden');
         }
@@ -115,6 +118,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnOpenBag) {
         btnOpenBag.addEventListener('click', () => {
             switchMode('inventory');
+        });
+    }
+
+    if (btnUnequipAll) {
+        btnUnequipAll.addEventListener('click', () => {
+            unequipAllSkills();
         });
     }
 
@@ -301,6 +310,77 @@ document.addEventListener('DOMContentLoaded', () => {
         renderEquipment();
         renderInventory();
         Game.renderStats();
+    }
+
+    function unequipAllSkills() {
+        if (!state.Equipment) return;
+
+        // 檢查是否有裝備任何東西
+        const hasItem = state.Equipment.some(item => item !== null);
+        if (!hasItem) return; // 本來就全空，不做事
+
+        // 防呆確認 (避免誤觸)
+        if (!confirm("確定要卸下所有已裝備的符文嗎？")) return;
+
+        let somethingChanged = false;
+
+        // 遍歷所有插槽 (0~7)
+        for (let i = 0; i < 8; i++) {
+            const item = state.Equipment[i];
+            
+            if (item) {
+                // 1. 清空該插槽
+                state.Equipment[i] = null;
+
+                // 2. 加回背包數量
+                // 根據您的邏輯，Equipment 存的是物件，我們用 ID 去 Inventory 找回引用
+                const invItem = state.Skills.find(inv => inv.id === item.id);
+                
+                if (invItem) {
+                    // 確保 count 是數字
+                    invItem.equipped--;
+                }
+                
+                somethingChanged = true;
+            }
+        }
+
+        if (somethingChanged) {
+            // 標記變更，關閉視窗時會存檔
+            hasUnsavedChanges = true;
+
+            // 重新渲染介面
+            renderEquipment(); // 清空圓盤
+            renderInventory(); // 背包數量加回來
+            Game.renderStats();     // 數值歸零
+        }
+    }
+
+    async function getSkills() {
+        const response = await fetch('/holylegend/system/classes');
+        const result = await response.json();
+
+        let newSkills = [];
+
+        if (result.success) {
+            result.inventoryData.forEach(item => {
+                newSkills.push({
+                    id: item.itemId,
+                    name: item.item.name,
+                    image: item.item.image,
+                    requiredClass: item.item.requiredClass,
+                    category: item.item.category,
+                    description: item.item.description,
+                    effectType: item.item.effectType,
+                    effectValue: item.item.effectValue,
+                    isPercentage: item.item.isPercentage,
+                    equipped: item.equipped,
+                    quantity: item.quantity, 
+                })
+            })
+
+            state.Skills = newSkills;
+        }
     }
 
     // 輔助：找物品資料
