@@ -517,7 +517,7 @@ export default function initSocket(server) {
                     // 1. 屬性 (STR, DEX, CON, INT) -> 修改 p.state.AdditionState 并 重算上限
                     if (STAT_MAP[type] !== undefined && isAlive) { 
                         // ★ 呼叫 updatePlayerAttribute 重算數值
-                        updatePlayerAttribute(p.state, combatState, type, val, isPunish);
+                        updatePlayerAttribute(p.state, pState, type, val, isPunish);
                     } 
                     // 2. 經驗 (EXP) -> 修改 p.state.AdditionEXP
                     else if (type === 'EXP' && isAlive) { 
