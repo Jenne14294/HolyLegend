@@ -1802,16 +1802,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert(`✨ 檢定成功！\n${STAT_CONFIG[statIndex].label} 獲得提升！`);
                 // 實際給予獎勵
                 window.Game.state.AdditionState[rewardIndex] += eventData.rewardValue;
-                // 更新 UI
-                if (window.Game.updateLobbyUI) window.Game.updateLobbyUI(window.Game.state);
             }
 
             else if (RewardType == 'GOLD') {
                 alert(`✨ 檢定成功！\n獲得額外金幣！`);
-
                 window.Game.state.goldCollected += eventData.rewardValue;
-                // 更新 UI
-                if (window.Game.updateLobbyUI) window.Game.updateLobbyUI(window.Game.state);
+
             }
 
             else if (['HP', 'MP'].includes(RewardType)) {
@@ -1826,17 +1822,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     window.Game.state.playerMp += eventData.rewardValue;
                     window.Game.state.playerMp = Math.min(window.Game.state.playerMp, window.Game.state.playerMaxMp)
                 }
-                // 更新 UI
-                if (window.Game.updateLobbyUI) window.Game.updateLobbyUI(window.Game.state);
             }
 
             else if (RewardType == 'EXP') {
                 alert(`✨ 檢定成功！\n獲得額外經驗值！`);
-
                 window.Game.state.AdditionEXP += eventData.rewardValue;
             }
 
             recalculateDerivedStats()
+
             
         } else {
             alert("💨 檢定失敗，你好像損失了什麼...。");
@@ -1844,14 +1838,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (defaultStat.includes(PunishType)) {
                 // 實際給予獎勵
                 window.Game.state.AdditionState[punishIndex] -= eventData.punishValue;
-                // 更新 UI
-                if (window.Game.updateLobbyUI) window.Game.updateLobbyUI(window.Game.state);
             }
 
             else if (PunishType == 'GOLD') {
                 window.Game.state.goldCollected -= eventData.punishValue;
-                // 更新 UI
-                if (window.Game.updateLobbyUI) window.Game.updateLobbyUI(window.Game.state);
             }
 
             else if (['HP', 'MP'].includes(PunishType)) {
@@ -1864,12 +1854,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     window.Game.state.playerMp -= eventData.punishValue;
                     window.Game.state.playerMp = Math.max(window.Game.state.playerMp, 0)
                 }
-                // 更新 UI
-                if (window.Game.updateLobbyUI) window.Game.updateLobbyUI(window.Game.state);
             }
-
-
         }
+
+        if (window.Game.updateLobbyUI) window.Game.updateLobbyUI(window.Game);
     }
 
     function closeEventLayer() {
