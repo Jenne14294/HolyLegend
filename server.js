@@ -364,6 +364,8 @@ export default function initSocket(server) {
             if (item.category === 'POTION') {
                 if (item.effectType === 'HP') {
                     // 對目標使用
+                    if (targetState.isDead) return socket.emit('item_use_result', { success: false, msg: "無法對死亡目標使用治療" }); // 確保目標存活
+
                     if (targetState.hp >= targetState.maxHp) return socket.emit('item_use_result', { success: false, msg: "目標生命值已滿" });
                     
                     const heal = item.isPercentage ? Math.round(targetState.maxHp * (item.effectValue/100)) : item.effectValue;
@@ -372,6 +374,8 @@ export default function initSocket(server) {
                     used = true;
                 }
                 else if (item.effectType === 'MP') {
+                    if (targetState.isDead) return socket.emit('item_use_result', { success: false, msg: "無法對死亡目標使用" }); // 確保目標存活
+
                     if (targetState.mp >= targetState.maxMp) return socket.emit('item_use_result', { success: false, msg: "目標魔力值已滿" });
 
                     const heal = item.isPercentage ? Math.round(targetState.maxMp * (item.effectValue/100)) : item.effectValue;
