@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // DOM 元素
     const lobbyLayer = document.getElementById('lobby-layer');
     const towerLayer = document.getElementById('tower-layer');
+    const skillLayer = document.getElementById('skill-layer')
     const settingLayer = document.getElementById('settings-layer');
     const teamLayer = document.getElementById('team-layer');
     const jobLayer = document.getElementById('job-layer');
@@ -170,6 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
             settingLayer.classList.add('hidden');
             towerLayer.classList.remove('hidden');
             readyCheckLayer.classList.remove('hidden');
+            skillLayer.classList.add('hidden');
         });
 
         socket.on('update_ready_view', (data) => {

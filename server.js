@@ -466,13 +466,13 @@ export default function initSocket(server) {
                 // 暫存結果，不立即發放
                 battle.pendingEventResult = {
                     isSuccess: isSuccess,
-                    executorName: player ? player.nickname : '隊友',
+                    executorName: player ? player.InitData.nickname : '隊友',
                     ...eventData
                 };
 
                 const msg = isSuccess 
-                    ? `✨ ${player.nickname} 檢定成功！\n獲得 ${eventData.rewardType} +${eventData.rewardValue}\n(請等待全員確認)` 
-                    : `💨 ${player.nickname} 檢定失敗...\n損失 ${eventData.punishType} ${eventData.punishValue}\n(請等待全員確認)`;
+                    ? `✨ ${player.InitData.nickname} 檢定成功！\n獲得 ${eventData.rewardType} +${eventData.rewardValue}\n(請等待全員確認)` 
+                    : `💨 ${player.InitData.nickname} 檢定失敗...\n損失 ${eventData.punishType} ${eventData.punishValue}\n(請等待全員確認)`;
                 
                 io.to(currentRoomId).emit('event_result', { success: isSuccess, msg: msg });
             }, 500);
@@ -600,7 +600,6 @@ export default function initSocket(server) {
                 // --- 1. 屬性獎勵 (STR, DEX, CON, INT) ---
                 if (STAT_MAP[rType] !== undefined) { 
                     updatePlayerAttribute(playerRoomData.state, pState, rType, rValue, false);
-                    console.log(pState)
                 }
                 // --- 2. 經驗值獎勵 (EXP) ---
                 else if (rType === 'EXP') {
