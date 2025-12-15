@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const rewardCardsContainer = document.getElementById('reward-cards-container');
     const readyCheckLayer = document.getElementById('ready-check-layer');
     const btnReady = document.getElementById('btn-ready-accept');
+    const btnDecline = document.getElementById('btn-ready-decline');
 
     // ★★★ 商店與背包 DOM ★★★
     const shopLayer = document.getElementById('shop-layer');
@@ -345,7 +346,7 @@ document.addEventListener('DOMContentLoaded', () => {
              
              await saveProgress();
              resetBattle();
-             
+
              state.isEndingProcessing = false;
         });
 
@@ -528,6 +529,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    if (btnDecline)
 
     // ===========================
     // 離開爬塔 (結算)
@@ -909,6 +912,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // 更新 UI
                 Game.updateLobbyUI(Game);
+
+                socket.emit('player_job_changed', {
+                        // 只傳送需要的變動資料，Server 會處理廣播
+                        newLevel: data.level,
+                        newRole: data.role,
+                        newMaxHp: data.maxHp,
+                        newMaxMp: data.maxMp,
+                        newAdditionState: data.AdditionState,
+                        // 確保隊友能知道這個人現在的血量 (通常是滿血)
+                        currentHp: data.hp, 
+                        currentMp: data.mp,
+                        avatar: data.avatar
+                    });
             } else {
                 console.warn("API 回傳失敗");
             }

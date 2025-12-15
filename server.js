@@ -7,6 +7,9 @@ const HP_PER_CON = 0.7;
 const HP_PER_STR = 0.3;
 const MP_PER_INT = 0.75;
 
+const disconnectTimers = {}; // ★ 你的錯誤就是少了這一行
+const requestTimers = {};
+
 export default function initSocket(server) {
     const io = new Server(server, {
       path: '/holylegend/socket.io' // <--- 這一行不能少
@@ -811,20 +814,50 @@ export default function initSocket(server) {
             }
         });
 
-        socket.on('disconnect', () => { handleDisconnect(); });
-
-        function handleDisconnect() {
+        socket.on('disconnect', () => { 
+            console.log(`[Disconnect] Socket ${socket.id} 斷線，啟動保護機制`);
             if (currentRoomId && rooms[currentRoomId]) {
-                rooms[currentRoomId] = rooms[currentRoomId].filter(p => p.socketId !== socket.id);
-                
-                if (rooms[currentRoomId].length === 0) {
-                    delete battles[currentRoomId];
-                    delete rooms[currentRoomId];
-                } else {
-                    io.to(currentRoomId).emit('team_update', rooms[currentRoomId]);
-                }
+                disconnectTimers[socket.id] = setTimeout(() => {
+                    console.log(`[Cleanup] 玩家 ${socket.id} 逾時未歸，執行清理`);
+                    if (rooms[currentRoomId]) {
+                        
+                        // 1. 直接移除該玩家
+                        rooms[currentRoomId] = rooms[currentRoomId].filter(p => p.socketId !== socket.id);
+                        
+                        if (rooms[currentRoomId].length === 0) { 
+                            delete battles[currentRoomId]; 
+                            delete rooms[currentRoomId]; 
+                            // 清除該房間的計時器
+                            if (requestTimers[currentRoomId]) {
+                                clearTimeout(requestTimers[currentRoomId]);
+                                delete requestTimers[currentRoomId];
+                            }
+                        } 
+                        else { 
+                            // ★★★ 2. 檢查隊伍中是否還有隊長 ★★★
+                            const hasLeader = rooms[currentRoomId].some(p => p.isLeader);
+
+                            // ★★★ 3. 如果沒有隊長 (代表剛剛離開的是隊長，或是異常狀態)，指派第一位繼任 ★★★
+                            if (!hasLeader) {
+                                rooms[currentRoomId][0].isLeader = true;
+                                const newLeaderName = rooms[currentRoomId][0].nickname;
+                                
+                                io.to(currentRoomId).emit('chat_message', { 
+                                    sender: '系統', 
+                                    text: `隊長已離開，由 ${newLeaderName} 繼任為新隊長。`, 
+                                    isSystem: true 
+                                });
+                            }
+
+                            io.to(currentRoomId).emit('team_update', rooms[currentRoomId]); 
+                            io.to(currentRoomId).emit('chat_message', { sender: '系統', text: `一名隊友斷線逾時，已離開隊伍。`, isSystem: true }); 
+                        }
+                    }
+                    delete disconnectTimers[socket.id];
+                }, 0);
+                io.to(currentRoomId).emit('chat_message', { sender: '系統', text: `一名隊友暫時斷線 (保留位置 60 秒)...`, isSystem: true });
             }
-        }
+        });
 
 
         function startNextFloor(roomId) {
