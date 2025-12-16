@@ -794,7 +794,7 @@ export default function initSocket(server) {
             }
 
             // 檢查：是否所有「存活」玩家都已離開？
-            const aliveCount = Object.keys(battle.alivePlayerIds).length;
+            const aliveCount = Object.keys(battle.playerStates).length;
             
             if (battle.shopConfirmedPlayers.length >= aliveCount) {
                 // 全部完成，關閉商店

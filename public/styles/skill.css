@@ -149,8 +149,8 @@
 /* --- 背包 (最下方) --- */
 .inventory-area {
     width: 100%;
-    flex: 1; /* 佔滿剩下的空間 */
-    min-height: 200px; /* 確保至少有空間顯示 */
+    /* flex: 1; ❌ 移除 */
+    min-height: 200px;
     background-color: #222;
     padding: 10px;
 }

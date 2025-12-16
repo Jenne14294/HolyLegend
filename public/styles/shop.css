@@ -197,9 +197,7 @@
     .shop-grid {
         gap: 4px; /* 間距縮到最小 */
     }
-    .item-desc {
-        display: none; /* ★ 關鍵：手機上隱藏描述，避免跑版 */
-    }
+
     .item-name {
         font-size: 0.8rem; /* 字體再縮小 */
     }

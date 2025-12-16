@@ -4,8 +4,12 @@ import sequelize from '../database.js';
 const Skill = sequelize.define(
   'Skill',
   {
-    // 這裡不需要定義 id，Sequelize 會自動識別並處理
     jobId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    // 這裡不需要定義 id，Sequelize 會自動識別並處理
+    ItemId: {
       type: DataTypes.INTEGER,
       allowNull: true,
     },
@@ -18,31 +22,31 @@ const Skill = sequelize.define(
       allowNull: true,
     },
     skillType: {
-      type: DataTypes.ENUM("Active", "Passive", "Buff"),
+      type: DataTypes.ENUM("Active", "Buff"),
       allowNull: true
     },
-    DamageTypeA: {
+    DamageType: {
+      type: DataTypes.ENUM("Physical", "Magic"),
+      allowNull: true
+    },
+    DamageAStat: {
       type: DataTypes.STRING,
       allowNull: true,
     },
-    DamageTypeB: {
+    DamageBStat: {
       type: DataTypes.STRING,
       allowNull: true,
     },
-    DamageRatioA: {
+    DamageARatio: {
       type: DataTypes.INTEGER,
       allowNull: true,
     },
-    DamageRatioB: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-    },
-    duration: {
+    DamageBRatio: {
       type: DataTypes.INTEGER,
       allowNull: true,
     },
     targetType: {
-      type: DataTypes.ENUM("self", "all_self", "all_enemy","one", "random"),
+      type: DataTypes.ENUM("self", "team", "enemy"),
       allowNull: true,
     },
     consumeType: {
@@ -50,10 +54,6 @@ const Skill = sequelize.define(
       allowNull: true,
     },
     consumeAmount: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-    },
-    levelRequirement: {
       type: DataTypes.INTEGER,
       allowNull: true,
     }
