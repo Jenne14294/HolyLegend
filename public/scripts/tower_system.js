@@ -392,17 +392,19 @@ document.addEventListener('DOMContentLoaded', () => {
         //  商店相關監聽
         // ---------------------------
         socket.on('trigger_shop', (data) => {
-            renderShopItems(data.items);
-            // 暫存商品列表以便查詢價格
-            window.Game.currentShopItems = data.items;
-            
-            shopLayer.classList.remove('hidden');
-            if (goldDisplay) goldDisplay.innerText = state.goldCollected;
-            if (btnCloseShop) {
-                btnCloseShop.disabled = false;
-                btnCloseShop.innerText = "X";
+            if (state.playerHp > 0) {
+                renderShopItems(data.items);
+                // 暫存商品列表以便查詢價格
+                window.Game.currentShopItems = data.items;
+                
+                shopLayer.classList.remove('hidden');
+                if (goldDisplay) goldDisplay.innerText = state.goldCollected;
+                if (btnCloseShop) {
+                    btnCloseShop.disabled = false;
+                    btnCloseShop.innerText = "X";
+                }
+                if (messageDisplay) messageDisplay.innerText = "歡迎光臨！";
             }
-            if (messageDisplay) messageDisplay.innerText = "歡迎光臨！";
         });
         
 
