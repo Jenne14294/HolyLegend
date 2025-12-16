@@ -787,13 +787,14 @@ export default function initSocket(server) {
         socket.on('player_leave_shop', () => {
             if (!currentRoomId || !battles[currentRoomId]) return;
             const battle = battles[currentRoomId];
+
             
             if (!battle.shopConfirmedPlayers.includes(socket.id)) {
                 battle.shopConfirmedPlayers.push(socket.id);
             }
 
             // 檢查：是否所有「存活」玩家都已離開？
-            const aliveCount = battle.alivePlayerIds.length;
+            const aliveCount = Object.keys(battle.playerStates).length;
             
             if (battle.shopConfirmedPlayers.length >= aliveCount) {
                 // 全部完成，關閉商店
@@ -1141,24 +1142,20 @@ export default function initSocket(server) {
                             
                             if (result.success && result.data && result.data.length > 0) {
                                 const pool = result.data;
-                                
+
                                 const itemCount = 6;
-                                
                                 const selectedItems = [];
-                                // 隨機抽取
+
                                 for (let i = 0; i < itemCount; i++) {
                                     if (pool.length === 0) break;
+
                                     const idx = Math.floor(Math.random() * pool.length);
-                                    const itemTemplate = pool[idx];
-                                    
-                                    // 設定隨機庫存
-                                    const stock = Math.ceil(Math.random() * (itemTemplate.maxStock || 3));
-                                    
+                                    const itemTemplate = pool.splice(idx, 1)[0]; // 移除避免重複
+
                                     selectedItems.push({
                                         ...itemTemplate,
-                                        currentStock: stock
+                                        currentStock: Math.ceil(Math.random() * (itemTemplate.maxStock || 3))
                                     });
-                                    // 這裡選擇不移除 pool，允許重複商品出現
                                 }
 
                                 // ★ 存入共享商店狀態
