@@ -191,7 +191,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const item_result = await item_response.json();
             if (data_result.success) {
                 const InventoryData = data_result.inventoryData;
-                const EquipmentData = data_result.equipmentData;
+                // ★ 注意：EquipmentData 通常是陣列，要取第 0 筆，若沒有則給空物件避免報錯
+                const EquipmentData = (data_result.equipmentData && data_result.equipmentData[0]) || {};
                 
                 let NewSkill = [];
                 let NewEquipment = [];
@@ -199,40 +200,65 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (item_result.success) {
                     const ItemData = item_result.data;
                     
+                    // 1. 嘗試從 EquipmentData 建立裝備欄
                     for (let i = 1; i < 9; i++) {
                         let base_key = `slot${i}`;
                         
                         if (EquipmentData[base_key] != null) {
+                            // 去 ItemData (原始資料) 找對應的物品
                             const item = ItemData.find(item => item.id == EquipmentData[base_key])
                             NewEquipment.push(item);
+                        } else {
+                            NewEquipment.push(null);
                         }
-                        
-                            else {
-                                NewEquipment.push(null);
-                            }
-                        }
-                        
-                        InventoryData.forEach(item => {
-                            NewSkill.push({
-                                id: item.itemId, 
-                                name: item.item.name, 
-                                image: item.item.image, // 請確保圖片存在，否則會顯示預設圖
-                                category: item.item.category, 
-                                quantity: item.quantity, 
-                                equipped: item.equipped,
-                                description: item.item.description,
-                                requiredClass: item.item.requiredClassId,
-                                effectType: item.item.effectType,
-                                effectValue: item.item.effectValue,
-                                isPercentage: item.item.isPercentage,
-                            }
-                        );
+                    }
+                    
+                    // 2. 建立背包資料 (NewSkill)
+                    InventoryData.forEach(item => {
+                        NewSkill.push({
+                            id: item.itemId, 
+                            name: item.item.name, 
+                            image: item.item.image, 
+                            category: item.item.category, 
+                            quantity: item.quantity, 
+                            equipped: item.equipped,
+                            description: item.item.description,
+                            requiredClass: item.item.requiredClassId,
+                            effectType: item.item.effectType,
+                            effectValue: item.item.effectValue,
+                            isPercentage: item.item.isPercentage,
+                        });
                     })
                     
+                    // ★★★ 新增：補救機制 ★★★
+                    // 如果裝備欄全是 null，檢查背包是否有標記為「已裝備」的物品，自動填入
+                    const isEquipEmpty = NewEquipment.every(slot => slot === null);
+                    
+                    if (isEquipEmpty) {
+                        console.log("⚠️ 偵測到裝備資料為空，嘗試從背包還原狀態...");
+                        let slotIdx = 0;
+                        
+                        NewSkill.forEach(skill => {
+                            if (skill.equipped > 0) {
+                                // 根據 equipped 數量，將物品填入空插槽
+                                let count = skill.equipped;
+                                while (count > 0 && slotIdx < 8) {
+                                    // 確保該插槽是空的才填入
+                                    if (NewEquipment[slotIdx] === null) {
+                                        NewEquipment[slotIdx] = skill; // 使用背包內的物件引用
+                                        count--;
+                                    }
+                                    slotIdx++;
+                                }
+                            }
+                        });
+                    }
+                    // ★★★★★★★★★★★★★★★★★★★
+
                     state.Equipment = NewEquipment;
-                    state.Skills = NewSkill;
+                    // 注意：這邊您用的是 Skills，請確保其他檔案 (skill_system.js) 也是用 Skills 或是 Inventory
+                    state.Skills = NewSkill; 
                 }
-                
             }
 
             const response = await fetch('/holylegend/system/status');

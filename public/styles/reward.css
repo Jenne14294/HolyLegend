@@ -174,3 +174,54 @@
     border-color: #fff;
     background-image: linear-gradient(135deg, #34495e 0%, #6dd5fa 100%);
 }
+
+@media (max-width: 480px) {
+    /* 縮小標題 */
+    .reward-title {
+        font-size: 2rem;
+    }
+    .reward-subtitle {
+        font-size: 1.2rem;
+        margin-bottom: 20px;
+    }
+
+    /* 調整卡片容器間距 */
+    #reward-cards-container {
+        gap: 8px;
+    }
+
+    /* 調整卡片尺寸：使用視窗寬度百分比 (vw) */
+    .reward-card {
+        width: 28vw;      /* 3張卡片約佔 84% 寬度，剩下的給間距 */
+        max-width: 110px; /* 設定上限，避免在大手機上太大 */
+        height: auto;     /* 高度自動 */
+        aspect-ratio: 2 / 3; /* 強制維持 2:3 比例 */
+    }
+
+    /* 縮小內部元件 */
+    .card-inner {
+        /* 手機上 hover 放大可能導致破版，稍微減弱或取消 */
+        /* transform: scale(1); */
+    }
+
+    .card-icon {
+        font-size: 2rem; 
+        margin-bottom: 5px;
+    }
+
+    .card-name {
+        font-size: 0.9rem;
+        margin-bottom: 2px;
+        line-height: 1.1;
+    }
+
+    .card-desc {
+        font-size: 0.7rem;
+        line-height: 1.1;
+        /* 如果文字太多，可以考慮隱藏或縮略 */
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+}

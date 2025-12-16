@@ -1091,6 +1091,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const card = document.createElement('div');
                 card.className = 'reward-card';
                 
+                // ★★★ 修改 1：初始時禁止點擊 (防止飛行中誤觸) ★★★
+                card.style.pointerEvents = 'none';
+                
                 // 設置動畫延遲
                 card.style.animationDelay = `${index * 0.2}s`;
 
@@ -1119,14 +1122,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `;
 
-                // 【關鍵修正】監聽動畫結束，強制設定樣式
-                // 解決 CSS forwards 可能導致卡片變回透明的問題
+                // 【關鍵修正】監聽動畫結束，強制設定樣式並恢復點擊
                 card.addEventListener('animationend', () => {
                     // 如果已經被點擊(正在退場)，就不干涉
                     if (card.classList.contains('clicked')) return;
                     
                     card.style.opacity = '1';
                     card.style.transform = 'translate(0, 0) rotateY(0deg) scale(1)';
+                    
+                    // ★★★ 修改 2：動畫結束後，恢復可點擊狀態 ★★★
+                    card.style.pointerEvents = 'auto';
+                    // (選用) 可以加個滑鼠游標變化，提示可以點了
+                    card.style.cursor = 'pointer';
                 });
 
                 // 5. 綁定點擊事件
@@ -1587,6 +1594,14 @@ document.addEventListener('DOMContentLoaded', () => {
         // 6. 寫回狀態
         state.playerMaxHp = newMaxHp;
         state.playerMaxMp = newMaxMp;
+
+        if (state.playerHp > newMaxHp) {
+            state.playerHp = newMaxHp
+        }
+
+        if (state.playerMp > newMaxMp) {
+            state.playerMp = newMaxMp
+        }
 
         // 更新介面
         updatePlayerUI();
