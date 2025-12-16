@@ -404,6 +404,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     btnCloseShop.innerText = "X";
                 }
                 if (messageDisplay) messageDisplay.innerText = "歡迎光臨！";
+            } else {
+                socket.emit('player_leave_shop')
             }
         });
         
