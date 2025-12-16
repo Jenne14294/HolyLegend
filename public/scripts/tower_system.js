@@ -392,22 +392,19 @@ document.addEventListener('DOMContentLoaded', () => {
         //  商店相關監聽
         // ---------------------------
         socket.on('trigger_shop', (data) => {
-            if (state.playerHp > 0) {
-                renderShopItems(data.items);
-                // 暫存商品列表以便查詢價格
-                window.Game.currentShopItems = data.items;
-                
-                shopLayer.classList.remove('hidden');
-                if (goldDisplay) goldDisplay.innerText = state.goldCollected;
-                if (btnCloseShop) {
-                    btnCloseShop.disabled = false;
-                    btnCloseShop.innerText = "X";
-                }
-                if (messageDisplay) messageDisplay.innerText = "歡迎光臨！";
-            } else {
-                socket.emit('player_leave_shop');
+            renderShopItems(data.items);
+            // 暫存商品列表以便查詢價格
+            window.Game.currentShopItems = data.items;
+            
+            shopLayer.classList.remove('hidden');
+            if (goldDisplay) goldDisplay.innerText = state.goldCollected;
+            if (btnCloseShop) {
+                btnCloseShop.disabled = false;
+                btnCloseShop.innerText = "X";
             }
+            if (messageDisplay) messageDisplay.innerText = "歡迎光臨！";
         });
+        
 
         socket.on('shop_update', (data) => {
             if (data.items) {
@@ -1925,14 +1922,16 @@ document.addEventListener('DOMContentLoaded', () => {
         items.forEach(item => {
             const card = document.createElement('div');
             card.className = 'shop-item';
-            
+
             const isSoldOut = item.currentStock <= 0;
+            const isDead = state.playerHp <= 0;
             const canAfford = state.goldCollected >= item.price;
-            
+
             if (isSoldOut) card.classList.add('sold-out');
+            if (isDead) card.classList.add('player-dead'); // 可選：加樣式用
 
             const imgSrc = `/holylegend/images/items/${item.image}`;
-            
+
             card.innerHTML = `
                 <div class="item-img-box">
                     <img src="${imgSrc}" onerror="this.style.display='none';">
@@ -1941,14 +1940,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="item-info">
                     <div class="item-name">${item.name}</div>
                     <div class="item-desc">${item.description}</div>
-                    <div class="item-price" style="color: ${canAfford ? '#ffd700' : '#e74c3c'}">💰${item.price}</div>
+                    <div class="item-price" style="color:${canAfford ? '#ffd700' : '#e74c3c'}">💰${item.price}</div>
                 </div>
-                <button class="btn-buy" ${isSoldOut ? 'disabled' : ''}>${isSoldOut ? '售罄' : '購買'}</button>
+                <button class="btn-buy" ${isSoldOut || isDead ? 'disabled' : ''}>
+                    ${isDead ? '無法購買' : (isSoldOut ? '售罄' : '購買')}
+                </button>
             `;
+
             const btnBuy = card.querySelector('.btn-buy');
-            if (!isSoldOut) {
+            if (!isSoldOut && !isDead) {
                 btnBuy.addEventListener('click', () => handleBuyItem(item));
             }
+
             itemsGrid.appendChild(card);
         });
     }
