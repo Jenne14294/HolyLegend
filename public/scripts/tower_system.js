@@ -1556,11 +1556,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function recalculateDerivedStats() {
         const state = window.Game.state;
 
-        // 1. 初始化基礎值 (如果還沒存過)
-        // 這是玩家進塔時的原始血量 (不含塔內獲得的屬性加成)
-        if (state.baseMaxHp === undefined) state.baseMaxHp = state.playerMaxHp;
-        if (state.baseMaxMp === undefined) state.baseMaxMp = state.playerMaxMp;
-
         // 2. 定義轉換公式 (您可以自由調整倍率)
         // 例如：1 點體質 = 5 點血，1 點力量 = 1 點血
         const HP_PER_CON = 0.7; 
@@ -1575,8 +1570,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const bonusHp = (addCon * HP_PER_CON) + (addStr * HP_PER_STR) + state.AdditionAttribute.hpBonus;
         const bonusMp = (addInt * MP_PER_INT) + state.AdditionAttribute.mpBonus;
 
-        const newMaxHp = state.baseMaxHp + Math.floor(bonusHp);
-        const newMaxMp = state.baseMaxMp + Math.floor(bonusMp);
+        const newMaxHp = state.playerBaseMaxHp + Math.floor(bonusHp);
+        const newMaxMp = state.playerBaseMaxMp + Math.floor(bonusMp);
 
         // 5. 處理血量變化
         // 如果上限變高了，當前血量也要補上差額 (像是獲得了生命祝福)
