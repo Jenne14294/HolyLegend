@@ -736,7 +736,7 @@ export default function initSocket(server) {
             if (cat === 'STAT_BOOST') {
                 // A. 強化能力：直接作用
                 if (STAT_MAP[type] !== undefined) {
-                    updatePlayerAttribute(playerRoomData.state, combatState, type, val, false);
+                    updatePlayerAttribute(playerRoomData.state, pState, type, val, false);
                     msg += " (能力與上限提升)";
                 }
             } else {
