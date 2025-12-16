@@ -787,14 +787,13 @@ export default function initSocket(server) {
         socket.on('player_leave_shop', () => {
             if (!currentRoomId || !battles[currentRoomId]) return;
             const battle = battles[currentRoomId];
-
             
             if (!battle.shopConfirmedPlayers.includes(socket.id)) {
                 battle.shopConfirmedPlayers.push(socket.id);
             }
 
             // 檢查：是否所有「存活」玩家都已離開？
-            const aliveCount = Object.keys(battle.playerStates).length;
+            const aliveCount = battle.alivePlayerIds.length;
             
             if (battle.shopConfirmedPlayers.length >= aliveCount) {
                 // 全部完成，關閉商店
