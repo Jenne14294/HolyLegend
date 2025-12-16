@@ -192,7 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data_result.success) {
                 const InventoryData = data_result.inventoryData;
                 // ★ 注意：EquipmentData 通常是陣列，要取第 0 筆，若沒有則給空物件避免報錯
-                const EquipmentData = (data_result.equipmentData && data_result.equipmentData[0]) || {};
+                const EquipmentData = (data_result.equipmentData) || {};
                 
                 let NewSkill = [];
                 let NewEquipment = [];
