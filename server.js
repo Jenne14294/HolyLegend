@@ -1056,7 +1056,7 @@ export default function initSocket(server) {
 
                 damageTaken = 5 + (2.5 * battle.alivePlayerIds.length * Math.pow(1.05, battle.floor)); 
                 playerDefense = Math.round(target.state.AdditionState[1] / 7 + target.state.AdditionState[3] / 3)
-                damageTaken -= damageTaken
+                damageTaken -= playerDefense
 
                 // 減傷
                 damageReduce = target.state.AdditionAttribute.dmgReduce
