@@ -1060,7 +1060,7 @@ export default function initSocket(server) {
 
                 // 減傷
                 damageReduce = target.state.AdditionAttribute.dmgReduce
-                damageReduce = Math.min(0.8, 1 - (damageReduce / 100))
+                damageReduce = Math.max(0.8, 1 - (damageReduce / 100))
                 damageTaken = Math.max(Math.round(damageTaken * damageReduce), 1)
 
                 // 閃避
