@@ -1054,13 +1054,13 @@ export default function initSocket(server) {
                 targetSocketId = battle.alivePlayerIds[targetIndex];
                 const target = room.find(p => p.socketId == targetSocketId)
 
-                damageTaken = 5 + (2.5 * (battle.alivePlayerIds.length - 1)) * Math.pow(1.05, battle.floor); 
+                damageTaken = 5 + (2.5 * battle.alivePlayerIds.length * Math.pow(1.05, battle.floor)); 
                 playerDefense = Math.round(target.state.AdditionState[1] / 7 + target.state.AdditionState[3] / 3)
-                damageTaken -= playerDefense
+                damageTaken -= damageTaken
 
                 // 減傷
                 damageReduce = target.state.AdditionAttribute.dmgReduce
-                damageReduce = Math.min(80, 1 - (damageReduce / 100))
+                damageReduce = Math.min(0.8, 1 - (damageReduce / 100))
                 damageTaken = Math.max(Math.round(damageTaken * damageReduce), 1)
 
                 // 閃避
