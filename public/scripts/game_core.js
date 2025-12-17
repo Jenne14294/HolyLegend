@@ -154,7 +154,7 @@ window.Game = {
         this.safeSetText('val-dmg-red', `${Math.min(80, extraStats.dmgReduce).toFixed(1)}%`); // 上限 80%
         
         this.safeSetText('val-atk', `+${extraStats.atkBonus.toFixed(1)}%`);
-        this.safeSetText('val-skill', `+${extraStats.skillBonus.toFixed(1)}%`);
+        this.safeSetText('val-skill-dmg', `+${extraStats.skillBonus.toFixed(1)}%`);
         this.safeSetText('val-regen', `${extraStats.regen.toFixed(1)}/R`);
         
         this.safeSetText('val-dodge', `${extraStats.dodge.toFixed(1)}%`);

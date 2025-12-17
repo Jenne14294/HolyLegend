@@ -405,25 +405,19 @@
         <!--  區塊 K: 技能工坊 (Skill Forge Layer)      -->
         <!-- ========================================== -->
         <div id="skill-layer" class="hidden">
-            
-            <!-- 1. 頂部：標題與功能鍵 (固定高度) -->
             <div class="skill-header">
                 <div class="forge-title">⚒️ 技能工坊</div>
                 <div class="header-controls">
-                    <!-- 刷新按鈕 -->
                     <button id="btn-refresh-skill" class="btn-pixel-icon btn-refresh">↻</button>
-                    <!-- 關閉按鈕 -->
                     <button id="btn-close-skill" class="btn-pixel-icon btn-close">X</button>
                 </div>
             </div>
 
-            <!-- 2. 中間滾動區域 (佔滿剩餘空間) -->
-            <div class="skill-scroll-container">
+            <div class="skill-content-wrapper">
                 
-                <!-- 【上半部】裝備與屬性 (Inventory模式顯示) -->
                 <div id="view-equip" class="view-section">
-                    <div class="forge-main-row">
-                        <!-- 左側：裝備盤 -->
+                    <div class="top-section-group">
+                        
                         <div class="forge-stage">
                             <div class="forge-pedestal">
                                 <div class="soul-fire">🔥</div>
@@ -439,7 +433,6 @@
                             <div class="forge-info">已裝備: <span id="equipped-count">0</span>/8</div>
                         </div>
 
-                        <!-- 右側：屬性面板 -->
                         <div class="stats-area" id="stats-area">
                             <div class="stats-grid">
                                 <div class="stat-item"><span class="s-icon">💓</span><span class="s-label">生命</span><span id="val-hp-bonus" class="s-val">+0</span></div>
@@ -457,7 +450,6 @@
                     </div>
                 </div>
 
-                <!-- 【上半部】冶煉合成 (Synthesis模式顯示) -->
                 <div id="view-synthesis" class="view-section hidden">
                     <div class="synthesis-container" id="synthesis-area">
                         <div class="inventory-label">--- 符文熔煉 ---</div>
@@ -475,8 +467,7 @@
                     </div>
                 </div>
 
-                <!-- 【上半部】圖鑑 (Handbook模式顯示) -->
-                <div id="view-handbook" class="view-section full-height hidden">
+                <div id="view-handbook" class="view-handbook hidden">
                     <div id="handbook-area" class="handbook-container">
                         <div class="inventory-label">--- 符文圖鑑 (收集率: <span id="collection-rate">0%</span>) ---</div>
                         <div class="hb-filter-row">
@@ -484,11 +475,11 @@
                             <button class="btn-pixel-small" onclick="window.filterHandbook('CLASS')">職業</button>
                             <button class="btn-pixel-small" onclick="window.filterHandbook('GENERAL')">通用</button>
                         </div>
-                        <div id="handbook-grid" class="inventory-grid"></div>
+                        <div id="handbook-grid" class="inventory-grid">
+                            </div>
                     </div>
                 </div>
 
-                <!-- 【下半部】共用倉庫 (除了圖鑑模式外都顯示) -->
                 <div id="view-inventory" class="inventory-area">
                     <div class="inventory-label">--- 符文倉庫 ---</div>
                     <div id="skill-inventory-grid" class="inventory-grid">
@@ -498,7 +489,6 @@
 
             </div>
 
-            <!-- 3. 底部功能按鈕 (固定高度) -->
             <div class="skill-footer">
                 <button id="btn-skill-book" class="btn-forge" style="background-color: #2f5cfc; border-color: #0016bb;">📘<br>圖鑑</button>
                 <button id="btn-open-bag" class="btn-forge hidden">🎒<br>背包</button>

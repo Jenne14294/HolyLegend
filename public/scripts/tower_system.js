@@ -56,6 +56,8 @@ document.addEventListener('DOMContentLoaded', () => {
         { name: 'INT', label: '智力', icon: '🔮' }
     ];
 
+    const defaultStat = ["STR", "DEX", "CON", "INT"]
+
 
     // 在 tower_system.js 的 DOMContentLoaded 裡面
     // 監聽事件系統結束後的通知
@@ -1287,8 +1289,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert(`${rewardData.name} 生效！(本次冒險屬性提升)`);
                 break;
             case 'REVIVE':
-                state.playerHp = state.playerMaxHp;
-                state.playerMp = state.playerMaxMp;
+                state.playerHp += Math.round(state.playerMaxHp * 0.3);
+                state.playerMp += Math.round(state.playerMaxMp * 0.3);
+
+                if (state.playerHp > state.playerMaxHp) state.playerHp = state.playerMaxHp
+                if (state.plaMaxMp > state.playerMaxMp) state.plaMaxMp = state.playerMaxMp
                 break;
             default:
                 console.log("未知的獎勵類型:", rewardData);
@@ -1315,8 +1320,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let dmg = Math.round(5 * Math.pow(1.05, state.currentFloor));
         playerDefense = Math.round(state.AdditionState[0] / 7 + state.AdditionState[2] / 3);
-        DamageReduce = 1 - (state.AdditionAttribute.dmgReduce / 100)
-        DodgeRate = state.AdditionAttribute.dodge + state.AdditionState[1] * 0.5 + state.AdditionState[3] * 0.2
+        DamageReduce = Math.min(80, 1 - (state.AdditionAttribute.dmgReduce / 100))
+        DodgeRate = Math.min(state.AdditionAttribute.dodge + state.AdditionState[1] * 0.5 + state.AdditionState[3] * 0.2, 90)
         dmg = Math.max(Math.round((dmg - playerDefense) * DamageReduce), 1)
 
         if (DodgeRate >= SystemDodge) {
@@ -1624,7 +1629,6 @@ document.addEventListener('DOMContentLoaded', () => {
         layer.classList.remove('hidden');
 
         // 2. 準備數據
-        const defaultStat = ["STR", "DEX", "CON", "INT"]
         const playerStats = window.Game.state.AdditionState || [0, 0, 0, 0];
         const reqIndex = defaultStat.indexOf(eventData.requirementType);
         const myValue = playerStats[reqIndex];
@@ -1817,7 +1821,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function resolveSinglePlayerEvent(isSuccess, eventData) {
         closeEventLayer();
-        const defaultStat = ["STR", "DEX", "CON", "INT"]
         const ReqType = eventData.requirementType;
         const RewardType = eventData.rewardType;
         const PunishType = eventData.punishType;
@@ -2017,9 +2020,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function applyEffectSinglePlayer(item) {
         const type = item.effectType;
         const val = item.effectValue;
+        const index = defaultStat.indexOf(type)
 
-        if (STAT_CONFIG[type] !== undefined) {
-             state.AdditionState[STAT_CONFIG[type]] += val;
+        if (STAT_CONFIG[index] !== undefined) {
+             state.AdditionState[index] += val;
              // ★ 屬性改變後，立刻重算血魔上限
              recalculateDerivedStats();
         } 

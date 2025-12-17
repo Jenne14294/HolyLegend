@@ -1051,12 +1051,12 @@ export default function initSocket(server) {
 
                 // 減傷
                 damageReduce = target.state.AdditionAttribute.dmgReduce
-                damageReduce = 1 - (damageReduce / 100)
+                damageReduce = Math.min(80, 1 - (damageReduce / 100))
                 damageTaken = Math.max(Math.round(damageTaken * damageReduce), 1)
 
                 // 閃避
                 const SystemDodge = Math.random() * 100
-                dodgeRate = target.state.AdditionAttribute.dodge + target.state.AdditionState[1] * 0.5 + target.state.AdditionState[3] * 0.2
+                dodgeRate = Math.min(target.state.AdditionAttribute.dodge + target.state.AdditionState[1] * 0.5 + target.state.AdditionState[3] * 0.2, 90)
 
                 if (dodgeRate > SystemDodge) {
                     damageTaken = 0
