@@ -1340,7 +1340,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let dmg = Math.round(5 * Math.pow(1.05, state.currentFloor));
         playerDefense = Math.round(state.AdditionState[0] / 7 + state.AdditionState[2] / 3);
-        DamageReduce = Math.max(0.8, 1 - (state.AdditionAttribute.dmgReduce / 100))
+        DamageReduce = Math.max(0.2, 1 - (state.AdditionAttribute.dmgReduce / 100))
         DodgeRate = Math.min(state.AdditionAttribute.dodge + state.AdditionState[1] * 0.5 + state.AdditionState[3] * 0.2, 90)
         dmg = Math.max(Math.round((dmg - playerDefense) * DamageReduce), 1)
 
