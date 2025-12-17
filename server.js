@@ -623,6 +623,7 @@ export default function initSocket(server) {
                     const deadPlayerIds = Object.keys(battle.playerStates).filter(id => battle.playerStates[id].isDead);
                     
                     if (deadPlayerIds.length > 0) {
+                        // ... (選目標邏輯保持不變) ...
                         let finalTargetId = null;
                         if (targetSocketId && deadPlayerIds.includes(targetSocketId)) { 
                             finalTargetId = targetSocketId; 
@@ -630,7 +631,7 @@ export default function initSocket(server) {
                             const randomIndex = Math.floor(Math.random() * deadPlayerIds.length); 
                             finalTargetId = deadPlayerIds[randomIndex]; 
                         }
-                        
+
                         const targetState = battle.playerStates[finalTargetId];
                         const targetRoomData = rooms[currentRoomId].find(p => p.socketId === finalTargetId);
 
@@ -650,11 +651,16 @@ export default function initSocket(server) {
                                 battle.alivePlayerIds.push(finalTargetId); 
                             }
 
-                            // ★★★ 關鍵修正：強制讓被復活者「已選擇」 ★★★
-                            // 因為被復活的人沒有跳出獎勵視窗，如果不加這行，系統會一直等他選獎勵，導致卡住
+                            // 強制讓被復活者「已選擇」
                             if (!battle.rewardSelection.selectedPlayers.includes(finalTargetId)) {
                                 battle.rewardSelection.selectedPlayers.push(finalTargetId);
                             }
+
+                            // ★★★ 新增：單獨通知被復活的玩家更新 UI ★★★
+                            io.to(finalTargetId).emit('player_revived', { 
+                                hp: targetState.hp, 
+                                mp: targetState.mp 
+                            });
 
                             const targetName = targetRoomData ? targetRoomData.nickname : '隊友';
                             io.to(currentRoomId).emit('chat_message', { sender: '系統', text: `${targetName} 被復活了！(HP/MP 恢復 30%)`, isSystem: true });

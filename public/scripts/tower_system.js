@@ -242,6 +242,26 @@ document.addEventListener('DOMContentLoaded', () => {
             addBattleLog(`=== 第 ${initialData.floor} 層戰鬥開始 ===`, 'log-system');
         });
 
+        socket.on('player_revived', (data) => {
+            console.log("收到復活通知:", data);
+            
+            // 1. 更新數值
+            state.playerHp = data.hp;
+            state.playerMp = data.mp;
+            
+            // 2. 解除死亡狀態
+            state.isGameOver = false;
+            
+            // 3. 更新 UI
+            updatePlayerUI();
+            updateControlsState(); // 解鎖按鈕
+            
+            addBattleLog("你復活了！", "log-player");
+            
+            // (選用) 移除死亡濾鏡效果，如果有的話
+            document.body.style.filter = "none"; 
+        });
+
         socket.on('turn_result', (result) => {
             const enemyImg = document.getElementById('enemy-img');
             if(enemyImg) {
