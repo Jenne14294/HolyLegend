@@ -191,8 +191,6 @@
 .handbook-container { padding: 15px; flex: 1; }
 .handbook-item.locked { filter: grayscale(100%) brightness(0.5); }
 .hb-filter-row { display: flex; gap: 10px; justify-content: center; margin-bottom: 15px; }
-.btn-pixel-small { background: #444; color: #ccc; border: 1px solid #666; padding: 5px 10px; font-family: 'VT323', monospace; cursor: pointer; }
-.btn-pixel-small:hover { background: #555; color: #fff; }
 
 
 /* --- 背包 (最下方，可滑動) --- */

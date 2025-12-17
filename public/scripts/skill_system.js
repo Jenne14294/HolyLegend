@@ -306,7 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const items = state.Skills || [];
         // 只顯示技能石
         const skillStones = items.filter(i => 
-            (i.category === 'SKILL' || i.category === 'CLASS_SKILL' || i.category === 'GENERAL_SKILL') 
+            (i.category.includes('SKILL') || i.category === 'GENERAL_SKILL') 
         );
 
         if (skillStones.length === 0) {
@@ -314,35 +314,38 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        skillStones.forEach(item => {
-            // 計算可用數量：總數 - 已裝備 - (若在合成模式)已放入合成槽的數量
-            let inSynthesisCount = 0;
-            if (currentMode === 'synthesis') {
-                inSynthesisCount = synthesisSlots.filter(s => s && s.id === item.id).length;
-            }
-
-            const available = (item.quantity || item.count) - (item.equipped || 0) - inSynthesisCount;
-
-            if (available > 0) {
-                const el = document.createElement('div');
-                el.className = 'inv-item';
-                el.innerHTML = `
-                    <img src="/holylegend/images/items/${item.image}">
-                    <div class="count-badge">${available}</div>
-                    <div class="skill_level-badge">${item.name.split(' ')[1]}</div>
-                `;
+        // 1. 先進行排序 (a.id - b.id 代表 ID 小的排前面)
+        skillStones
+            .sort((a, b) => a.id - b.id) 
+            .forEach(item => {
                 
-                // ★ 關鍵：根據模式綁定不同事件
-                el.onclick = () => { 
-                    if (currentMode === 'inventory') {
-                        equipSkill(item); 
-                    } else {
-                        addToSynthesis(item);
-                    }
-                };
-                invGrid.appendChild(el);
-            }
-        });
+                // 2. 以下維持你原本的邏輯
+                let inSynthesisCount = 0;
+                if (currentMode === 'synthesis') {
+                    inSynthesisCount = synthesisSlots.filter(s => s && s.id === item.id).length;
+                }
+
+                const available = (item.quantity || item.count) - (item.equipped || 0) - inSynthesisCount;
+
+                if (available > 0) {
+                    const el = document.createElement('div');
+                    el.className = 'inv-item';
+                    el.innerHTML = `
+                        <img src="/holylegend/images/items/${item.image}">
+                        <div class="count-badge">${available}</div>
+                        <div class="skill_level-badge">${item.name.split(' ')[1]}</div>
+                    `;
+                    
+                    el.onclick = () => { 
+                        if (currentMode === 'inventory') {
+                            equipSkill(item); 
+                        } else {
+                            addToSynthesis(item);
+                        }
+                    };
+                    invGrid.appendChild(el);
+                }
+            });
     }
 
     function addToSynthesis(item) {
