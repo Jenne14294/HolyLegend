@@ -1044,6 +1044,7 @@ export default function initSocket(server) {
             let targetSocketId = null; 
             let damageTaken = 0; 
             let damageReduce = 0;
+            let playerDefense = 0;
             let dodgeRate = 0;
             let deadPlayerId = null;
 
@@ -1053,7 +1054,9 @@ export default function initSocket(server) {
                 targetSocketId = battle.alivePlayerIds[targetIndex];
                 const target = room.find(p => p.socketId == targetSocketId)
 
-                damageTaken = (5 + (2.5 * (battle.alivePlayerIds.length - 1))) * Math.pow(1.05, battle.floor); 
+                damageTaken = 5 + (2.5 * (battle.alivePlayerIds.length - 1)) * Math.pow(1.05, battle.floor); 
+                playerDefense = Math.round(target.state.AdditionState[1] / 7 + target.state.AdditionState[3] / 3)
+                damageTaken -= playerDefense
 
                 // 減傷
                 damageReduce = target.state.AdditionAttribute.dmgReduce
