@@ -1009,8 +1009,16 @@ document.addEventListener('DOMContentLoaded', () => {
             else {
                 skills.push({
                     id: item.id,
-                    equipped: 0,
-                    quantity: item.count,
+                    name: item.name, 
+                    image: item.image, 
+                    category: item.category, 
+                    quantity: item.quantity, 
+                    equipped: item.equipped,
+                    description: item.description,
+                    requiredClass: item.requiredClassId,
+                    effectType: item.effectType,
+                    effectValue: item.effectValue,
+                    isPercentage: item.isPercentage,
 
                 })
             }
@@ -1042,7 +1050,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.processingLevelUp = false; 
 
         if (!isMultiplayerInit) {
-            state.enemyMaxHp = 100 + 10 * Math.pow(1.05, state.currentFloor);
+            state.enemyMaxHp = Math.round(100 + 10 * Math.pow(1.05, state.currentFloor));
             state.enemyHp = state.enemyMaxHp;
         }
         
@@ -1394,52 +1402,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // ===========================
     //  新增：隊友 UI 輔助函式
     // ===========================
-
-    function renderTeammatesUI(players) {
-        teammatesContainer.innerHTML = ''; // 清空
-
-        players.forEach(p => {
-            // 跳過自己，只顯示隊友
-            if (p.socketId === socket.id) return;
-
-            // const roleName = p.role ? (p.role.charAt(0).toUpperCase() + p.role.slice(1).toLowerCase()) : 'Novice';
-            const imgSrc = p.state.avatar;
-
-            const card = document.createElement('div');
-            card.className = 'tm-card';
-            card.dataset.id = p.socketId; // 用 socketId 識別
-
-            // 計算初始百分比
-            const hpPct = (p.hp / p.maxHp) * 100;
-            const mpPct = (p.mp / p.maxMp) * 100;
-
-            card.innerHTML = `
-                <div class="tm-avatar-box">
-                    <img src="${imgSrc}">
-                </div>
-                <div class="tm-info">
-                    <div class="tm-name">${p.nickname}</div>
-                    <div class="tm-bar-group">
-                        <div class="tm-hp-bar">
-                            <div class="fill" style="width: ${hpPct}%"></div>
-                        </div>
-                        <div class="tm-mp-bar">
-                            <div class="fill" style="width: ${mpPct}%"></div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            // 點擊事件 (未來擴充：對隊友使用技能)
-            card.addEventListener('click', () => {
-                console.log(`點擊了隊友: ${p.nickname} (${p.socketId})`);
-                // 例如：useSkillOn(p.socketId);
-            });
-
-            teammatesContainer.appendChild(card);
-        });
-    }
-
     function updateTeammatesUI(statusMap) {
         // statusMap: { socketId: { hp, isDead }, ... }
         

@@ -80,6 +80,22 @@
     min-height: 0; /* ★ 關鍵：允許 Flex 容器縮小 */
 }
 
+/* 讓圖鑑區塊和背包一樣可以滾動 */
+.view-handbook {
+    flex: 1 1 0;        /* ★ 占用剩餘空間，可縮放 */
+    overflow-y: auto;   /* ★ 啟用垂直捲軸 */
+    display: flex;
+    flex-direction: column;
+    background-color: #222; /* 可選，與背包統一風格 */
+}
+
+/* 內部容器也可保持 padding 與佈局 */
+.handbook-container {
+    flex: 1;
+    padding: 15px;
+}
+
+
 /* 視圖區塊 (View Sections) */
 .view-section {
     width: 100%;

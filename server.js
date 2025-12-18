@@ -878,7 +878,7 @@ export default function initSocket(server) {
 
             battle.floor++;
             battle.enemyMaxHp = 100 + 10 * (battle.floor * room.length);
-            battle.enemyHp = battle.enemyMaxHp;
+            battle.enemyHp = Math.round(battle.enemyMaxHp);
             battle.processingTurn = false;
             battle.pendingActions = [];
             battle.rewardSelection = { isActive: false, selectedPlayers: [] };
