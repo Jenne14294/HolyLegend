@@ -108,22 +108,27 @@ window.Game = {
 
         // 3. 遍歷已裝備的技能石，累加效果
         equipments.forEach(item => {
-            if (item) {
-                switch (item.effectType) {
-                    case 'CRIT': extraStats.crit += item.effectValue; break;
-                    case 'DODGE': extraStats.dodge += item.effectValue; break;
-                    case 'DMG_REDUCE': extraStats.dmgReduce += item.effectValue; break;
-                    case 'HP_BONUS': extraStats.hpBonus += item.effectValue; break;
-                    case 'MP_BONUS': extraStats.mpBonus += item.effectValue; break;
-                    case 'REGEN': extraStats.regen += item.effectValue; break;
-                    case 'MANA_RETURN': extraStats.manaReflow += item.effectValue; break;
-                    case 'ATK_BONUS': extraStats.atkBonus += item.effectValue; break;
-                    case 'SKILL_BONUS': extraStats.skillBonus += item.effectValue; break;
-                    case 'EXP_BONUS': extraStats.expBonus += item.effectValue; break;
-                }
-            }            
-            
+            if (!item) return;
+
+            // 職業限定被動：不是自己的職業就不計算
+            if (item.requiredClass !== null && item.requiredClass !== state.jobId) {
+                return;
+            }
+
+            switch (item.effectType) {
+                case 'CRIT': extraStats.crit += item.effectValue; break;
+                case 'DODGE': extraStats.dodge += item.effectValue; break;
+                case 'DMG_REDUCE': extraStats.dmgReduce += item.effectValue; break;
+                case 'HP_BONUS': extraStats.hpBonus += item.effectValue; break;
+                case 'MP_BONUS': extraStats.mpBonus += item.effectValue; break;
+                case 'REGEN': extraStats.regen += item.effectValue; break;
+                case 'MANA_RETURN': extraStats.manaReflow += item.effectValue; break;
+                case 'ATK_BONUS': extraStats.atkBonus += item.effectValue; break;
+                case 'SKILL_BONUS': extraStats.skillBonus += item.effectValue; break;
+                case 'EXP_BONUS': extraStats.expBonus += item.effectValue; break;
+            }
         });
+
 
 
         // 2. 計算新的上限 = 基礎 + 加成

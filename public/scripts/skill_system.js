@@ -272,10 +272,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (itemData) {
                     let item_level = item.name.split(' ')[1]
                     if (!item_level) item_level = ""
+
+                    let item_error = ""
+                    if (item.requiredClass != state.jobId) item_error = "！"
+
                     slot.classList.add('filled');
                     slot.innerHTML = `
                     <img src="/holylegend/images/items/${item.image}">
                     <div class="skill_level-badge">${item_level}</div>
+                    <div class="skill_error-badge">${item_error}</div>
                     `;
                     count++;
                     
