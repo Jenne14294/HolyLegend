@@ -619,9 +619,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
                 
                 card.onclick = () => {
+                    const ClassName = item.requiredClassDetail ? `適用職業：${item.requiredClassDetail.nickname}` : ""
                     const name = isUnlocked ? item.name : "???";
                     const desc = isUnlocked ? item.description : "尚未獲得此符文";
-                    const Class = isUnlocked ? `適用職業：${item.requiredClassDetail.nickname}` : "適用職業：???"
+                    const Class = isUnlocked ? ClassName : ""
                     alert(`【${name}】\n${desc}\n${Class}`);
                 };
                 handbookGrid.appendChild(card);
