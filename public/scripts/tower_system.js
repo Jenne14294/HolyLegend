@@ -951,8 +951,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        if (state.AdditionAttribute.ManaReturn) {
-            state.playerMp += state.AdditionAttribute.ManaReturn
+        if (state.AdditionAttribute.manaReflow) {
+            state.playerMp += state.AdditionAttribute.manaReflow
 
             if (state.playerMp > state.playerMaxMp) {
                 state.playerMp = state.playerMaxMp
@@ -2390,7 +2390,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.enemyHp -= damage;
 
                 const consume = skill.consumeType ? skill.consumeAmount : 0
-                console.log(consume)
+
                 if (skill.consumeType == 'mp') {
                     state.playerMp -= consume
                     if (state.playerMp < 0) {
