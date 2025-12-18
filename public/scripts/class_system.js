@@ -179,6 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     window.Game.state.playerBaseMaxMp = data.maxMp;
                     window.Game.state.level = data.level;
                     window.Game.state.currentFloor = 1;
+                    window.Game.state.jobId = data.classId;
                     window.Game.state.role = data.role; // 記錄職業
                     window.Game.state.AdditionState = data.AdditionState;
                     window.Game.state.AdditionEXP = 0;

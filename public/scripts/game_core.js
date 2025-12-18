@@ -223,7 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             quantity: item.quantity, 
                             equipped: item.equipped,
                             description: item.item.description,
-                            requiredClass: item.item.requiredClassId,
+                            requiredClass: item.item.requiredClass,
                             effectType: item.item.effectType,
                             effectValue: item.item.effectValue,
                             isPercentage: item.item.isPercentage,
@@ -267,6 +267,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (result.success) {
                 let data = result.data;
                 // 更新全域狀態
+                Game.state.jobId = data.classId;
                 Game.state.playerBaseMaxHp = data.maxHp;
                 Game.state.playerBaseMaxMp = data.maxMp;
                 Game.state.playerHp = data.hp;

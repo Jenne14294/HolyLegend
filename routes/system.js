@@ -5,7 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url'; // 必需：用於 ES Modules 定義 __dirname
 
 // 引入您的服務層 (Service)
-import { getRewards, getEvents, getItems, getEnemies } from '../services/system.js';
+import { getRewards, getEvents, getItems, getEnemies, getSkills } from '../services/system.js';
 import { getUser, verifyToken } from '../services/accountAuth.js';
 import { getClass, getInventory, getEquipments } from '../services/user.js';
 import {updateUserAvatar} from '../services/account.js';
@@ -102,6 +102,7 @@ router.get('/status', verifyToken, async (req, res, next) => {
     const renderData = {
         id: userData.id,
         nickname: userData.nickName,
+        classId: userData.jobId,
         role: userData.class.nickname,
         level: level,
         exp: currentClass.currentEXP || 0,
@@ -182,6 +183,16 @@ router.get('/enemy', async (req, res, next) => {
   try {
     const enemies = await getEnemies();
     res.json({"success":true, data: enemies});
+  } catch (err) {
+    console.error(err);
+    next(err);
+  }
+});
+
+router.get('/skill', async (req, res, next) => {
+  try {
+    const skills = await getSkills();
+    res.json({"success":true, data: skills});
   } catch (err) {
     console.error(err);
     next(err);

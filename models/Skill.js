@@ -22,11 +22,11 @@ const Skill = sequelize.define(
       allowNull: true,
     },
     skillType: {
-      type: DataTypes.ENUM("Active", "Buff"),
+      type: DataTypes.ENUM("Active", "Buff", "Passive"),
       allowNull: true
     },
     DamageType: {
-      type: DataTypes.ENUM("Physical", "Magic"),
+      type: DataTypes.ENUM("Physical", "Magic", "Heal"),
       allowNull: true
     },
     DamageAStat: {

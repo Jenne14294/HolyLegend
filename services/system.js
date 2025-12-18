@@ -26,14 +26,23 @@ catch (err) {
 
 const getItems = async () => {
   try {
-      const Items = await models.Item.findAll({
-      });
-      return Items;
-      }   
-  catch (err) {  
-      throw err;
-    }
+    const items = await models.Item.findAll({
+      include: [
+        {
+          model: models.Class,
+          as: 'requiredClassDetail',
+          attributes: ['id', 'name', 'nickname'], // 視需要調整
+          required: false // requiredClassId 為 null 的道具也會撈出
+        }
+      ]
+    });
+
+    return items;
+  } catch (err) {
+    throw err;
+  }
 };
+
 
 const getEnemies = async () => {
   try {
@@ -46,4 +55,15 @@ const getEnemies = async () => {
     }
 };
 
-export {getRewards, getEvents, getItems, getEnemies}
+const getSkills = async () => {
+  try {
+      const Skills = await models.Skill.findAll({
+      });
+      return Skills;
+      }   
+  catch (err) {  
+      throw err;
+    }
+};
+
+export {getRewards, getEvents, getItems, getEnemies, getSkills}

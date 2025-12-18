@@ -270,10 +270,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const itemData = findItemData(item);
                 
                 if (itemData) {
+                    let item_level = item.name.split(' ')[1]
+                    if (!item_level) item_level = ""
                     slot.classList.add('filled');
                     slot.innerHTML = `
                     <img src="/holylegend/images/items/${item.image}">
-                    <div class="skill_level-badge">${item.name.split(' ')[1]}</div>
+                    <div class="skill_level-badge">${item_level}</div>
                     `;
                     count++;
                     
@@ -328,12 +330,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const available = (item.quantity || item.count) - (item.equipped || 0) - inSynthesisCount;
 
                 if (available > 0) {
+                    let item_level = item.name.split(' ')[1]
+                    if (!item_level) item_level = ""
                     const el = document.createElement('div');
                     el.className = 'inv-item';
                     el.innerHTML = `
                         <img src="/holylegend/images/items/${item.image}">
                         <div class="count-badge">${available}</div>
-                        <div class="skill_level-badge">${item.name.split(' ')[1]}</div>
+                        <div class="skill_level-badge">${item_level}</div>
                     `;
                     
                     el.onclick = () => { 
@@ -351,8 +355,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function addToSynthesis(item) {
         // ★★★ 檢查等級：如果是 III 階 (Max Level)，不可放入 ★★★
         const info = getItemLevelInfo(item.name);
+
         if (info.level >= 3) {
             alert("此符文已達最高階 (III)，無法再進行熔煉！");
+            return;
+        }
+
+        if (info.category == 'CLASS_SKILL') {
+            alert("職業符文無法進行熔煉！");
             return;
         }
 
@@ -446,7 +456,7 @@ document.addEventListener('DOMContentLoaded', () => {
     //  邏輯操作
     // ==========================================
 
-    function equipSkill(item) {
+    async function equipSkill(item) {
         if (!state.Equipment || state.Equipment.length === 0) state.Equipment = new Array(8).fill(null);
 
         const emptyIndex = state.Equipment.findIndex(id => id === null);
@@ -455,6 +465,31 @@ document.addEventListener('DOMContentLoaded', () => {
             alert("裝備欄已滿！請點擊上方的技能石卸下後再裝備。");
             return;
         }
+
+
+        if (item.requiredClass !== null) {
+            let samePassive = false
+            if (item.requiredClass !== state.jobId) {
+                alert("該職業無法裝備此符文");
+                return;
+            }
+
+
+            for (let i = 0; i < 9; i++) {
+                if (state.Equipment[i] && state.Equipment[i].id == item.id) {
+                    samePassive = true
+                    break;
+                }
+            }
+            
+
+            if (samePassive) {
+                alert("該職業符文同類型只能裝備一個");
+                return;
+            }
+        }
+
+        
 
         // 執行裝備
         state.Equipment[emptyIndex] = item;
@@ -568,16 +603,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (isUnlocked) collectedCount++;
 
                 const card = document.createElement('div');
+                let item_level = item.name.split(' ')[1]
+                if (!item.name.includes('I')) {
+                    item_level = ""
+                }
                 card.className = `inv-item handbook-item ${isUnlocked ? '' : 'locked'}`;
                 card.innerHTML = `
                 <img src="/holylegend/images/items/${item.image}">
-                <div class="skill_level-badge">${item.name.split(' ')[1]}</div>
+                <div class="skill_level-badge">${item_level}</div>
                 `;
                 
                 card.onclick = () => {
                     const name = isUnlocked ? item.name : "???";
                     const desc = isUnlocked ? item.description : "尚未獲得此符文";
-                    alert(`【${name}】\n${desc}`);
+                    const Class = isUnlocked ? `適用職業：${item.requiredClassDetail.nickname}` : "適用職業：???"
+                    alert(`【${name}】\n${desc}\n${Class}`);
                 };
                 handbookGrid.appendChild(card);
             });
@@ -672,15 +712,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const romanMap = { 'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5 };
         // Regex: 匹配結尾的 I, II, III...
         const match = name.match(/^(.*)\s(I|II|III|IV|V)$/);
+        let category = "GENERAL_SKILL"
+
+        if (!name.includes('I')) {
+            category = "CLASS_SKILL"
+        }
         
         if (match) {
             return {
                 baseName: match[1], // "生命符文"
                 roman: match[2],    // "I"
-                level: romanMap[match[2]] // 1
+                level: romanMap[match[2]], // 1
+                category: category
             };
         }
-        return { baseName: name, roman: '', level: 0 };
+        return { baseName: name, roman: '', level: 0, category: category };
     }
 
 
