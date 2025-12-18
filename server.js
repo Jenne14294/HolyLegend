@@ -764,6 +764,7 @@ export default function initSocket(server) {
                         description: shopItem.description,
                         image: shopItem.image,
                         category: shopItem.category,
+                        requiredClass: shopItem.requiredClass,
                         effectType: shopItem.effectType,
                         effectValue: shopItem.effectValue,
                         isPercentage: shopItem.isPercentage,

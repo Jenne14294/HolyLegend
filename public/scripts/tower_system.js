@@ -226,6 +226,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         card.style.borderColor = '#8e44ad';
                         card.style.cursor = 'pointer';
 
+                        let typeColor = '#ccc';
+                        let typeLabel = '';
+
+                        if (skill.skillType === 'active') {
+                            typeColor = '#e74c3c'; // 紅色
+                            typeLabel = '【主動】';
+                        } else if (skill.skillType === 'buff') {
+                            typeColor = '#2ecc71'; // 綠色
+                            typeLabel = '【增益】';
+                        }
+
                         const consumeText = skill.consumeType && skill.consumeAmount
                             ? `${skill.consumeType.toUpperCase()}: ${skill.consumeAmount}`
                             : '無消耗';
@@ -234,16 +245,31 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div class="item-img-box" style="width: 48px; height: 48px;">
                                 <img src="/holylegend/images/items/${skill.image}" onerror="this.style.display='none';">
                             </div>
+
                             <div class="item-info" style="margin-top: 5px;">
-                                <div class="item-name" style="color: #e0aaff;">${skill.name}</div>
+                                <div class="item-name" style="color:${typeColor};">
+                                    ${typeLabel} ${skill.name}
+                                </div>
+
                                 <div style="font-size: 0.7rem; color: #ccc; line-height: 1.2;">
                                     ${skill.description || '無描述'}
                                 </div>
-                                <div style="font-size: 0.6rem; color: #8e44ad; margin-top: 2px;">
+
+                                <div style="font-size: 0.6rem; color:${typeColor}; margin-top: 2px;">
                                     消耗: ${consumeText}
                                 </div>
                             </div>
-                            <button class="btn-use" style="font-size:0.6rem; color:#8e44ad; margin-top:5px; width:100%;">釋放技能</button>
+
+                            <button class="btn-use"
+                                style="
+                                    font-size:0.6rem;
+                                    margin-top:5px;
+                                    width:100%;
+                                    color:${typeColor};
+                                    border-color:${typeColor};
+                                ">
+                                釋放技能
+                            </button>
                         `;
 
                         // 綁定點擊事件
@@ -1133,6 +1159,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const items = inventory.filter(item => item.category.includes('SKILL'))
 
+        console.log(items)
+
         items.forEach(item => {
             const existed_skill = skills.find(skill => item.id == skill.id)
 
@@ -1146,10 +1174,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     name: item.name, 
                     image: item.image, 
                     category: item.category, 
-                    quantity: item.quantity, 
-                    equipped: item.equipped,
+                    quantity: item.count, 
+                    equipped: 0,
                     description: item.description,
-                    requiredClass: item.requiredClassId,
+                    requiredClass: item.requiredClass,
                     effectType: item.effectType,
                     effectValue: item.effectValue,
                     isPercentage: item.isPercentage,
@@ -2119,6 +2147,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         image: item.image, 
                         description: item.description, 
                         category: item.category, 
+                        requiredClass: item.requiredClass,
                         effectType: item.effectType, 
                         effectValue: item.effectValue, 
                         isPercentage: item.isPercentage, 
