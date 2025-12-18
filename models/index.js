@@ -54,9 +54,9 @@ Equipment.belongsTo(Item, { foreignKey: 'slot6', as: 'itemSlot6' });
 Equipment.belongsTo(Item, { foreignKey: 'slot7', as: 'itemSlot7' });
 Equipment.belongsTo(Item, { foreignKey: 'slot8', as: 'itemSlot8' });
 
-Item.belongsTo(Class, { foreignKey: 'requiredClassId', as: 'requiredClassDetail' });
+Item.belongsTo(Class, { foreignKey: 'requiredClass', as: 'requiredClassDetail' });
 // 一個職業可以有多個專屬物品 (選用)
-Class.hasMany(Item, { foreignKey: 'requiredClassId', as: 'exclusiveItems' });
+Class.hasMany(Item, { foreignKey: 'requiredClass', as: 'exclusiveItems' });
 
 Skill.belongsTo(Item, { foreignKey: 'ItemId', as: 'item' });
 Item.hasOne(Skill, { foreignKey: 'ItemId', as: 'skill' });

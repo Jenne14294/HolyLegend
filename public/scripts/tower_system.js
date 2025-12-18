@@ -29,6 +29,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnItem = document.getElementById('btn-item'); // 道具按鈕
     let inventoryLayer = document.getElementById('inventory-layer'); // 背包層
 
+    const btnSkill= document.getElementById('btn-skill'); // 道具按鈕
+
     const state = window.Game.state; 
     const socket = window.Game.socket; 
 
@@ -69,6 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 初始化介面
     initBattleLogUI();
     initInventoryUI(); // ★ 初始化背包介面
+    initActiveSkillUI(); // 初始化技能介面
     initShakeStyle(); 
 
     // ===========================
@@ -142,6 +145,130 @@ document.addEventListener('DOMContentLoaded', () => {
             container.appendChild(div);
             inventoryLayer = div;
         }
+    }
+
+    function initActiveSkillUI() {
+        // 如果已經存在就不要重複建立
+        if (!document.getElementById('active-skill-layer')) {
+            const div = document.createElement('div');
+            div.id = 'active-skill-layer';
+            div.className = 'hidden';
+            // 使用與背包一致的遮罩樣式
+            div.style.cssText = "position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); z-index: 450; display: flex; justify-content: center; align-items: center;";
+            
+            div.innerHTML = `
+                <div class="shop-card-container" style="border-color: #9b59b6; height: 70dvh;">
+                    <!-- 1. 頂部：標題 (紫色系) -->
+                    <div class="shop-header" style="background-color: #8e44ad;">
+                        <span class="shop-title" style="color:white; font-size:1.5rem;">🪄 技能面板</span>
+                        <div style="font-size: 0.8rem; color: #eee; font-family: 'VT323';">已裝備技能</div>
+                    </div>
+
+                    <!-- 2. 中間：技能網格 (唯一可滑動區域) -->
+                    <div class="shop-body" style="flex: 1; overflow-y: auto; padding: 10px;">
+                        <div id="active-skill-grid" class="shop-grid" style="grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                            <!-- JS 會根據 state.Equipment 渲染技能卡片 -->
+                            <div style="color: #aaa; grid-column: 1/-1; text-align: center; margin-top: 20px;">未裝備任何技能</div>
+                        </div>
+                    </div>
+
+                    <!-- 3. 底部：關閉按鈕 -->
+                    <div class="shop-footer">
+                        <button id="btn-close-active-skill" class="btn-leave-shop" style="background-color:#7f8c8d; width: 100%;">關閉</button>
+                    </div>
+                </div>
+            `;
+
+            // 插入到容器中
+            const container = document.querySelector('.mobile-container') || document.body;
+            container.appendChild(div);
+
+            // 綁定關閉事件
+            document.getElementById('btn-close-active-skill').addEventListener('click', () => {
+                div.classList.add('hidden');
+            });
+        }
+    }
+
+    // --- 輔助函式：渲染已裝備技能到面板上 ---
+    async function renderActiveSkills() {
+        try {
+            const grid = document.getElementById('active-skill-grid');
+            if (!grid) return;
+
+            const response = await fetch('/holylegend/system/skill');
+            const result = await response.json();
+
+            if (result.success) {
+                const equipment = window.Game.state.Equipment || [];
+                const activeSkills = [];
+                const data = result.data;
+                const state = window.Game.state;
+
+                // 過濾出有效的裝備 ID
+                equipment.forEach(item => {
+                    if (!item) return;
+                    if (item.requiredClass == state.jobId && item.category == 'CLASS_SKILL') {
+                        const skill = data.find(skill => Number(skill.ItemId) === Number(item.id));
+                        if (skill) activeSkills.push(skill);
+                    }
+                });
+
+                if (activeSkills.length === 0) {
+                    grid.innerHTML = '<div style="color: #aaa; grid-column: 1/-1; text-align: center; margin-top: 20px;">目前沒有裝備技能符文</div>';
+                } else {
+                    grid.innerHTML = ''; // 先清空
+
+                    activeSkills.forEach(skill => {
+                        const card = document.createElement('div');
+                        card.classList.add('shop-item');
+                        card.style.padding = '8px';
+                        card.style.borderColor = '#8e44ad';
+                        card.style.cursor = 'pointer';
+
+                        const consumeText = skill.consumeType && skill.consumeAmount
+                            ? `${skill.consumeType.toUpperCase()}: ${skill.consumeAmount}`
+                            : '無消耗';
+
+                        card.innerHTML = `
+                            <div class="item-img-box" style="width: 48px; height: 48px;">
+                                <img src="/holylegend/images/items/${skill.image}" onerror="this.style.display='none';">
+                            </div>
+                            <div class="item-info" style="margin-top: 5px;">
+                                <div class="item-name" style="color: #e0aaff;">${skill.name}</div>
+                                <div style="font-size: 0.7rem; color: #ccc; line-height: 1.2;">
+                                    ${skill.description || '無描述'}
+                                </div>
+                                <div style="font-size: 0.6rem; color: #8e44ad; margin-top: 2px;">
+                                    消耗: ${consumeText}
+                                </div>
+                            </div>
+                            <button class="btn-use" style="font-size:0.6rem; color:#8e44ad; margin-top:5px; width:100%;">釋放技能</button>
+                        `;
+
+                        // 綁定點擊事件
+                        card.querySelector('button').onclick = () => {
+                            // 檢查玩家資源是否足夠
+                            if (skill.consumeType === 'mp' && state.playerMp < skill.consumeAmount) {
+                                return alert("魔力不足，無法釋放技能！");
+                            }
+                            if (skill.consumeType === 'hp' && state.playerHp < skill.consumeAmount) {
+                                return alert("生命不足，無法釋放技能！");
+                            }
+
+                            // 資源足夠才使用技能
+                            handleUseSkill(skill);
+                        };
+
+                        grid.appendChild(card);
+                    });
+                }
+            }
+        } catch (e) {
+            console.error(e);
+        }
+
+        document.getElementById('active-skill-layer').classList.remove('hidden');
     }
 
     // 輔助：新增日誌訊息
@@ -598,6 +725,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 inventoryLayer.classList.remove('hidden');
                 renderInventoryItems();
             }
+        });
+    }
+
+    if (btnSkill) {
+        btnSkill.addEventListener('click', () => {
+            // 直接呼叫全域的開啟函式
+            renderActiveSkills();
         });
     }
 
@@ -2132,6 +2266,189 @@ document.addEventListener('DOMContentLoaded', () => {
             // 如果沒使用，背包會再次打開，或者保持關閉
         }
     }
+
+    function handleUseSkill(skillId) {
+        // 0. 防呆檢查：如果遊戲結束、升級中或回合鎖定，不允許使用技能
+        if (state.isGameOver || state.processingLevelUp || state.isTurnLocked) {
+            alert("當前狀態無法使用技能！");
+            return;
+        }
+
+        // 1. 關閉技能選單
+        if (skillLayer) skillLayer.classList.add('hidden');
+
+        // 2. 單人模式：直接使用
+        if (!isMultiplayerMode) {
+            useSkillSinglePlayer(skillId);
+            return;
+        }
+
+        // 3. 多人模式：選取目標
+        if (socket) {
+            addBattleLog(`準備使用 ${skill.name}，請選擇對象...`, 'log-system');
+            alert(`請點擊目標以使用 ${skill.name}！\n(點擊自己角色可對自己使用)`);
+
+            // 目標卡片
+            const cards = teammatesContainer.querySelectorAll('.tm-card');
+            const selfArea = document.querySelector('.tower-player-status'); // 自己區域
+
+            const cleanup = () => {
+                cards.forEach(c => {
+                    c.removeEventListener('click', handleTargetSelect);
+                    c.classList.remove('selectable');
+                });
+                if (selfArea) {
+                    selfArea.removeEventListener('click', handleSelfSelect);
+                    selfArea.classList.remove('selectable');
+                }
+            };
+
+            const handleTargetSelect = (e) => {
+                const targetId = e.currentTarget.dataset.id;
+                
+                // 檢查技能目標類型
+                if (skill.targetType === 'self') {
+                    alert("這個技能只能用在自己！");
+                    return;
+                } else if (skill.targetType === 'enemy') {
+                    alert("請選擇敵人作為目標！"); // 可以改成敵人列表
+                    return;
+                }
+
+                if (confirm(`確定對隊友使用 ${skill.name} 嗎？`)) {
+                    waitingForTurn = true;
+                    updateControlsState();
+                    
+                    socket.emit('player_use_skill', { 
+                        skillId: skill.id,
+                        targetSocketId: targetId
+                    });
+                    cleanup();
+                }
+            };
+
+            const handleSelfSelect = () => {
+                if (skill.targetType !== 'self' && skill.targetType !== 'team') {
+                    alert("這個技能不能對自己使用！");
+                    return;
+                }
+
+                if (confirm(`確定對自己使用 ${skill.name} 嗎？`)) {
+                    waitingForTurn = true;
+                    updateControlsState();
+                    
+                    socket.emit('player_use_skill', { 
+                        skillId: skill.id,
+                        targetSocketId: socket.id
+                    });
+                    cleanup();
+                }
+            };
+
+            // 綁定事件 & 樣式
+            cards.forEach(c => {
+                c.classList.add('selectable');
+                c.addEventListener('click', handleTargetSelect);
+            });
+
+            if (selfArea) {
+                selfArea.classList.add('selectable');
+                selfArea.addEventListener('click', handleSelfSelect);
+            }
+        }
+    }
+
+    async function useSkillSinglePlayer(skill, target = null) {
+        if (!skill) return;
+
+        // 判斷目標，若沒有傳入 target，且技能是 self / team，則自動指向自己
+        let actionPerformed = false;
+        const activeSkillLayer = document.getElementById('active-skill-layer')
+
+        // 處理主動技能
+        if (skill.skillType === 'active') {
+            if (skill.DamageType === 'physical' || skill.DamageType === 'magical') {
+                const damageAIndex = defaultStat.indexOf(skill.DamageAStat)
+                const damageBIndex = defaultStat.indexOf(skill.DamageBStat)
+                // 計算傷害
+                const atkStatA = skill.DamageAStat ? state.AdditionState[damageAIndex] : 0;
+                const atkStatB = skill.DamageBStat ? state.AdditionState[damageBIndex] : 0;
+                
+                let damage = Math.round(atkStatA * skill.DamageARatio + atkStatB * skill.DamageBRatio);
+
+                const system_critRate = Math.random() * 100
+                CritRate = state.AdditionAttribute.crit + state.AdditionState[1] * 0.25 + state.AdditionState[3] * 0.15
+                let CritMultiply = 1;
+
+                if (CritRate > system_critRate) CritMultiply = 2;
+
+                let damageMultiply = 1 + Math.random() * 0.5
+                let AttackMultiply = 1 + (state.AdditionAttribute.skillBonus / 100)
+
+                damage = Math.round(damage * damageMultiply * CritMultiply * AttackMultiply);
+
+                state.enemyHp -= damage;
+
+                const consume = skill.consumeType ? skill.consumeAmount : 0
+                console.log(consume)
+                if (skill.consumeType == 'mp') {
+                    state.playerMp -= consume
+                    if (state.playerMp < 0) {
+                        state.playerMp = 0
+                    }
+                }
+
+                if (skill.consumeType == 'hp') {
+                    state.playerHp -= consume
+                    if (state.playerHp < 0) {
+                        state.playerHp = 0
+                    }
+                }
+
+                addBattleLog(`${window.Game.InitData.nickname} 使用 ${skill.name} 造成 ${damage} 點傷害`, 'log-player');
+                showDamageNumber(damage);
+                actionPerformed = true;
+            } else if (skill.DamageType === 'heal') {
+                const damageAIndex = defaultStat.indexOf(skill.DamageAStat)
+                const damageBIndex = defaultStat.indexOf(skill.DamageBStat)
+                // 計算傷害
+                const atkStatA = skill.DamageAStat ? state.additionState[damageAIndex] : 0;
+                const atkStatB = skill.DamageAStat ? state.additionState[damageBIndex] : 0;
+                const heal = Math.round(atkStatA * skill.DamageARatio + atkStatB * skill.DamageBRatio);
+                state.playerHp = Math.min(state.playerMaxHp, state.playerHp + heal);
+
+                addBattleLog(`${window.Game.InitData.nickname} 使用 ${skill.name} 回復 ${heal} 點生命`, 'log-player');
+                actionPerformed = true;
+            }
+        }
+            
+        // 處理增益技能 (buff)
+        if (skill.skillType === 'buff') {     
+                // 這裡假設有 applyBuff 函式，把 skill 的效果加到目標身上
+                applyBuff(target, skill);
+                addBattleLog(`${window.Game.player.name} 使用 ${skill.name} 能力提升了`, 'log-player');
+                actionPerformed = true;
+            }
+
+        if (actionPerformed) {
+            // 單人模式：使用技能算一回合
+            state.isTurnLocked = true;
+            activeSkillLayer.classList.add('hidden')
+            updateControlsState();
+            updateEnemyUI();
+
+            if (state.enemyHp <= 0) {
+                handleMonsterDeath();
+            } else {
+                setTimeout(enemyAttack, 100); // 單人怪物反擊
+            }
+
+            updatePlayerUI();
+        } else {
+            console.warn("技能未生效或目標錯誤", skill);
+        }
+    }
+    
 
     function updateLocalGoldDisplay() {
         if (goldDisplay) goldDisplay.innerText = state.goldCollected || 0;
