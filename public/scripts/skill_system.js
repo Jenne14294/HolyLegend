@@ -274,7 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (!item_level) item_level = ""
 
                     let item_error = ""
-                    if (item.requiredClass != state.jobId) item_error = "！"
+                    if (item.requiredClass != state.jobId && item.requiredClass !== null) item_error = "！"
 
                     slot.classList.add('filled');
                     slot.innerHTML = `
