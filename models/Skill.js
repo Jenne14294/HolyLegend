@@ -45,6 +45,10 @@ const Skill = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: true,
     },
+    DamageTime : {
+    type: DataTypes.INTEGER,
+      allowNull: true,
+    },
     targetType: {
       type: DataTypes.ENUM("self", "team", "enemy"),
       allowNull: true,
