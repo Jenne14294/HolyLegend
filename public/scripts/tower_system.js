@@ -1190,7 +1190,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     description: item.description,
                     requiredClass: item.requiredClass,
                     effectType: item.effectType,
-                    effectValue: buff.value,
+                    effectValue: item.value,
                     isPercentage: item.isPercentage,
 
                 })
