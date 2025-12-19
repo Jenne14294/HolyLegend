@@ -60,6 +60,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const defaultStat = ["STR", "DEX", "CON", "INT"]
 
+    const additionMap = {
+        CRIT: 'crit',
+        DODGE: 'dodge',
+        DMG_REDUCE: 'dmgReduce',
+        HP_BONUS: 'hpBonus',
+        MP_BONUS: 'mpBonus',
+        REGEN: 'regen',
+        MANA_RETURN: 'manaReflow',
+        ATK_BONUS: 'atkBonus',
+        SKILL_BONUS: 'skillBonus',
+        EXP_BONUS: 'expBonus',
+    };
+
 
     // 在 tower_system.js 的 DOMContentLoaded 裡面
     // 監聽事件系統結束後的通知
@@ -210,7 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (!item) return;
                     if (item.requiredClass == state.jobId && item.category == 'CLASS_SKILL') {
                         const skill = data.find(skill => Number(skill.ItemId) === Number(item.id));
-                        if (skill) activeSkills.push(skill);
+                        if (skill) activeSkills.push({...skill, image: item.image});
                     }
                 });
 
@@ -1074,7 +1087,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function initGame() {
         try {
-            const response = await fetch('/holylegend/system/status');
+            const response = await fetch('/holylegend/game_lobby/status');
             const result = await response.json();
             
             if (result.success) {
@@ -1159,8 +1172,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const items = inventory.filter(item => item.category.includes('SKILL'))
 
-        console.log(items)
-
         items.forEach(item => {
             const existed_skill = skills.find(skill => item.id == skill.id)
 
@@ -1179,7 +1190,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     description: item.description,
                     requiredClass: item.requiredClass,
                     effectType: item.effectType,
-                    effectValue: item.effectValue,
+                    effectValue: buff.value,
                     isPercentage: item.isPercentage,
 
                 })
@@ -1206,6 +1217,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
         state.Inventory = [];
+        state.Status = [];
     }
 
     function startNewFloor(isMultiplayerInit = false, specifiedMonster = null) {
@@ -1518,6 +1530,20 @@ document.addEventListener('DOMContentLoaded', () => {
             dmg = 0
         }
         state.isTurnLocked = false; // 解鎖
+
+        if (state.Status && state.Status.length > 0) {
+            for (let i = state.Status.length - 1; i >= 0; i--) {
+                const buff = state.Status[i];
+                if (buff.duration != null && buff.duration > 0) {
+                    buff.duration--;
+                    if (buff.duration <= 0) {
+                        // 移除buff效果
+                        removeBuffEffect(buff);
+                        state.Status.splice(i, 1);
+                    }
+                }
+            }
+        }
 
         playerTakeDamage(dmg);
         updateControlsState();
@@ -2082,6 +2108,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isDead) card.classList.add('player-dead'); // 可選：加樣式用
 
             const imgSrc = `/holylegend/images/items/${item.image}`;
+            const ClassName = item.requiredClassDetail ? `所需職業：${item.requiredClassDetail.nickname}` : ""
 
             card.innerHTML = `
                 <div class="item-img-box">
@@ -2090,7 +2117,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div class="item-info">
                     <div class="item-name">${item.name}</div>
-                    <div class="item-desc">${item.description}</div>
+                    <div class="item-desc">${item.description}\n${ClassName}</div>
                     <div class="item-price" style="color:${canAfford ? '#ffd700' : '#e74c3c'}">💰${item.price}</div>
                 </div>
                 <button class="btn-buy" ${isSoldOut || isDead ? 'disabled' : ''}>
@@ -2149,7 +2176,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         category: item.category, 
                         requiredClass: item.requiredClass,
                         effectType: item.effectType, 
-                        effectValue: item.effectValue, 
+                        effectValue: buff.value, 
                         isPercentage: item.isPercentage, 
                         count: 1 
                     }
@@ -2164,7 +2191,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function applyEffectSinglePlayer(item) {
         const type = item.effectType;
-        const val = item.effectValue;
+        const val = buff.value;
         const index = defaultStat.indexOf(type)
 
         if (STAT_CONFIG[index] !== undefined) {
@@ -2266,12 +2293,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (item.category === 'POTION') {
             if (item.effectType === 'HP') {
                 if (state.playerHp >= state.playerMaxHp) return alert("生命值已滿");
-                const heal = item.isPercentage ? Math.round(state.playerMaxHp * (item.effectValue/100)) : item.effectValue;
+                const heal = item.isPercentage ? Math.round(state.playerMaxHp * (buff.value/100)) : buff.value;
                 state.playerHp = Math.min(state.playerMaxHp, state.playerHp + heal);
                 used = true;
             } else if (item.effectType === 'MP') {
                 if (state.playerMp >= state.playerMaxMp) return alert("魔力值已滿");
-                const heal = item.isPercentage ? Math.round(state.playerMaxMp * (item.effectValue/100)) : item.effectValue;
+                const heal = item.isPercentage ? Math.round(state.playerMaxMp * (buff.value/100)) : buff.value;
                 state.playerMp = Math.min(state.playerMaxMp, state.playerMp + heal);
                 used = true;
             }
@@ -2311,80 +2338,6 @@ document.addEventListener('DOMContentLoaded', () => {
             useSkillSinglePlayer(skillId);
             return;
         }
-
-        // 3. 多人模式：選取目標
-        if (socket) {
-            addBattleLog(`準備使用 ${skill.name}，請選擇對象...`, 'log-system');
-            alert(`請點擊目標以使用 ${skill.name}！\n(點擊自己角色可對自己使用)`);
-
-            // 目標卡片
-            const cards = teammatesContainer.querySelectorAll('.tm-card');
-            const selfArea = document.querySelector('.tower-player-status'); // 自己區域
-
-            const cleanup = () => {
-                cards.forEach(c => {
-                    c.removeEventListener('click', handleTargetSelect);
-                    c.classList.remove('selectable');
-                });
-                if (selfArea) {
-                    selfArea.removeEventListener('click', handleSelfSelect);
-                    selfArea.classList.remove('selectable');
-                }
-            };
-
-            const handleTargetSelect = (e) => {
-                const targetId = e.currentTarget.dataset.id;
-                
-                // 檢查技能目標類型
-                if (skill.targetType === 'self') {
-                    alert("這個技能只能用在自己！");
-                    return;
-                } else if (skill.targetType === 'enemy') {
-                    alert("請選擇敵人作為目標！"); // 可以改成敵人列表
-                    return;
-                }
-
-                if (confirm(`確定對隊友使用 ${skill.name} 嗎？`)) {
-                    waitingForTurn = true;
-                    updateControlsState();
-                    
-                    socket.emit('player_use_skill', { 
-                        skillId: skill.id,
-                        targetSocketId: targetId
-                    });
-                    cleanup();
-                }
-            };
-
-            const handleSelfSelect = () => {
-                if (skill.targetType !== 'self' && skill.targetType !== 'team') {
-                    alert("這個技能不能對自己使用！");
-                    return;
-                }
-
-                if (confirm(`確定對自己使用 ${skill.name} 嗎？`)) {
-                    waitingForTurn = true;
-                    updateControlsState();
-                    
-                    socket.emit('player_use_skill', { 
-                        skillId: skill.id,
-                        targetSocketId: socket.id
-                    });
-                    cleanup();
-                }
-            };
-
-            // 綁定事件 & 樣式
-            cards.forEach(c => {
-                c.classList.add('selectable');
-                c.addEventListener('click', handleTargetSelect);
-            });
-
-            if (selfArea) {
-                selfArea.classList.add('selectable');
-                selfArea.addEventListener('click', handleSelfSelect);
-            }
-        }
     }
 
     async function useSkillSinglePlayer(skill, target = null) {
@@ -2396,28 +2349,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 處理主動技能
         if (skill.skillType === 'active') {
+            let total_damage = 0;
+
             if (skill.DamageType === 'physical' || skill.DamageType === 'magical') {
                 const damageAIndex = defaultStat.indexOf(skill.DamageAStat)
                 const damageBIndex = defaultStat.indexOf(skill.DamageBStat)
                 // 計算傷害
                 const atkStatA = skill.DamageAStat ? state.AdditionState[damageAIndex] : 0;
                 const atkStatB = skill.DamageBStat ? state.AdditionState[damageBIndex] : 0;
-                
-                let damage = Math.round(atkStatA * skill.DamageARatio + atkStatB * skill.DamageBRatio);
 
-                const system_critRate = Math.random() * 100
-                CritRate = state.AdditionAttribute.crit + state.AdditionState[1] * 0.25 + state.AdditionState[3] * 0.15
-                let CritMultiply = 1;
+                for (let i = 0; i < skill.DamageTime; i++) {
+                    
+                    let damage = Math.round(atkStatA * skill.DamageARatio + atkStatB * skill.DamageBRatio);
 
-                if (CritRate > system_critRate) CritMultiply = 2;
+                    const system_critRate = Math.random() * 100
+                    CritRate = state.AdditionAttribute.crit + state.AdditionState[1] * 0.25 + state.AdditionState[3] * 0.15
+                    let CritMultiply = 1;
 
-                let damageMultiply = 1 + Math.random() * 0.5
-                let AttackMultiply = 1 + (state.AdditionAttribute.skillBonus / 100)
+                    if (CritRate > system_critRate) CritMultiply = 2;
 
-                damage = Math.round(damage * damageMultiply * CritMultiply * AttackMultiply);
+                    let damageMultiply = 1 + Math.random() * 0.5
+                    let AttackMultiply = 1 + (state.AdditionAttribute.skillBonus / 100)
 
-                state.enemyHp -= damage;
+                    damage = Math.round(damage * damageMultiply * CritMultiply * AttackMultiply);
 
+                    state.enemyHp -= damage;
+                    total_damage += damage;
+                }
+
+                damage = total_damage;
                 const consume = skill.consumeType ? skill.consumeAmount : 0
 
                 if (skill.consumeType == 'mp') {
@@ -2441,9 +2401,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const damageAIndex = defaultStat.indexOf(skill.DamageAStat)
                 const damageBIndex = defaultStat.indexOf(skill.DamageBStat)
                 // 計算傷害
-                const atkStatA = skill.DamageAStat ? state.additionState[damageAIndex] : 0;
-                const atkStatB = skill.DamageAStat ? state.additionState[damageBIndex] : 0;
-                const heal = Math.round(atkStatA * skill.DamageARatio + atkStatB * skill.DamageBRatio);
+                const atkStatA = skill.DamageAStat ? state.AdditionState[damageAIndex] : 0;
+                const atkStatB = skill.DamageBStat ? state.AdditionState[damageBIndex] : 0;
+                
+                let skillBonus = 1 + (state.AdditionAttribute.skillBonus / 100)
+                let heal = Math.round((atkStatA * skill.DamageARatio + atkStatB * skill.DamageBRatio) * skillBonus);
                 state.playerHp = Math.min(state.playerMaxHp, state.playerHp + heal);
 
                 addBattleLog(`${window.Game.InitData.nickname} 使用 ${skill.name} 回復 ${heal} 點生命`, 'log-player');
@@ -2453,10 +2415,10 @@ document.addEventListener('DOMContentLoaded', () => {
             
         // 處理增益技能 (buff)
         if (skill.skillType === 'buff') {     
-                // 這裡假設有 applyBuff 函式，把 skill 的效果加到目標身上
-                applyBuff(target, skill);
-                addBattleLog(`${window.Game.player.name} 使用 ${skill.name} 能力提升了`, 'log-player');
-                actionPerformed = true;
+            // 這裡假設有 applyBuff 函式，把 skill 的效果加到目標身上
+            applyBuff(skill);
+            // addBattleLog(`${window.Game.player.name} 使用 ${skill.name} 能力提升了`, 'log-player');
+            actionPerformed = true;
             }
 
         if (actionPerformed) {
@@ -2476,6 +2438,87 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             console.warn("技能未生效或目標錯誤", skill);
         }
+    }
+
+    async function applyBuff(skill) {
+        if (!skill || skill.skillType.toLowerCase() !== 'buff') return;
+
+        if (!state.Status) state.Status = [];
+
+        try {
+            // 從伺服器抓取技能對應的狀態
+            const response = await fetch('/holylegend/system/status');
+            const result = await response.json();
+
+            if (!result.success) return;
+
+            const data = result.data;
+            const statusList = data.filter(status => status.skillId == skill.id);
+
+            statusList.forEach(status => {
+                // 檢查是否已存在於目標狀態
+                const existing = state.Status.find(s => s.id === status.id && s.targetId === target.id);
+                if (existing) {
+                    existing.duration = status.duration; // 重置回合數
+                } else {
+                    buff = status
+                    state.Status.push(status);
+
+                    // 套用 STAT 效果
+                    if (buff.effectType === 'STAT') {
+                        if (!state.AdditionState) state.AdditionState = {};
+                        const key = defaultStat.indexOf(buff.statKey);
+                        
+                        if (key != -1) {
+                            if (buff.valueType === 'Add') {
+                                state.AdditionState[key] = (state.AdditionState[key] || 0) + buff.value;
+                            } else if (buff.valueType === 'Multiply') {
+                                state.AdditionState[key] = (state.AdditionState[key] || 1) * buff.value;
+                            }
+                        } else {
+                            const key = additionMap[buff.statKey];
+                            if (key) {
+                                if (buff.valueType === 'Add') {
+                                    state.AdditionAttribute[key] += buff.value;
+                                } else if (buff.valueType == 'Multiply') {
+                                    state.AdditionAttribute[key] = state.AdditionAttribute * buff.value
+                                }
+                            }
+                        }
+                    }
+
+                    // 套用技能加成
+                    if (buff.effectType === 'SKILL') {
+                        if (!state.skillBuffs) state.skillBuffs = {};
+                        state.skillBuffs[buff.statKey] = buff.value;
+                    }
+
+                    addBattleLog(`${window.Game.InitData.nickname || '目標'} 獲得狀態「${buff.name}」(${buff.duration} 回合)`, 'log-buff');
+                }
+            });
+        } catch (e) {
+            console.error("伺服器錯誤", e);
+        }
+    }
+
+    function removeBuffEffect(buff) {
+        let key = additionMap[buff.statKey]
+        if (key) {
+            if (buff.valueType === 'Add') {
+                state.AdditionAttribute[key] -= buff.value;
+            } else if (buff.valueType === 'Multiply') {
+                state.AdditionAttribute[key] /= buff.value;
+            }
+        } else {
+            key = defaultStat.indexOf(buff.statKey)
+
+            if (buff.valueType === 'Add') {
+                state.AdditionState[key] -= buff.value;
+            } else if (buff.valueType === 'Multiply') {
+                state.AdditionState[key] /= buff.value;
+            }
+        }
+        
     }
     
 

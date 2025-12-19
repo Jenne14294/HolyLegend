@@ -609,6 +609,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const card = document.createElement('div');
                 let item_level = item.name.split(' ')[1]
+                let skillType = ""
+                if (item.skill && item.skill.skillType == 'active') skillType = '主動技能';
+                else if (item.skill && item.skill.skillType == 'buff') skillType = '增益技能';
+                let description = item.skill ? `[${skillType}] ${item.description}` : item.description
                 if (!item.name.includes('I')) {
                     item_level = ""
                 }
@@ -621,7 +625,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 card.onclick = () => {
                     const ClassName = item.requiredClassDetail ? `適用職業：${item.requiredClassDetail.nickname}` : ""
                     const name = isUnlocked ? item.name : "???";
-                    const desc = isUnlocked ? item.description : "尚未獲得此符文";
+                    const desc = isUnlocked ? description : "尚未獲得此符文";
                     const Class = isUnlocked ? ClassName : ""
                     alert(`【${name}】\n${desc}\n${Class}`);
                 };

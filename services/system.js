@@ -33,6 +33,10 @@ const getItems = async () => {
           as: 'requiredClassDetail',
           attributes: ['id', 'name', 'nickname'], // 視需要調整
           required: false // requiredClassId 為 null 的道具也會撈出
+        },
+        {
+          model: models.Skill,
+          as: 'skill',
         }
       ]
     });
@@ -66,4 +70,20 @@ const getSkills = async () => {
     }
 };
 
-export {getRewards, getEvents, getItems, getEnemies, getSkills}
+const getStatus = async () => {
+  try {
+      const Status = await models.Status.findAll({
+        include: [
+        {
+          model: models.Skill,
+          as: 'skill',
+        }]
+      });
+      return Status;
+      }   
+  catch (err) {  
+      throw err;
+    }
+};
+
+export {getRewards, getEvents, getItems, getEnemies, getSkills, getStatus}

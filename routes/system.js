@@ -5,7 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url'; // 必需：用於 ES Modules 定義 __dirname
 
 // 引入您的服務層 (Service)
-import { getRewards, getEvents, getItems, getEnemies, getSkills } from '../services/system.js';
+import { getRewards, getEvents, getItems, getEnemies, getSkills, getStatus } from '../services/system.js';
 import { getUser, verifyToken } from '../services/accountAuth.js';
 import { getClass, getInventory, getEquipments } from '../services/user.js';
 import {updateUserAvatar} from '../services/account.js';
@@ -78,61 +78,6 @@ router.get('/rewards', async (req, res, next) => {
   }
 });
 
-router.get('/status', verifyToken, async (req, res, next) => {
-  try {
-    // 1. 根據 Token (req.user.id) 撈取完整玩家資料
-    const userData = await getUser({ id: req.user.id });
-
-    if (!userData) {
-      return res.redirect('/holylegend/'); // 找不到人就踢回登入
-    }
-
-    const classData = await getClass({ id: userData.jobId})
-
-    // 2. 資料整形
-    const currentClass = userData.UserClasses.find(
-      uc => uc.jobId === userData.jobId
-    );
-    
-    // 計算屬性
-    const level = currentClass.level || 1;
-    const hp = Math.round(classData[0].dataValues.HP + ((level - 1) * (classData[0].dataValues.STR * 0.3 + classData[0].dataValues.CON * 0.7)))
-    const mp = Math.round(classData[0].dataValues.MP + ((level - 1) * (classData[0].dataValues.INT * 0.75)))
-
-    const renderData = {
-        id: userData.id,
-        nickname: userData.nickName,
-        classId: userData.jobId,
-        role: userData.class.nickname,
-        level: level,
-        exp: currentClass.currentEXP || 0,
-        needEXP: 50 + (level - 1) * 20,
-        hp: hp,
-        maxHp: hp,
-        mp: mp,
-        maxMp: mp,
-        currentFloor: 1,
-        gold: 0,
-        AdditionState: [
-          classData[0].dataValues.STR,
-          classData[0].dataValues.DEX,
-          classData[0].dataValues.CON,
-          classData[0].dataValues.INT
-        ],
-        avatar: userData.avatar || `/holylegend/images/classes/${classData[0].dataValues.name}_1.png`
-    };
-
-    res.json({
-        success: true,
-        data: renderData
-    });
-
-  } catch (err) {
-    console.error(err);
-    next(err);
-  }
-});
-
 router.get('/classes', verifyToken, async (req, res, next) => {
   try {
     const userData = await getUser({id: req.user.id})
@@ -193,6 +138,16 @@ router.get('/skill', async (req, res, next) => {
   try {
     const skills = await getSkills();
     res.json({"success":true, data: skills});
+  } catch (err) {
+    console.error(err);
+    next(err);
+  }
+});
+
+router.get('/status', async (req, res, next) => {
+  try {
+    const status = await getStatus();
+    res.json({"success":true, data: status});
   } catch (err) {
     console.error(err);
     next(err);

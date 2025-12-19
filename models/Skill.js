@@ -45,8 +45,8 @@ const Skill = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: true,
     },
-    DamageTime : {
-    type: DataTypes.INTEGER,
+    DamageTime: {
+      type: DataTypes.INTEGER,
       allowNull: true,
     },
     targetType: {

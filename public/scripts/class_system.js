@@ -169,7 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await res.json();
 
             if (result.success) {
-                const res = await fetch('/holylegend/system/status');
+                const res = await fetch('/holylegend/game_lobby/status');
                 const result = await res.json();
 
                 if (result.success) {

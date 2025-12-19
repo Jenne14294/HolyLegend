@@ -55,6 +55,61 @@ router.get('/', verifyToken, async (req, res, next) => {
   }
 });
 
+router.get('/status', verifyToken, async (req, res, next) => {
+  try {
+    // 1. 根據 Token (req.user.id) 撈取完整玩家資料
+    const userData = await getUser({ id: req.user.id });
+
+    if (!userData) {
+      return res.redirect('/holylegend/'); // 找不到人就踢回登入
+    }
+
+    const classData = await getClass({ id: userData.jobId})
+
+    // 2. 資料整形
+    const currentClass = userData.UserClasses.find(
+      uc => uc.jobId === userData.jobId
+    );
+    
+    // 計算屬性
+    const level = currentClass.level || 1;
+    const hp = Math.round(classData[0].dataValues.HP + ((level - 1) * (classData[0].dataValues.STR * 0.3 + classData[0].dataValues.CON * 0.7)))
+    const mp = Math.round(classData[0].dataValues.MP + ((level - 1) * (classData[0].dataValues.INT * 0.75)))
+
+    const renderData = {
+        id: userData.id,
+        nickname: userData.nickName,
+        classId: userData.jobId,
+        role: userData.class.nickname,
+        level: level,
+        exp: currentClass.currentEXP || 0,
+        needEXP: 50 + (level - 1) * 20,
+        hp: hp,
+        maxHp: hp,
+        mp: mp,
+        maxMp: mp,
+        currentFloor: 1,
+        gold: 0,
+        AdditionState: [
+          classData[0].dataValues.STR,
+          classData[0].dataValues.DEX,
+          classData[0].dataValues.CON,
+          classData[0].dataValues.INT
+        ],
+        avatar: userData.avatar || `/holylegend/images/classes/${classData[0].dataValues.name}_1.png`
+    };
+
+    res.json({
+        success: true,
+        data: renderData
+    });
+
+  } catch (err) {
+    console.error(err);
+    next(err);
+  }
+});
+
 router.post('/save_status', verifyToken, async(req, res, next) => {
   try {
     // 1. 抓取完整玩家資料

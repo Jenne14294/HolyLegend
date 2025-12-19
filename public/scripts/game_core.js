@@ -17,6 +17,7 @@ window.Game = {
         role: 'novice', // 記錄當前職業
         avatar: '',
         AdditionState: [],
+        Status: [],
         AdditionEXP: 0,
         AdditionAttribute: {
             "dodge": 0,
@@ -266,7 +267,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            const response = await fetch('/holylegend/system/status');
+            const response = await fetch('/holylegend/game_lobby/status');
             const result = await response.json();
             
             if (result.success) {
