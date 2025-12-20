@@ -314,7 +314,7 @@ export default function initSocket(server) {
 
             const hasActed = battle.pendingActions.find(a => a.socketId === socket.id);
             if (!hasActed) {
-                battle.pendingActions.push({ socketId: socket.id, damage: damage });
+                battle.pendingActions.push({ socketId: socket.id, damage: damage, type: 'attack' });
             }
 
             // 檢查是否「所有存活玩家」都已行動
@@ -409,6 +409,8 @@ export default function initSocket(server) {
                         battle.alivePlayerIds.push(finalTargetId);
                     }
 
+                    io.to(tId).emit('player_revived', { hp: targetState.hp, mp: targetState.mp });
+
                     used = true;
                 }
             }
@@ -446,6 +448,120 @@ export default function initSocket(server) {
                 socket.emit('item_use_result', { success: false, msg: "無法使用此道具" });
             }
         });
+        
+
+        // 3. ★ 新增：玩家施放技能 ★
+        socket.on('player_use_skill', async (data) => {
+            const { skill, targetSocketId } = data;
+
+            console.log(data)
+            if (!currentRoomId || !battles[currentRoomId]) return;
+            const battle = battles[currentRoomId];
+            const pCombatState = battle.playerStates[socket.id];
+            const pRoomData = rooms[currentRoomId].find(p => p.socketId === socket.id);
+
+            // 防呆：死人、正在結算、或本回合已行動者不可施法
+            if (battle.isEnding || battle.processingTurn || pCombatState?.isDead) return;
+            if (battle.pendingActions.find(a => a.socketId === socket.id)) return;
+
+            try {
+                // 從資料庫讀取技能資訊 (包含關聯的增益效果)
+                if (!skill) return;
+
+                // 扣除消耗
+                if (skill.consumeType === 'MP') {
+                    pCombatState.mp -= skill.consumeAmount;
+                    pRoomData.state.playerMp = pCombatState.mp;
+                }
+
+                let totalSkillDamage = 0;
+                let targets = [];
+
+                // 目標過濾邏輯
+                if (targetSocketId === 'enemy') {
+                    targets = ['enemy'];
+                } else if (targetSocketId === 'team') {
+                    targets = [...battle.alivePlayerIds]; // 全體存活隊員
+                } else {
+                    targets = [targetSocketId]; // 單一目標 (自己或指定隊友)
+                }
+
+                socket.emit('skill_cast_result', { 
+                    success: true, 
+                    skillName: skill.name 
+                });
+
+                targets.forEach(tId => {
+                    if (tId === 'enemy') {
+                        // 傷害公式計算 (基於技能表定義的屬性與倍率)
+                        const statA = pRoomData.state.AdditionState[STAT_MAP[skill.DamageAStat]] || 0;
+                        const statB = pRoomData.state.AdditionState[STAT_MAP[skill.DamageBStat]] || 0;
+                        const baseDmg = (statA * skill.DamageARatio) + (statB * skill.DamageBRatio);
+
+                        const system_critRate = Math.random() * 100
+                        let critRate = pRoomData.state.AdditionAttribute.crit + (pRoomData.state.AdditionState.DEX * 0.25 + pRoomData.state.AdditionState.INT * 0.15)
+                        let CritMultiply = 1;
+
+                        if (system_critRate < critRate)
+                        {
+                            CritMultiply = 2;
+                        }
+                        
+                        let skillBonus =  1 + (pRoomData.state.AdditionAttribute.skillBonus / 100)
+                        let damageMultiply = 1 + Math.random() * 0.5
+
+                        totalSkillDamage = Math.round(baseDmg * skillBonus * damageMultiply * CritMultiply)
+                    } else {
+                        const targetCombat = battle.playerStates[tId];
+                        const targetRoom = rooms[currentRoomId].find(p => p.socketId === tId);
+                        if (!targetCombat) return;
+
+                        // 處理治療效果 (HEAL)
+                        if (skill.effectType === 'HEAL') {
+                            const statA = pRoomData.state.AdditionState[STAT_MAP[skill.DamageAStat]] || 0;
+                            const statB = pRoomData.state.AdditionState[STAT_MAP[skill.DamageBStat]] || 0;
+
+                            const heal = Math.round((statA * skill.DamageARatio) + (statB * skill.DamageBRatio));
+                            targetCombat.hp = Math.min(targetCombat.maxHp, targetCombat.hp + heal);
+                            if (targetRoom) targetRoom.state.playerHp = targetCombat.hp;
+                        }
+
+                        // 處理復活效果 (REVIVE)
+                        // if (skill.effectType === 'REVIVE' && targetCombat.isDead) {
+                        //     targetCombat.isDead = false;
+                        //     targetCombat.hp = Math.round(targetCombat.maxHp * 0.3);
+                        //     if (!battle.alivePlayerIds.includes(tId)) battle.alivePlayerIds.push(tId);
+                        //     io.to(tId).emit('player_revived', { hp: targetCombat.hp, mp: targetCombat.mp });
+                        // }
+
+                        // 處理 Buffs (Status)
+                        // if (skill.buffs && skill.buffs.length > 0) {
+                        //     targetCombat.activeBuffs = targetCombat.activeBuffs || [];
+                        //     skill.buffs.forEach(b => {
+                        //         targetCombat.activeBuffs.push({ name: b.name, type: b.type, value: b.value, duration: b.duration });
+                        //     });
+                        // }
+                    }
+                });
+
+                // 將動作加入待結算列表
+                battle.pendingActions.push({ 
+                    socketId: socket.id, 
+                    damage: totalSkillDamage, 
+                    type: 'skill', 
+                    skillName: skill.name 
+                });
+
+                // 如果全體行動完畢則結算回合
+                if (battle.pendingActions.length >= battle.alivePlayerIds.length) {
+                    await processTurn(currentRoomId);
+                }
+
+            } catch (error) {
+                console.error('技能處理失敗:', error);
+            }
+        });
+
 
         // =================================================
         //  ★ 新增：多人事件處理 (核心邏輯)

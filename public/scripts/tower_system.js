@@ -662,6 +662,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert(result.msg);
             }
         });
+
+        socket.on('skill_cast_result', (res) => {
+            console.log("技能發動確認:", res);
+            state.waitingForTurn = false; // 停止網路等待
+
+            if (res.success) {
+                // 成功加入待結算，此時鎖定「本回合行動」，直到回合結束前不能再按
+                state.isTurnLocked = true; 
+            } else {
+                // 失敗（如 MP 不足），解除鎖定讓玩家重新選擇
+                state.isTurnLocked = false;
+                alert(res.msg || "施法失敗");
+            }
+        });
     }
 
     // ===========================
@@ -701,7 +715,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 接受
                 socket.emit('respond_ready', { 
                     ready: true, 
-                    latestState: window.Game.state // 把乾淨的數值傳回去
+                    latestState: window.Game.state, // 把乾淨的數值傳回去
+                    nickname: window.Game.InitData.nickname
                 });
                 myReadyStatus = true;
                 btnReady.innerText = "取消準備";
@@ -1047,13 +1062,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 更新按鈕外觀 (冷卻/等待中)
     function updateControlsState() {
-        if (waitingForTurn || state.isTurnLocked) {
-            btnAttack.style.filter = "grayscale(100%)";
-            btnAttack.style.transform = "translateY(2px)";
-        } else {
-            btnAttack.style.filter = "";
-            btnAttack.style.transform = "";
-        }
+        const btnAtk = document.getElementById('btn-attack');
+        const btnSkill = document.getElementById('btn-skill');
+        const btnItem = document.getElementById('btn-item');
+
+        // 判斷是否應該鎖定 (回合結算中、等待伺服器回傳、或是已經行動過)
+        const isLocked = state.isTurnLocked || state.waitingForTurn || state.isGameOver;
+
+        if (btnAtk) btnAtk.disabled = isLocked;
+        if (btnSkill) btnSkill.disabled = isLocked;
+        if (btnItem) btnItem.disabled = isLocked;
+
+        // 視覺上增加灰階或半透明效果 (透過 CSS 處理，這裡確保 class 有加上)
+        [btnAtk, btnSkill, btnItem].forEach(btn => {
+            if (btn) {
+                if (isLocked) { 
+                    btn.classList.add('btn-disabled'); 
+                    btn.style.filter = "grayscale(100%)";
+                    btn.style.transform = "translateY(2px)";
+                } else {
+                    btn.classList.remove('btn-disabled');
+                    btn.style.filter = "";
+                    btn.style.transform = "";
+                }
+            }
+        });
     }
 
     async function resetBattle() {
@@ -1547,7 +1580,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         playerTakeDamage(dmg);
         updateControlsState();
-
+        
     }
 
     function showDamageNumber(num) {
@@ -2176,7 +2209,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         category: item.category, 
                         requiredClass: item.requiredClass,
                         effectType: item.effectType, 
-                        effectValue: buff.value, 
+                        effectValue: item.value, 
                         isPercentage: item.isPercentage, 
                         count: 1 
                     }
@@ -2323,7 +2356,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function handleUseSkill(skillId) {
+    function handleUseSkill(skill) {
         // 0. 防呆檢查：如果遊戲結束、升級中或回合鎖定，不允許使用技能
         if (state.isGameOver || state.processingLevelUp || state.isTurnLocked) {
             alert("當前狀態無法使用技能！");
@@ -2335,12 +2368,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 2. 單人模式：直接使用
         if (!isMultiplayerMode) {
-            useSkillSinglePlayer(skillId);
+            useSkillSinglePlayer(skill);
             return;
+        } else {
+            let targetId;
+            let logSuffix = '';
+
+            if (skill.targetType === 'self') {
+                targetId = socket.id; // 對象是自己
+                logSuffix = ' (對自己)';
+            } else if (skill.targetType === 'team') {
+                targetId = 'team'; // 對象是全體隊員
+                logSuffix = ' (全隊)';
+            } else {
+                targetId = 'enemy'; // 對象是怪物
+                logSuffix = '';
+            }
+            
+            // 鎖定回合狀態
+            state.waitingForTurn = true;
+            if (typeof updateControlsState === 'function') updateControlsState();
+
+            // ★ 直接發送施放請求，不需點擊任何東西
+            socket.emit('player_use_skill', { 
+                skill: skill, 
+                targetSocketId: targetId 
+            });
+
+            addBattleLog(`施放技能: ${skill.name}${logSuffix}`, 'log-player');
+
+            const activeSkillLayer = document.getElementById('active-skill-layer')
+            activeSkillLayer.classList.add('hidden')
         }
     }
 
-    async function useSkillSinglePlayer(skill, target = null) {
+    async function useSkillSinglePlayer(skill) {
         if (!skill) return;
 
         // 判斷目標，若沒有傳入 target，且技能是 self / team，則自動指向自己
@@ -2518,7 +2580,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.AdditionState[key] /= buff.value;
             }
         }
-        
     }
     
 

@@ -168,6 +168,7 @@ router.post('/save_status', verifyToken, async(req, res, next) => {
 
 router.post('/save_skill', verifyToken, async(req, res, next) => {
   try {
+    console.log(req.user.id)
     // 1. 抓取完整玩家資料
     const userData = await getUser({ id: req.user.id });
 

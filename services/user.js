@@ -153,6 +153,8 @@ const updateUserEquipment = async (userId, data) => {
             
         });
 
+        console.log(CleanData, userId)
+
         // Sequelize: 更新資料
         // 回傳值是一個陣列，第一個元素是「受影響的行數」
         const [updatedRows] = await models.Equipment.update(
@@ -168,7 +170,7 @@ const updateUserEquipment = async (userId, data) => {
                 
             },
             {
-                where: { id: userId } // 指定更新條件
+                where: { userId: userId } // 指定更新條件
             }
         );
 
