@@ -706,16 +706,15 @@ document.addEventListener('DOMContentLoaded', () => {
             // 這裡假設如果 team-status-text 顯示有房間號，就是多人
             const teamText = document.querySelector('.team-status-text');
             const isInTeam = teamText && teamText.innerText.includes('房號');
-            let tm_container = document.getElementById('teammates-container')
             btnReady.style.backgroundColor = ""; // 恢復原色
 
             if (isInTeam) {
                 // --- 多人模式 ---
                 // 發送請求給 Server，Server 會廣播 init_ready_check 給全隊
-                tm_container.classList.remove('hidden')
+                teammatesContainer.classList.remove('hidden')
                 socket.emit('request_tower_start');
             } else {
-                tm_container.classList.add('hidden')
+                teammatesContainer.classList.add('hidden')
                 // --- 單人模式 (保持原樣) ---
                 isMultiplayerMode = false;
                 lobbyLayer.classList.add('hidden');
@@ -1323,7 +1322,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
             }
         }
-        
+
         updateEnemyUI();
         updateTopBarUI();
         updatePlayerUI();
@@ -1664,20 +1663,27 @@ document.addEventListener('DOMContentLoaded', () => {
     // 狀態列表
     function renderStatusUI() {
         let statusContainer = document.getElementById('status-container'); 
-        statusContainer.innerHTML = ``
+        statusContainer.innerHTML = ''; // 清空內部卡片，但保留容器本身
+
+        if (state.Status.length === 0) {
+            // 顯示空狀態提示
+            const emptyCard = document.createElement('div');
+            emptyCard.className = 'status-card empty';
+            emptyCard.innerText = '目前沒有任何狀態';
+            statusContainer.appendChild(emptyCard);
+            return;
+        }
 
         state.Status.forEach(s => {
-            // 存起來
             const imgSrc = s.image ? `/holylegend/images/items/${s.image}` : '/holylegend/images/items/rune_healing.png';
-            
             const card = document.createElement('div');
             card.className = 'status-card';
-            
+
             card.innerHTML = `
-            <div class="status-box">
-            <img src="${imgSrc}">
-            <div class="status-duration">${s.duration}</div>
-            </div>
+                <div class="status-box">
+                    <img src="${imgSrc}">
+                    <div class="status-duration">${s.duration}</div>
+                </div>
             `;
             card.onclick = () => showStatusDetail(s);
 
