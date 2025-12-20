@@ -497,7 +497,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (result.playerBuff) {
                 // 同步自己的血量 (Server Authority 校正)
                 // 雖然本地有 playerTakeDamage，但用 Server 的值校正更準
-                console.log(result.playerBuff)
                 const myStates = result.playerBuff[socket.id];
 
                 if (myStates) {
@@ -1309,6 +1308,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.src = '/holylegend/images/enemies/slime.png'; 
             };
         }
+
+        if (state.Status && state.Status.length > 0) {
+            for (let i = state.Status.length - 1; i >= 0; i--) {
+                const buff = state.Status[i];
+                if (buff.duration != null && buff.duration > 0) {
+                    buff.duration--;
+                    if (buff.duration <= 0) {
+                        // 移除buff效果
+                        removeBuffEffect(buff);
+                        state.Status.splice(i, 1);
+                    }
+                }
+                
+            }
+        }
+        
         updateEnemyUI();
         updateTopBarUI();
         updatePlayerUI();

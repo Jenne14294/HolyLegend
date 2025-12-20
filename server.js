@@ -484,7 +484,7 @@ export default function initSocket(server) {
                 if (!skill) return;
 
                 // 扣除消耗
-                if (skill.consumeType === 'MP') {
+                if (skill.consumeType === 'mp') {
                     pCombatState.mp -= skill.consumeAmount;
                     pRoomData.state.playerMp = pCombatState.mp;
                 }
@@ -500,11 +500,6 @@ export default function initSocket(server) {
                 } else {
                     targets = [targetSocketId]; // 單一目標 (自己或指定隊友)
                 }
-
-                socket.emit('skill_cast_result', { 
-                    success: true, 
-                    skillName: skill.name 
-                });
 
                 targets.forEach(async tId => {
                     if (tId === 'enemy') {
@@ -560,7 +555,12 @@ export default function initSocket(server) {
 
                             tRoomData.forEach(m => {
                                 if(m.socketId == tId) {
-                                    m.state.Status.push(JSON.parse(JSON.stringify(buff)))
+                                    const existing = m.state.Status.find(s => s.id === buff.id);
+                                    if (existing) {
+                                        existing.duration = buff.duration; // 重置回合數
+                                    } else {
+                                        m.state.Status.push(JSON.parse(JSON.stringify(buff)))
+                                    }
 
                                     // 套用 STAT 效果
                                     if (buff.effectType === 'STAT') {
@@ -589,6 +589,11 @@ export default function initSocket(server) {
                     socketId: socket.id, 
                     damage: totalSkillDamage, 
                     type: 'skill', 
+                    skillName: skill.name 
+                });
+
+                socket.emit('skill_cast_result', { 
+                    success: true, 
                     skillName: skill.name 
                 });
 
@@ -1199,6 +1204,8 @@ export default function initSocket(server) {
 
             if (!battle || !room) return;
 
+            console.log(room[0].state.Status)
+
 
             battle.processingTurn = true; // 上鎖
 
@@ -1308,7 +1315,6 @@ export default function initSocket(server) {
             // 3. 準備回傳所有人的最新狀態
             const playersStatusUpdate = {}; 
             const PlayerStatus = {};
-            const PlayerAdditionAttribute = {};
 
             Object.keys(battle.playerStates).forEach(sid => { 
                 playersStatusUpdate[sid] = { 
@@ -1322,6 +1328,8 @@ export default function initSocket(server) {
                 room.forEach(p => {
                     if (p.socketId == sid) {
                         PlayerStatus[sid] = p.state
+                        console.log(p.state.Status)
+                        console.log()
                     }
                 })
             });
