@@ -45,6 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let myReadyStatus = false; // 記錄自己的準備狀態
     let shopSpendingAccumulator = 0;   // ★ 新增：商店消費累計 (用於防止雙重扣款)
     let pendingBuyItem = null; // 暫存正在購買的物品
+    let isEnabledQuickItem = false;
 
     // 獎勵圖示
     const REWARD_ICONS = {
@@ -233,12 +234,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
 
+                window.Game.battleSkill = []
+
                 if (activeSkills.length === 0) {
                     grid.innerHTML = '<div style="color: #aaa; grid-column: 1/-1; text-align: center; margin-top: 20px;">目前沒有裝備技能符文</div>';
                 } else {
                     grid.innerHTML = ''; // 先清空
 
                     activeSkills.forEach(skill => {
+                        window.Game.battleSkill.push(skill)
+
                         const card = document.createElement('div');
                         card.classList.add('shop-item');
                         card.style.padding = '8px';
@@ -437,6 +442,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         socket.on('turn_result', (result) => {
+            isEnabledQuickItem = false;
             const enemyImg = document.getElementById('enemy-img');
             if(enemyImg) {
                 enemyImg.style.transform = 'scale(0.8)';
@@ -720,6 +726,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 發送請求給 Server，Server 會廣播 init_ready_check 給全隊
                 teammatesContainer.classList.remove('hidden')
                 socket.emit('request_tower_start');
+                isEnabledQuickItem = false;
             } else {
                 teammatesContainer.classList.add('hidden')
                 // --- 單人模式 (保持原樣) ---
@@ -1783,6 +1790,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const items = state.Inventory || [];
         // 只顯示 POTION
         const visibleItems = items.filter(i => i.category === 'POTION' && i.count > 0);
+        window.Game.battleItems = []
 
         if (visibleItems.length === 0) {
             grid.innerHTML = '<div style="color:#aaa; width:100%; text-align:center; padding:20px;">背包是空的</div>';
@@ -1790,6 +1798,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         visibleItems.forEach(item => {
+            window.Game.battleItems.push(item)
+
             const card = document.createElement('div');
             card.className = 'shop-item'; // 重用樣式
             const imgSrc = `/holylegend/images/items/${item.image}`;
@@ -2301,6 +2311,11 @@ document.addEventListener('DOMContentLoaded', () => {
              return;
         }
 
+        if (item == 'clean') {
+            cleanup();
+            return
+        }
+
         // 1. 關閉背包
         if (inventoryLayer) inventoryLayer.classList.add('hidden');
 
@@ -2313,6 +2328,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // 3. 多人模式：選取目標 (Select Target)
         if (socket) {
             // 顯示提示文字
+            isEnabledQuickItem = true;
+            window.Game.LatestItemUsed = item;
             addBattleLog(`準備使用 ${item.name}，請選擇對象...`, 'log-system');
             
             // 建立一個全螢幕提示遮罩 (防止誤觸其他) 或簡單 Alert
@@ -2664,42 +2681,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // 快捷鍵功能
-    const ACTIONS = {
-        ATTACK: 'ATTACK',
-        ITEM: 'ITEM',
-        SKILL: 'SKILL',
-        CONFIRM: 'CONFIRM',
-        CANCEL: 'CANCEL',
-
-        QUICK_1: 'QUICK_1',
-        QUICK_2: 'QUICK_2',
-        QUICK_3: 'QUICK_3',
-        QUICK_4: 'QUICK_4',
-        QUICK_5: 'QUICK_5',
-        QUICK_6: 'QUICK_6',
-        QUICK_7: 'QUICK_7',
-        QUICK_8: 'QUICK_8',
-        QUICK_9: 'QUICK_9',
-    };
-
-    let keyBindings = {
-        z: ACTIONS.ATTACK,
-        x: ACTIONS.ITEM,
-        c: ACTIONS.SKILL,
-
-        Enter: ACTIONS.CONFIRM,
-        Escape: ACTIONS.CANCEL,
-
-        '1': ACTIONS.QUICK_1,
-        '2': ACTIONS.QUICK_2,
-        '3': ACTIONS.QUICK_3,
-        '4': ACTIONS.QUICK_4,
-        '5': ACTIONS.QUICK_5,
-        '6': ACTIONS.QUICK_6,
-        '7': ACTIONS.QUICK_7,
-        '8': ACTIONS.QUICK_8,
-        '9': ACTIONS.QUICK_9,
-    };
+    let ACTIONS = window.Game.ACTIONS;
 
     function handleAction(action) {
         switch (action) {
@@ -2815,11 +2797,52 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function HandleSelfItem(item) {
+        if (confirm(`確定對自己使用 ${item.name} 嗎？`)) {
+            // ★ 1. 鎖定回合狀態
+            waitingForTurn = true;
+            updateControlsState();
+            
+            // ★ 2. 發送請求
+            socket.emit('player_use_item', { 
+                itemId: item.id,
+                targetSocketId: socket.id 
+            });
+            handleUseItem('clean')
+        }
+    }
+
+    function HandleTargetItem(item, index) {
+        const cards = teammatesContainer.querySelectorAll('.tm-card');
+
+        const targetId = cards[index - 1].dataset.id;
+        if (confirm(`確定對隊友使用 ${item.name} 嗎？`)) {
+            // ★ 1. 鎖定回合狀態 (防止重複行動)
+            waitingForTurn = true;
+            updateControlsState(); // 讓攻擊按鈕變灰
+            
+            // ★ 2. 發送請求
+            socket.emit('player_use_item', { 
+                itemId: item.id,
+                targetSocketId: targetId
+            });
+        }
+        handleUseItem('clean')        
+    }
+
+
     function quickSelection(number) {
         if (!rewardLayer.classList.contains('hidden') && 1 <= number <= 3) {
             applyReward(window.Game.battleRewards[number - 1]);
         } else if (!shopLayer.classList.contains('hidden') && 1 <= number <= 6) {
             handleBuyItem(window.Game.currentShopItems[number - 1])
+        } else if (!activeSkillLayer.classList.contains('hidden') && 1 <= number && number <= 4 && window.Game.battleSkill.length > 0) {
+            handleUseSkill(window.Game.battleSkill[number - 1])
+        } else if (!inventoryLayer.classList.contains('hidden') && 1 <= number && number <= 9 && window.Game.battleItems.length > 0) {
+            handleUseItem(window.Game.battleItems[number - 1])
+        } else if (isEnabledQuickItem && isMultiplayerMode) {
+            if (number == 1) HandleSelfItem(window.Game.LatestItemUsed);
+            else if (2 <= number && number <= 4) HandleTargetItem(window.Game.LatestItemUsed, number - 1);
         }
     }
 
@@ -2838,13 +2861,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const isRewarded = isReward()
         if (state.isTurnLocked && !isRewarded) return;
 
-        const action = keyBindings[e.key];
+        const action = Game.keyBindings[e.key];
+        console.log()
         if (!action) return;
 
         if (towerLayer.classList.contains('hidden')) {
             e.preventDefault();
         }
-        
+
         if (!towerLayer.classList.contains('hidden')) {
             handleAction(action);
         }

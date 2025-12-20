@@ -1,4 +1,34 @@
 // 定義全域 Game 物件，讓其他腳本可以存取狀態
+const ACTIONS = {
+    ATTACK: 'ATTACK',
+    ITEM: 'ITEM',
+    SKILL: 'SKILL',
+    CONFIRM: 'CONFIRM',
+    CANCEL: 'CANCEL',
+    // 快速鍵插槽
+    QUICK_1: 'QUICK_1', QUICK_2: 'QUICK_2', QUICK_3: 'QUICK_3',
+    QUICK_4: 'QUICK_4', QUICK_5: 'QUICK_5', QUICK_6: 'QUICK_6',
+    QUICK_7: 'QUICK_7', QUICK_8: 'QUICK_8', QUICK_9: 'QUICK_9',
+};
+
+// 2. 定義系統預設的快捷鍵對應 (Key -> Action)
+const DEFAULT_KEYBINDS = {
+    'z': ACTIONS.ATTACK,
+    'x': ACTIONS.ITEM,
+    'c': ACTIONS.SKILL,
+    'q': ACTIONS.CONFIRM,
+    'e': ACTIONS.CANCEL,
+    '1': ACTIONS.QUICK_1,
+    '2': ACTIONS.QUICK_2,
+    '3': ACTIONS.QUICK_3,
+    '4': ACTIONS.QUICK_4,
+    '5': ACTIONS.QUICK_5,
+    '6': ACTIONS.QUICK_6,
+    '7': ACTIONS.QUICK_7,
+    '8': ACTIONS.QUICK_8,
+    '9': ACTIONS.QUICK_9
+};
+
 window.Game = {
     // 全域戰鬥狀態 (Shared State)
     state: {
@@ -39,6 +69,10 @@ window.Game = {
     InitData: {
         nickname: 'Player',
     },
+
+    ACTIONS: ACTIONS,
+    initial_keybinds: { ...DEFAULT_KEYBINDS },
+    keyBindings: {}, // 運行時使用的設定
 
     socket: null,
     
@@ -170,12 +204,48 @@ window.Game = {
 
         window.Game.state.AdditionAttribute = extraStats;
         return extraStats;
+    },
+
+    loadShortcutInputs: function(keyBindings) {
+        // keyBindings 格式: { "z": "ATTACK", "Control": "SKILL", " ": "ITEM" }
+        const actionsToKeys = {};
+        Object.entries(keyBindings).forEach(([key, action]) => {
+            actionsToKeys[action] = key;
+        });
+
+        const getDisplayText = (key) => {
+            if (!key) return '';
+            if (key === ' ') return 'SPACE';
+            if (key === 'Control') return 'CONTROL';
+            if (key === 'Shift') return 'SHIFT';
+            return key.toUpperCase();
+        };
+
+        // 綁定各個輸入框 (假設 HTML ID 對應)
+        const mappings = {
+            'key-attack': ACTIONS.ATTACK,
+            'key-item': ACTIONS.ITEM,
+            'key-skill': ACTIONS.SKILL,
+            'key-confirm': ACTIONS.CONFIRM,
+            'key-cancel': ACTIONS.CANCEL
+        };
+
+        Object.entries(mappings).forEach(([id, action]) => {
+            const input = document.getElementById(id);
+            if (input) input.value = getDisplayText(actionsToKeys[action]);
+        });
+
+        // 快速鍵插槽 1-9
+        for (let i = 1; i <= 9; i++) {
+            const input = document.getElementById(`key-reward-${i}`);
+            if (input) input.value = getDisplayText(actionsToKeys[`QUICK_${i}`]);
+        }
     }
 };
 
 let state = window.Game.state
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     // 初始化 socketIO
     if (typeof io !== 'undefined') {
         window.Game.socket = io({
@@ -264,6 +334,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     state.Equipment = NewEquipment;
                     // 注意：這邊您用的是 Skills，請確保其他檔案 (skill_system.js) 也是用 Skills 或是 Inventory
                     state.Skills = NewSkill; 
+
+                    const savedKeys = localStorage.getItem('game_keybinds');
+                    if (savedKeys) {
+                        window.Game.keyBindings = JSON.parse(savedKeys);
+                    } else {
+                        window.Game.keyBindings = DEFAULT_KEYBINDS
+                    }
                 }
             }
 
@@ -296,6 +373,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 Game.state.AdditionAttribute = AdditionAttribute;
 
                 Game.updateLobbyUI(Game);
+                Game.loadShortcutInputs(Game.keyBindings);
             } else {
                 console.warn("API 回傳失敗");
             }
@@ -305,5 +383,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    initGame();
+    await initGame();
+
 });

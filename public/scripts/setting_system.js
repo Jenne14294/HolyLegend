@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // DOM 元素
     const lobbyLayer = document.getElementById('lobby-layer');
+    const towerLayer = document.getElementById('tower-layer');
     const settingsLayer = document.getElementById('settings-layer');
     
     // 按鈕 (假設選單按鈕是 footer 的第三個)
@@ -22,19 +23,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // 取得 Game Core 參考
     const bgMusic = document.getElementById('bg-music-source');
 
-    const btnSQA = document.getElementById('btn-save-shortcuts');
-
-
-
-
-
-
+    const btnSaveShortcuts = document.getElementById('btn-save-shortcuts');
+    const btnResetShortcuts = document.getElementById('btn-reset-shortcuts');
 
     const validKeys = new Set([
-        'a','b','c','d','e','f','g','h','i','j','k','l','m',
-        'n','o','p','q','r','s','t','u','v','w','x','y','z',
-        '0','1','2','3','4','5','6','7','8','9',
-        'Enter','Escape','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'
+        'A','B','C','D','E','F','G','H','I','J','K','L','M',
+        'N','O','P','Q','R','S','T','U','V','W','X','Y','Z',
+        '0','1','2','3','4','5','6','7','8','9', ' ',
+        'ENTER','ESCAPE','ARROWUP','ARROWDOWN','ARROWLEFT','ARROWRIGHT',
+        'CONTROL', 'SHIFT'
     ]);
 
 
@@ -50,6 +47,8 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (nameInput) nameInput.value = currentName;
             if (avatarPreview && currentAvatar) avatarPreview.src = currentAvatar;
+
+            syncInputsFromBindings();
 
             lobbyLayer.classList.add('hidden');
             settingsLayer.classList.remove('hidden');
@@ -195,10 +194,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (btnSQA) {
-        btnSQA.addEventListener('click', () => {
-            saveShortcuts();
-        })
+
+    if (btnSaveShortcuts) {
+        btnSaveShortcuts.addEventListener('click', handleSaveShortcuts);
+    }
+    if (btnResetShortcuts) {
+        btnResetShortcuts.addEventListener('click', handleResetShortcuts);
     }
 
 
@@ -252,26 +253,125 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.querySelectorAll('.shortcut-input').forEach(input => {
         input.addEventListener('keydown', (e) => {
+            // 停止事件冒泡，防止觸發遊戲內動作或被 preventDefault 攔截
             e.stopPropagation();
-            // 允許 Backspace 刪除
-            if (e.key === 'Backspace') return;
+            e.preventDefault();
 
-            if (!validKeys.has(e.key.toLowerCase()) && !validKeys.has(e.key)) {
-                e.preventDefault(); // 阻止無效按鍵輸入
-                alert(`按鍵 "${e.key}" 不合法，請輸入有效按鍵 (A-Z, 0-9, 方向鍵等)`);
+            if (e.key === 'Backspace') {
+                input.value = '';
+                return;
             }
+
+            let pressedKey = e.key.toUpperCase(); 
+            let displayKey = e.key.toUpperCase();
+            
+            // 特殊按鍵顯示優化
+            if (pressedKey === ' ') {
+                displayKey = 'SPACE';
+            } else if (pressedKey === 'Control') {
+                displayKey = 'CONTROL';
+            } else if (pressedKey === 'Shift') {
+                displayKey = 'SHIFT';
+            }
+
+            // 驗證是否在合法名單中
+            // 檢查原始 key、小寫 key 以及 TitleCase 格式
+            if (!validKeys.has(pressedKey) && 
+                !validKeys.has(pressedKey.toLowerCase()) && 
+                !validKeys.has(pressedKey.charAt(0).toUpperCase() + pressedKey.slice(1))) {
+                return;
+            }
+
+            // 查重
+            const allInputs = document.querySelectorAll('.shortcut-input');
+            let isDuplicate = false;
+            allInputs.forEach(other => {
+                if (other !== input && other.value === displayKey) isDuplicate = true;
+            });
+
+            if (isDuplicate) {
+                alert(`按鍵 "${displayKey}" 已被佔用`);
+                return;
+            }
+
+            input.value = displayKey;
         });
     });
 
-    function saveShortcuts() {
+    function syncInputsFromBindings() {
         const inputs = document.querySelectorAll('.shortcut-input');
+        const binds = JSON.parse(localStorage.getItem('game_keybinds')) || window.Game.keyBindings || {};
+
         inputs.forEach(input => {
-            if (!validKeys.has(input.value.toLowerCase())) {
-                alert(`"${input.value}" 不是合法快捷鍵`);
+            const action = input.dataset.action;
+            // 尋找對應動作的按鍵 (格式為 { "z": "ATTACK" })
+            const key = Object.keys(binds).find(k => binds[k] === action);
+            if (key) {
+                if (key === ' ') {
+                    input.value = 'SPACE';
+                } else {
+                    input.value = key.toUpperCase();
+                }
+            } else {
+                input.value = '';
+            }
+        });
+    }
+
+    /**
+     * 儲存設定並寫入 localStorage
+     */
+    function handleSaveShortcuts() {
+        const inputs = document.querySelectorAll('.shortcut-input');
+        const newBinds = {};
+
+        for (const input of inputs) {
+            const action = input.dataset.action;
+            let val = input.value;
+
+            if (!val) {
+                alert(`請為 [${action}] 設定一個按鍵！`);
                 return;
             }
-            keyBindings[input.dataset.action] = input.value;
-        });
+
+            // 轉換回 Game Core 識別的格式
+            let storageKey;
+            if (val === 'SPACE') {
+                storageKey = ' ';
+            } else if (val === 'CONTROL') {
+                storageKey = 'Control';
+            } else if (val === 'SHIFT') {
+                storageKey = 'Shift';
+            } else if (val === 'ENTER') {
+                storageKey = 'Enter';
+            } else if (val === 'ESCAPE') {
+                storageKey = 'Escape';
+            } else if (val.startsWith('ARROW')) {
+                // 首字母大寫其餘小寫 (ArrowUp)
+                storageKey = val.charAt(0) + val.slice(1).toLowerCase();
+            } else {
+                storageKey = val.toLowerCase();
+            }
+            
+            newBinds[storageKey] = action;
+        }
+
+        window.Game.keyBindings = newBinds;
+        localStorage.setItem('game_keybinds', JSON.stringify(newBinds));
+        alert("快捷鍵設定已儲存！");
+    }
+
+    /**
+     * 重置為預設設定
+     */
+    function handleResetShortcuts() {
+        if (confirm("確定要恢復預設快捷鍵嗎？")) {
+            // 使用核心預設值
+            window.Game.keyBindings = { ...window.Game.initial_keybinds };
+            localStorage.setItem('game_keybinds', JSON.stringify(window.Game.keyBindings));
+            syncInputsFromBindings();
+            alert("已恢復預設設定");
+        }
     }
 
 });

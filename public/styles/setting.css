@@ -180,3 +180,10 @@ input:checked + .slider:before {
     width: 35px;
     text-align: center;
 }
+
+
+@media (max-width: 480px) {
+    #keybind-section {
+        display: none;
+    }
+}
