@@ -19,6 +19,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnReady = document.getElementById('btn-ready-accept');
     const btnDecline = document.getElementById('btn-ready-decline');
 
+    // 事件
+    const eventLayer = document.getElementById('event-layer');
+
     // ★★★ 商店與背包 DOM ★★★
     const shopLayer = document.getElementById('shop-layer');
     const itemsGrid = document.getElementById('shop-items-grid');
@@ -29,7 +32,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnItem = document.getElementById('btn-item'); // 道具按鈕
     let inventoryLayer = document.getElementById('inventory-layer'); // 背包層
 
-    const btnSkill= document.getElementById('btn-skill'); // 道具按鈕
+    const btnSkill= document.getElementById('btn-skill'); // 技能按鈕
+    let activeSkillLayer = document.getElementById('active-skill-layer')
 
     const state = window.Game.state; 
     const socket = window.Game.socket; 
@@ -200,6 +204,8 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('btn-close-active-skill').addEventListener('click', () => {
                 div.classList.add('hidden');
             });
+
+            activeSkillLayer = div;
         }
     }
 
@@ -782,25 +788,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (btnCloseShop) {
         btnCloseShop.addEventListener('click', () => {
-            if (isMultiplayerMode && socket) {
-                btnCloseShop.disabled = true;
-                btnCloseShop.innerText = "X";
-                closeShopLayer();
-                showMessage("正在整理行囊...", '#aaa');
-                socket.emit('player_leave_shop');
-            } else {
-                closeShopLayer();
-                startNewFloor(); // 單人直接下一層
-            }
+            closeShop();
         });
     }
 
     if (btnItem) {
         btnItem.addEventListener('click', () => {
-            if (inventoryLayer) {
-                inventoryLayer.classList.remove('hidden');
-                renderInventoryItems();
-            }
+            openInventory()
         });
     }
 
@@ -823,37 +817,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ===========================
     if (btnAttack) {
         btnAttack.addEventListener('click', () => {
-            // 【修正 1】加入 state.isTurnLocked 檢查
-            // 防止玩家在怪物反擊的空檔連續攻擊 (強制回合制)
-            if (state.isGameOver || state.processingLevelUp || state.isTurnLocked) return;
-
-            // 【修正 2】立即上鎖，直到怪物反擊結束才能再按
-            state.isTurnLocked = true;
-            
-            // (選用) 視覺回饋：讓按鈕變灰，提示冷卻中
-            btnAttack.style.filter = "grayscale(100%)";
-            btnAttack.style.transform = "translateY(2px)"; // 壓下去的效果
-
-            const enemyImg = document.getElementById('enemy-img');
-            if(enemyImg) {
-                enemyImg.style.transform = 'scale(0.9)';
-                setTimeout(() => enemyImg.style.transform = 'scale(1)', 100);
-            }
-
-           if (isMultiplayerMode && socket) {
-                waitingForTurn = true;
-                // 【關鍵修正】把本地的 HP 傳給 Server，強迫 Server 同步
-                socket.emit('player_action', { 
-                    type: 'attack',
-                    currentHp: state.playerHp,
-                    AdditionState: state.AdditionState,
-                    AdditionAttribute: state.AdditionAttribute
-                });
-                updateControlsState()
-            } else {
-                // --- 單人模式 (原邏輯) ---
-                performLocalAttack();
-            }
+            AttackAction();
         });
     }
 
@@ -952,6 +916,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const allEvents = result.data; // 資料庫裡的所有獎勵
             const eventId = Math.floor(Math.random() * allEvents.length)
             const event = allEvents[eventId]
+
+            window.Game.battleEvent = event;
 
             createAndShowEventCard(event);
 
@@ -1364,6 +1330,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // 清空載入文字
             rewardCardsContainer.innerHTML = '';
 
+            window.Game.battleRewards = options
+
             // 4. 生成卡片 DOM
             options.forEach((rewardData, index) => {
                 const card = document.createElement('div');
@@ -1425,6 +1393,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 setTimeout(() => {
                     card.classList.add('animate-in');
                 }, 50);
+
+                inventoryLayer.classList.add('hidden')
+                activeSkillLayer.classList.add('hidden')
             });
 
         } catch (e) {
@@ -1669,7 +1640,6 @@ document.addEventListener('DOMContentLoaded', () => {
             // 顯示空狀態提示
             const emptyCard = document.createElement('div');
             emptyCard.className = 'status-card empty';
-            emptyCard.innerText = '目前沒有任何狀態';
             statusContainer.appendChild(emptyCard);
             return;
         }
@@ -1898,17 +1868,19 @@ document.addEventListener('DOMContentLoaded', () => {
     //  核心：動態生成事件卡片 (Dynamic Render)
     // ==========================================
     function createAndShowEventCard(eventData) {
+        inventoryLayer.classList.add('hidden')
+        activeSkillLayer.classList.add('hidden')
+
         if (state.playerHp <= 0) {
             console.log("玩家已死亡，跳過獎勵顯示");
             return;
         }
         
-        const layer = document.getElementById('event-layer');
-        if (!layer) return;
+        if (!eventLayer) return;
 
         // 1. 清空容器 (確保不會有舊的卡片殘留)
-        layer.innerHTML = ''; 
-        layer.classList.remove('hidden');
+        eventLayer.innerHTML = ''; 
+        eventLayer.classList.remove('hidden');
 
         // 2. 準備數據
         const playerStats = window.Game.state.AdditionState || [0, 0, 0, 0];
@@ -2031,6 +2003,9 @@ document.addEventListener('DOMContentLoaded', () => {
         btnTry.className = 'btn-action';
         btnTry.innerText = canTry ? `嘗試 (${successRate}%)` : '能力不足';
         btnTry.disabled = !canTry;
+
+        window.Game.battleEvent.successRate = successRate
+        window.Game.battleEvent.btn = btnTry
         
         btnTry.onclick = () => {
             handleTryEvent(eventData, successRate, btnTry);
@@ -2051,7 +2026,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 組合完畢
         cardContainer.appendChild(body);
-        layer.appendChild(cardContainer);
+        eventLayer.appendChild(cardContainer);
     }
 
     // ==========================================
@@ -2188,6 +2163,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function openShopLayer(msg) {
         shopLayer.classList.remove('hidden');
+        inventoryLayer.classList.add('hidden')
+        activeSkillLayer.classList.add('hidden')
+
         updateLocalGoldDisplay();
         showMessage(msg, '#fff');
         if (btnCloseShop) {
@@ -2238,6 +2216,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
 
             const btnBuy = card.querySelector('.btn-buy');
+
             if (!isSoldOut && !isDead) {
                 btnBuy.addEventListener('click', () => handleBuyItem(item));
             }
@@ -2478,7 +2457,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             addBattleLog(`施放技能: ${skill.name}${logSuffix}`, 'log-player');
 
-            const activeSkillLayer = document.getElementById('active-skill-layer')
             activeSkillLayer.classList.add('hidden')
         }
     }
@@ -2488,7 +2466,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 判斷目標，若沒有傳入 target，且技能是 self / team，則自動指向自己
         let actionPerformed = false;
-        const activeSkillLayer = document.getElementById('active-skill-layer')
 
         // 處理主動技能
         if (skill.skillType === 'active') {
@@ -2686,4 +2663,182 @@ document.addEventListener('DOMContentLoaded', () => {
         style.innerHTML = `@keyframes shake { 0% { transform: translateX(0); } 25% { transform: translateX(-5px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-5px); } 100% { transform: translateX(0); } }`;
         document.head.appendChild(style);
     }
+
+
+    // 快捷鍵功能
+    const ACTIONS = {
+        ATTACK: 'ATTACK',
+        ITEM: 'ITEM',
+        SKILL: 'SKILL',
+        CONFIRM: 'CONFIRM',
+        CANCEL: 'CANCEL',
+
+        REWARD_1: 'REWARD_1',
+        REWARD_2: 'REWARD_2',
+        REWARD_3: 'REWARD_3',
+        REWARD_4: 'REWARD_4',
+        REWARD_5: 'REWARD_5',
+        REWARD_6: 'REWARD_6',
+    };
+
+    let keyBindings = {
+        z: ACTIONS.ATTACK,
+        x: ACTIONS.ITEM,
+        c: ACTIONS.SKILL,
+
+        Enter: ACTIONS.CONFIRM,
+        Escape: ACTIONS.CANCEL,
+
+        '1': ACTIONS.REWARD_1,
+        '2': ACTIONS.REWARD_2,
+        '3': ACTIONS.REWARD_3,
+        '4': ACTIONS.REWARD_4,
+        '5': ACTIONS.REWARD_5,
+        '6': ACTIONS.REWARD_6,
+    };
+
+    function handleAction(action) {
+        switch (action) {
+            case ACTIONS.ATTACK:
+                AttackAction();
+                break;
+
+            case ACTIONS.ITEM:
+                openInventory();
+                break;
+
+            case ACTIONS.SKILL:
+                openSkills();
+                break;
+
+            case ACTIONS.CONFIRM:
+                confirmSelection();
+                break;
+
+            case ACTIONS.CANCEL:
+                closeAllPanels();
+                break;
+
+            case ACTIONS.REWARD_1:
+            case ACTIONS.REWARD_2:
+            case ACTIONS.REWARD_3:
+            case ACTIONS.REWARD_4:
+            case ACTIONS.REWARD_5:
+            case ACTIONS.REWARD_6:
+                quickSelection(parseInt(action.split('_')[1]));
+                break;
+        }
+    }
+
+    function AttackAction() {
+        // 【修正 1】加入 state.isTurnLocked 檢查 
+        // 防止玩家在怪物反擊的空檔連續攻擊 (強制回合制)
+        if (state.isGameOver || state.processingLevelUp || state.isTurnLocked) return;
+        
+        // 【修正 2】立即上鎖，直到怪物反擊結束才能再按
+        state.isTurnLocked = true;
+        
+        // (選用) 視覺回饋：讓按鈕變灰，提示冷卻中
+        btnAttack.style.filter = "grayscale(100%)";
+        btnAttack.style.transform = "translateY(2px)"; // 壓下去的效果
+        
+        const enemyImg = document.getElementById('enemy-img');
+        if(enemyImg) {
+            enemyImg.style.transform = 'scale(0.9)';
+            setTimeout(() => enemyImg.style.transform = 'scale(1)', 100);
+        }
+        
+        if (isMultiplayerMode && socket) {
+            waitingForTurn = true;
+            // 【關鍵修正】把本地的 HP 傳給 Server，強迫 Server 同步
+            socket.emit('player_action', { 
+                type: 'attack',
+                currentHp: state.playerHp,
+                AdditionState: state.AdditionState,
+                AdditionAttribute: state.AdditionAttribute
+            });
+            updateControlsState()
+        } else {
+            // --- 單人模式 (原邏輯) ---
+            performLocalAttack();
+        }    
+    }
+
+    function openInventory() {
+        if (inventoryLayer.classList.contains('hidden')) {
+            inventoryLayer.classList.remove('hidden');
+            renderInventoryItems();
+        } else {
+            inventoryLayer.classList.add('hidden');
+        }
+    }
+
+    function openSkills() {
+        if (activeSkillLayer.classList.contains('hidden')) {
+            renderActiveSkills()
+        } else {
+            activeSkillLayer.classList.add('hidden')
+        }
+    }
+
+    function closeShop() {
+        if (isMultiplayerMode && socket) {
+            btnCloseShop.disabled = true;
+            btnCloseShop.innerText = "X";
+            closeShopLayer();
+            showMessage("正在整理行囊...", '#aaa');
+            socket.emit('player_leave_shop');
+        } else {
+            closeShopLayer();
+            startNewFloor(); // 單人直接下一層
+        }    
+    }
+
+    function confirmSelection() {
+        if (!eventLayer.classList.contains('hidden') && window.Game.battleEvent.successRate >= 30) {
+            handleTryEvent(window.Game.battleEvent, window.Game.battleEvent.successRate, window.Game.battleEvent.btn);
+        }
+    }
+
+    function closeAllPanels() {
+        if (!shopLayer.classList.contains('hidden')) {
+            closeShop();
+        } else if (!eventLayer.classList.contains('hidden')) {
+            handleLeaveEvent();
+        }
+    }
+
+    function quickSelection(number) {
+        if (!rewardLayer.classList.contains('hidden')) {
+            applyReward(window.Game.battleRewards[number - 1]);
+        } else if (!shopLayer.classList.contains('hidden')) {
+            handleBuyItem(window.Game.currentShopItems[number - 1])
+        }
+    }
+
+    function isReward() {
+        if (!eventLayer.classList.contains('hidden')) {
+            return true
+        } else if (!shopLayer.classList.contains('hidden')) {
+            return true
+        } else if (!rewardLayer.classList.contains('hidden')) {
+            return true
+        }
+        return false
+    }
+
+    window.addEventListener('keydown', (e) => {
+        const isRewarded = isReward()
+        if (state.isTurnLocked && !isRewarded) return;
+
+        const action = keyBindings[e.key];
+        if (!action) return;
+
+        e.preventDefault();
+        if (!towerLayer.classList.contains('hidden')) {
+            handleAction(action);
+        }
+    });
+
 });
+
