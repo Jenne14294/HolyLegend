@@ -2442,6 +2442,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // 1. 關閉技能選單
         if (skillLayer) skillLayer.classList.add('hidden');
 
+        if (skill.consumeType == 'mp' && skill.consumeAmount > state.playerMp) {
+            return alert("魔力不足，無法釋放技能！");
+        } else if (skill.consumeType == 'hp' && skill.consumeAmount > state.playerHp) {
+            return alert("血量不足，無法釋放技能！");
+        }
+
         // 2. 單人模式：直接使用
         if (!isMultiplayerMode) {
             useSkillSinglePlayer(skill);
@@ -2483,6 +2489,23 @@ document.addEventListener('DOMContentLoaded', () => {
         // 判斷目標，若沒有傳入 target，且技能是 self / team，則自動指向自己
         let actionPerformed = false;
 
+        const consume = skill.consumeType ? skill.consumeAmount : 0
+
+        if (skill.consumeType == 'mp') {
+            state.playerMp -= consume
+            if (state.playerMp < 0) {
+                state.playerMp = 0
+            }
+        }
+        
+        if (skill.consumeType == 'hp') {
+            state.playerHp -= consume
+            if (state.playerHp < 0) {
+                state.playerHp = 0
+            }
+        }
+        
+        
         // 處理主動技能
         if (skill.skillType === 'active') {
             let total_damage = 0;
@@ -2549,22 +2572,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (actionPerformed) {
             // 單人模式：使用技能算一回合
-            const consume = skill.consumeType ? skill.consumeAmount : 0
-
-            if (skill.consumeType == 'mp') {
-                state.playerMp -= consume
-                if (state.playerMp < 0) {
-                    state.playerMp = 0
-                }
-            }
-            
-            if (skill.consumeType == 'hp') {
-                state.playerHp -= consume
-                if (state.playerHp < 0) {
-                    state.playerHp = 0
-                }
-            }
-            
             state.isTurnLocked = true;
             activeSkillLayer.classList.add('hidden')
             updateControlsState();
