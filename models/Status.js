@@ -16,6 +16,10 @@ const Status = sequelize.define('Status', {
     type: DataTypes.STRING,
     allowNull: false
   },
+  image: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
   duration:{
     type: DataTypes.INTEGER,
     allowNull: false

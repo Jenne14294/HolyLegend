@@ -494,23 +494,26 @@ export default function initSocket(server) {
                 targets.forEach(tId => {
                     if (tId === 'enemy') {
                         // 傷害公式計算 (基於技能表定義的屬性與倍率)
-                        const statA = pRoomData.state.AdditionState[STAT_MAP[skill.DamageAStat]] || 0;
-                        const statB = pRoomData.state.AdditionState[STAT_MAP[skill.DamageBStat]] || 0;
-                        const baseDmg = (statA * skill.DamageARatio) + (statB * skill.DamageBRatio);
+                        for (let i = 0; i < skill.DamageTime; i++) {
+                            const statA = pRoomData.state.AdditionState[STAT_MAP[skill.DamageAStat]] || 0;
+                            const statB = pRoomData.state.AdditionState[STAT_MAP[skill.DamageBStat]] || 0;
+                            const baseDmg = (statA * skill.DamageARatio) + (statB * skill.DamageBRatio);
 
-                        const system_critRate = Math.random() * 100
-                        let critRate = pRoomData.state.AdditionAttribute.crit + (pRoomData.state.AdditionState.DEX * 0.25 + pRoomData.state.AdditionState.INT * 0.15)
-                        let CritMultiply = 1;
+                            const system_critRate = Math.random() * 100
+                            let critRate = pRoomData.state.AdditionAttribute.crit + (pRoomData.state.AdditionState.DEX * 0.25 + pRoomData.state.AdditionState.INT * 0.15)
+                            let CritMultiply = 1;
 
-                        if (system_critRate < critRate)
-                        {
-                            CritMultiply = 2;
+                            if (system_critRate < critRate)
+                            {
+                                CritMultiply = 2;
+                            }
+                            
+                            let skillBonus =  1 + (pRoomData.state.AdditionAttribute.skillBonus / 100)
+                            let damageMultiply = 1 + Math.random() * 0.5
+
+                            totalSkillDamage += Math.round(baseDmg * skillBonus * damageMultiply * CritMultiply)
                         }
                         
-                        let skillBonus =  1 + (pRoomData.state.AdditionAttribute.skillBonus / 100)
-                        let damageMultiply = 1 + Math.random() * 0.5
-
-                        totalSkillDamage = Math.round(baseDmg * skillBonus * damageMultiply * CritMultiply)
                     } else {
                         const targetCombat = battle.playerStates[tId];
                         const targetRoom = rooms[currentRoomId].find(p => p.socketId === tId);

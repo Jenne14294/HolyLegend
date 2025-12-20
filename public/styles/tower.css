@@ -242,6 +242,45 @@
 .btn-skill { background-color: #3498db; }
 
 
+#status-container {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.status-card {
+    display: inline-block;
+}
+
+.status-box {
+    position: relative;
+    width: 48px;
+    height: 48px;
+}
+
+.status-box img {
+    width: 100%;
+    height: 100%;
+}
+
+.status-duration {
+    position: absolute;
+    right: 2px;
+    bottom: 2px;
+    min-width: 16px;
+    padding: 1px 4px;
+
+    font-size: 12px;
+    font-weight: bold;
+    color: #fff;
+    text-align: center;
+
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: 6px;
+    pointer-events: none; /* 不影響點擊 */
+}
+
+
 #teammates-container {
     display: flex;
     justify-content: center;

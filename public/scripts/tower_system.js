@@ -526,6 +526,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         socket.on('game_over_all', async (data) => {
              // 【修正】防止重複執行
+            btnReady.innerText = "準備";
+            btnReady.style.backgroundColor = ""; // 恢復原色
+
              if (state.isEndingProcessing) return;
              state.isEndingProcessing = true;
 
@@ -687,17 +690,21 @@ document.addEventListener('DOMContentLoaded', () => {
             // 這裡假設如果 team-status-text 顯示有房間號，就是多人
             const teamText = document.querySelector('.team-status-text');
             const isInTeam = teamText && teamText.innerText.includes('房號');
+            let tm_container = document.getElementById('teammates-container')
             btnReady.style.backgroundColor = ""; // 恢復原色
 
             if (isInTeam) {
                 // --- 多人模式 ---
                 // 發送請求給 Server，Server 會廣播 init_ready_check 給全隊
+                tm_container.classList.remove('hidden')
                 socket.emit('request_tower_start');
             } else {
+                tm_container.classList.add('hidden')
                 // --- 單人模式 (保持原樣) ---
                 isMultiplayerMode = false;
                 lobbyLayer.classList.add('hidden');
                 towerLayer.classList.remove('hidden');
+                
                 window.Game.playMusic('/holylegend/audio/tower_theme.ogg');
                 startNewFloor();
                 
@@ -827,6 +834,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     AdditionState: state.AdditionState,
                     AdditionAttribute: state.AdditionAttribute
                 });
+                updateControlsState()
             } else {
                 // --- 單人模式 (原邏輯) ---
                 performLocalAttack();
@@ -883,6 +891,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.processingLevelUp = true;
         state.goldCollected += 50;
         updateTopBarUI();
+        renderStatusUI();
         
         addBattleLog(`怪物被擊敗！獲得 50 金幣`, 'log-system');
         state.currentFloor++;
@@ -1218,7 +1227,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     name: item.name, 
                     image: item.image, 
                     category: item.category, 
-                    quantity: item.count, 
+                    quantity: item.count || 1, 
                     equipped: 0,
                     description: item.description,
                     requiredClass: item.requiredClass,
@@ -1575,11 +1584,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         state.Status.splice(i, 1);
                     }
                 }
+                
             }
         }
 
         playerTakeDamage(dmg);
         updateControlsState();
+        renderStatusUI();
         
     }
 
@@ -1618,7 +1629,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
-    // 隊伍 UI
+    // 狀態列表
+    function renderStatusUI() {
+        let statusContainer = document.getElementById('status-container'); 
+        statusContainer.innerHTML = ``
+
+        state.Status.forEach(s => {
+            // 存起來
+            const imgSrc = s.image ? `/holylegend/images/items/${s.image}` : '/holylegend/images/items/rune_healing.png';
+            
+            const card = document.createElement('div');
+            card.className = 'status-card';
+            
+            card.innerHTML = `
+            <div class="status-box">
+            <img src="${imgSrc}">
+            <div class="status-duration">${s.duration}</div>
+            </div>
+            `;
+            card.onclick = () => showStatusDetail(s);
+
+            statusContainer.appendChild(card);
+        });     
+    }
+
+    function showStatusDetail(status) {
+        alert(
+            `【${status.name}】\n` +
+            `${status.description || '無描述'}\n` +
+            `剩餘回合：${status.duration}`
+        );
+    }
 
     // ===========================
     //  新增：隊友 UI 輔助函式
@@ -2412,6 +2453,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 處理主動技能
         if (skill.skillType === 'active') {
             let total_damage = 0;
+            let additionDamage = 1;
 
             if (skill.DamageType === 'physical' || skill.DamageType === 'magical') {
                 const damageAIndex = defaultStat.indexOf(skill.DamageAStat)
@@ -2419,6 +2461,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 計算傷害
                 const atkStatA = skill.DamageAStat ? state.AdditionState[damageAIndex] : 0;
                 const atkStatB = skill.DamageBStat ? state.AdditionState[damageBIndex] : 0;
+
+                if (skill.id == 43 && state.Status.find(s => s.id == 16))
+                {
+                    additionDamage = 1.5
+                }
 
                 for (let i = 0; i < skill.DamageTime; i++) {
                     
@@ -2433,29 +2480,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     let damageMultiply = 1 + Math.random() * 0.5
                     let AttackMultiply = 1 + (state.AdditionAttribute.skillBonus / 100)
 
-                    damage = Math.round(damage * damageMultiply * CritMultiply * AttackMultiply);
+                    console.log(damage, damageMultiply, CritMultiply, AttackMultiply, additionDamage)
+                    damage = Math.round(damage * damageMultiply * CritMultiply * AttackMultiply * additionDamage);
 
                     state.enemyHp -= damage;
                     total_damage += damage;
                 }
 
                 damage = total_damage;
-                const consume = skill.consumeType ? skill.consumeAmount : 0
-
-                if (skill.consumeType == 'mp') {
-                    state.playerMp -= consume
-                    if (state.playerMp < 0) {
-                        state.playerMp = 0
-                    }
-                }
-
-                if (skill.consumeType == 'hp') {
-                    state.playerHp -= consume
-                    if (state.playerHp < 0) {
-                        state.playerHp = 0
-                    }
-                }
-
                 addBattleLog(`${window.Game.InitData.nickname} 使用 ${skill.name} 造成 ${damage} 點傷害`, 'log-player');
                 showDamageNumber(damage);
                 actionPerformed = true;
@@ -2485,6 +2517,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (actionPerformed) {
             // 單人模式：使用技能算一回合
+            const consume = skill.consumeType ? skill.consumeAmount : 0
+
+            if (skill.consumeType == 'mp') {
+                state.playerMp -= consume
+                if (state.playerMp < 0) {
+                    state.playerMp = 0
+                }
+            }
+            
+            if (skill.consumeType == 'hp') {
+                state.playerHp -= consume
+                if (state.playerHp < 0) {
+                    state.playerHp = 0
+                }
+            }
+            
             state.isTurnLocked = true;
             activeSkillLayer.classList.add('hidden')
             updateControlsState();
@@ -2519,7 +2567,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             statusList.forEach(status => {
                 // 檢查是否已存在於目標狀態
-                const existing = state.Status.find(s => s.id === status.id && s.targetId === target.id);
+                const existing = state.Status.find(s => s.id === status.id);
                 if (existing) {
                     existing.duration = status.duration; // 重置回合數
                 } else {
@@ -2528,22 +2576,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     // 套用 STAT 效果
                     if (buff.effectType === 'STAT') {
-                        if (!state.AdditionState) state.AdditionState = {};
                         const key = defaultStat.indexOf(buff.statKey);
                         
-                        if (key != -1) {
-                            if (buff.valueType === 'Add') {
+                        if (buff.valueType === 'Add') {
+                            if (key != -1) {
                                 state.AdditionState[key] = (state.AdditionState[key] || 0) + buff.value;
-                            } else if (buff.valueType === 'Multiply') {
-                                state.AdditionState[key] = (state.AdditionState[key] || 1) * buff.value;
-                            }
-                        } else {
-                            const key = additionMap[buff.statKey];
-                            if (key) {
-                                if (buff.valueType === 'Add') {
+                            } else {
+                                const key = additionMap[buff.statKey];
+
+                                if (key) {
                                     state.AdditionAttribute[key] += buff.value;
-                                } else if (buff.valueType == 'Multiply') {
-                                    state.AdditionAttribute[key] = state.AdditionAttribute * buff.value
                                 }
                             }
                         }
@@ -2558,6 +2600,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     addBattleLog(`${window.Game.InitData.nickname || '目標'} 獲得狀態「${buff.name}」(${buff.duration} 回合)`, 'log-buff');
                 }
             });
+            recalculateDerivedStats()
+            renderStatusUI()
         } catch (e) {
             console.error("伺服器錯誤", e);
         }
@@ -2565,21 +2609,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function removeBuffEffect(buff) {
         let key = additionMap[buff.statKey]
-        if (key) {
-            if (buff.valueType === 'Add') {
+        if (buff.valueType === 'Add') {
+            if (key) {
                 state.AdditionAttribute[key] -= buff.value;
-            } else if (buff.valueType === 'Multiply') {
-                state.AdditionAttribute[key] /= buff.value;
-            }
         } else {
             key = defaultStat.indexOf(buff.statKey)
-
-            if (buff.valueType === 'Add') {
                 state.AdditionState[key] -= buff.value;
-            } else if (buff.valueType === 'Multiply') {
-                state.AdditionState[key] /= buff.value;
             }
         }
+        recalculateDerivedStats()
     }
     
 
