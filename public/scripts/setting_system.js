@@ -22,6 +22,22 @@ document.addEventListener('DOMContentLoaded', () => {
     // 取得 Game Core 參考
     const bgMusic = document.getElementById('bg-music-source');
 
+    const btnSQA = document.getElementById('btn-save-shortcuts');
+
+
+
+
+
+
+
+    const validKeys = new Set([
+        'a','b','c','d','e','f','g','h','i','j','k','l','m',
+        'n','o','p','q','r','s','t','u','v','w','x','y','z',
+        '0','1','2','3','4','5','6','7','8','9',
+        'Enter','Escape','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'
+    ]);
+
+
     // ===========================
     // 1. 開關選單
     // ===========================
@@ -179,6 +195,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    if (btnSQA) {
+        btnSQA.addEventListener('click', () => {
+            saveShortcuts();
+        })
+    }
+
 
     async function uploadAvatar(file) {
         // ★ 修正：不需要再從前端獲取 userId，後端會從 Cookie 解析
@@ -226,6 +248,30 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('上傳失敗: ' + error.message);
             // 失敗時恢復原本的預覽圖可能比較複雜，這裡暫時不還原，或可考慮重新整理
         }
+    }
+
+    document.querySelectorAll('.shortcut-input').forEach(input => {
+        input.addEventListener('keydown', (e) => {
+            e.stopPropagation();
+            // 允許 Backspace 刪除
+            if (e.key === 'Backspace') return;
+
+            if (!validKeys.has(e.key.toLowerCase()) && !validKeys.has(e.key)) {
+                e.preventDefault(); // 阻止無效按鍵輸入
+                alert(`按鍵 "${e.key}" 不合法，請輸入有效按鍵 (A-Z, 0-9, 方向鍵等)`);
+            }
+        });
+    });
+
+    function saveShortcuts() {
+        const inputs = document.querySelectorAll('.shortcut-input');
+        inputs.forEach(input => {
+            if (!validKeys.has(input.value.toLowerCase())) {
+                alert(`"${input.value}" 不是合法快捷鍵`);
+                return;
+            }
+            keyBindings[input.dataset.action] = input.value;
+        });
     }
 
 });

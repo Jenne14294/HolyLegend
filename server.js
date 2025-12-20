@@ -424,7 +424,7 @@ export default function initSocket(server) {
                         battle.alivePlayerIds.push(finalTargetId);
                     }
 
-                    io.to(tId).emit('player_revived', { hp: targetState.hp, mp: targetState.mp });
+                    io.to(finalTargetId).emit('player_revived', { hp: targetState.hp, mp: targetState.mp });
 
                     used = true;
                 }

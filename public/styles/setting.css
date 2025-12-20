@@ -163,3 +163,20 @@ input:checked + .slider:before {
     font-size: 0.8rem;
     margin-top: auto;
 }
+
+.shortcut-row.horizontal {
+    display: flex;
+    gap: 10px; /* 每個快捷鍵間距 */
+    align-items: center;
+}
+
+.shortcut-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.shortcut-input {
+    width: 35px;
+    text-align: center;
+}

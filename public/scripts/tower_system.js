@@ -2495,7 +2495,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     let damageMultiply = 1 + Math.random() * 0.5
                     let AttackMultiply = 1 + (state.AdditionAttribute.skillBonus / 100)
-                    
+
                     damage = Math.round(damage * damageMultiply * CritMultiply * AttackMultiply * additionDamage);
 
                     state.enemyHp -= damage;
@@ -2671,12 +2671,15 @@ document.addEventListener('DOMContentLoaded', () => {
         CONFIRM: 'CONFIRM',
         CANCEL: 'CANCEL',
 
-        REWARD_1: 'REWARD_1',
-        REWARD_2: 'REWARD_2',
-        REWARD_3: 'REWARD_3',
-        REWARD_4: 'REWARD_4',
-        REWARD_5: 'REWARD_5',
-        REWARD_6: 'REWARD_6',
+        QUICK_1: 'QUICK_1',
+        QUICK_2: 'QUICK_2',
+        QUICK_3: 'QUICK_3',
+        QUICK_4: 'QUICK_4',
+        QUICK_5: 'QUICK_5',
+        QUICK_6: 'QUICK_6',
+        QUICK_7: 'QUICK_7',
+        QUICK_8: 'QUICK_8',
+        QUICK_9: 'QUICK_9',
     };
 
     let keyBindings = {
@@ -2687,12 +2690,15 @@ document.addEventListener('DOMContentLoaded', () => {
         Enter: ACTIONS.CONFIRM,
         Escape: ACTIONS.CANCEL,
 
-        '1': ACTIONS.REWARD_1,
-        '2': ACTIONS.REWARD_2,
-        '3': ACTIONS.REWARD_3,
-        '4': ACTIONS.REWARD_4,
-        '5': ACTIONS.REWARD_5,
-        '6': ACTIONS.REWARD_6,
+        '1': ACTIONS.QUICK_1,
+        '2': ACTIONS.QUICK_2,
+        '3': ACTIONS.QUICK_3,
+        '4': ACTIONS.QUICK_4,
+        '5': ACTIONS.QUICK_5,
+        '6': ACTIONS.QUICK_6,
+        '7': ACTIONS.QUICK_7,
+        '8': ACTIONS.QUICK_8,
+        '9': ACTIONS.QUICK_9,
     };
 
     function handleAction(action) {
@@ -2717,12 +2723,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 closeAllPanels();
                 break;
 
-            case ACTIONS.REWARD_1:
-            case ACTIONS.REWARD_2:
-            case ACTIONS.REWARD_3:
-            case ACTIONS.REWARD_4:
-            case ACTIONS.REWARD_5:
-            case ACTIONS.REWARD_6:
+            case ACTIONS.QUICK_1:
+            case ACTIONS.QUICK_2:
+            case ACTIONS.QUICK_3:
+            case ACTIONS.QUICK_4:
+            case ACTIONS.QUICK_5:
+            case ACTIONS.QUICK_6:
+            case ACTIONS.QUICK_7:
+            case ACTIONS.QUICK_8:
+            case ACTIONS.QUICK_9:
                 quickSelection(parseInt(action.split('_')[1]));
                 break;
         }
@@ -2807,9 +2816,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function quickSelection(number) {
-        if (!rewardLayer.classList.contains('hidden')) {
+        if (!rewardLayer.classList.contains('hidden') && 1 <= number <= 3) {
             applyReward(window.Game.battleRewards[number - 1]);
-        } else if (!shopLayer.classList.contains('hidden')) {
+        } else if (!shopLayer.classList.contains('hidden') && 1 <= number <= 6) {
             handleBuyItem(window.Game.currentShopItems[number - 1])
         }
     }
@@ -2832,7 +2841,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const action = keyBindings[e.key];
         if (!action) return;
 
-        e.preventDefault();
+        if (towerLayer.classList.contains('hidden')) {
+            e.preventDefault();
+        }
+        
         if (!towerLayer.classList.contains('hidden')) {
             handleAction(action);
         }
