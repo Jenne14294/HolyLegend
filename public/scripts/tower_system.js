@@ -399,6 +399,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     // ★ 同步背包
                     if (myInfo.Inventory) state.Inventory = myInfo.Inventory;
+
+                    if (myInfo.Status) state.Status = myInfo.Status;
                 }
             }
             
@@ -490,6 +492,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     state.playerMaxMp = myStatus.maxMp;
                     updatePlayerUI();
                 }
+            }
+
+            if (result.playerBuff) {
+                // 同步自己的血量 (Server Authority 校正)
+                // 雖然本地有 playerTakeDamage，但用 Server 的值校正更準
+                console.log(result.playerBuff)
+                const myStates = result.playerBuff[socket.id];
+
+                if (myStates) {
+                    state.Status = myStates.Status
+                    state.AdditionAttribute = myStates.AdditionAttribute
+                    updatePlayerUI();
+                }
+
+                renderStatusUI();
             }
 
             if (result.isAllDead) {
@@ -1232,7 +1249,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     description: item.description,
                     requiredClass: item.requiredClass,
                     effectType: item.effectType,
-                    effectValue: item.value,
+                    effectValue: item.effectValue,
                     isPercentage: item.isPercentage,
 
                 })
@@ -2250,7 +2267,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         category: item.category, 
                         requiredClass: item.requiredClass,
                         effectType: item.effectType, 
-                        effectValue: item.value, 
+                        effectValue: item.effectValue, 
                         isPercentage: item.isPercentage, 
                         count: 1 
                     }
@@ -2265,7 +2282,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function applyEffectSinglePlayer(item) {
         const type = item.effectType;
-        const val = buff.value;
+        const val = item.effectValue;
         const index = defaultStat.indexOf(type)
 
         if (STAT_CONFIG[index] !== undefined) {
@@ -2363,16 +2380,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function useItemSinglePlayer(item) {
         let used = false;
+
+        console.log(item)
         
         if (item.category === 'POTION') {
             if (item.effectType === 'HP') {
                 if (state.playerHp >= state.playerMaxHp) return alert("生命值已滿");
-                const heal = item.isPercentage ? Math.round(state.playerMaxHp * (buff.value/100)) : buff.value;
+                const heal = item.isPercentage ? Math.round(state.playerMaxHp * (item.effectValue / 100)) : item.effectValue;
                 state.playerHp = Math.min(state.playerMaxHp, state.playerHp + heal);
                 used = true;
             } else if (item.effectType === 'MP') {
                 if (state.playerMp >= state.playerMaxMp) return alert("魔力值已滿");
-                const heal = item.isPercentage ? Math.round(state.playerMaxMp * (buff.value/100)) : buff.value;
+                const heal = item.isPercentage ? Math.round(state.playerMaxMp * (item.effectValue/100)) : item.effectValue;
                 state.playerMp = Math.min(state.playerMaxMp, state.playerMp + heal);
                 used = true;
             }

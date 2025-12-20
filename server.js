@@ -7,6 +7,21 @@ const HP_PER_CON = 0.7;
 const HP_PER_STR = 0.3;
 const MP_PER_INT = 0.75;
 
+const defaultStat = ["STR", "DEX", "CON", "INT"]
+const additionMap = {
+    CRIT: 'crit',
+    DODGE: 'dodge',
+    DMG_REDUCE: 'dmgReduce',
+    HP_BONUS: 'hpBonus',
+    MP_BONUS: 'mpBonus',
+    REGEN: 'regen',
+    MANA_RETURN: 'manaReflow',
+    ATK_BONUS: 'atkBonus',
+    SKILL_BONUS: 'skillBonus',
+    EXP_BONUS: 'expBonus',
+    
+};
+
 const disconnectTimers = {}; // ★ 你的錯誤就是少了這一行
 const requestTimers = {};
 
@@ -454,11 +469,11 @@ export default function initSocket(server) {
         socket.on('player_use_skill', async (data) => {
             const { skill, targetSocketId } = data;
 
-            console.log(data)
             if (!currentRoomId || !battles[currentRoomId]) return;
             const battle = battles[currentRoomId];
             const pCombatState = battle.playerStates[socket.id];
             const pRoomData = rooms[currentRoomId].find(p => p.socketId === socket.id);
+            const tRoomData = rooms[currentRoomId];
 
             // 防呆：死人、正在結算、或本回合已行動者不可施法
             if (battle.isEnding || battle.processingTurn || pCombatState?.isDead) return;
@@ -491,7 +506,7 @@ export default function initSocket(server) {
                     skillName: skill.name 
                 });
 
-                targets.forEach(tId => {
+                targets.forEach(async tId => {
                     if (tId === 'enemy') {
                         // 傷害公式計算 (基於技能表定義的屬性與倍率)
                         for (let i = 0; i < skill.DamageTime; i++) {
@@ -520,7 +535,7 @@ export default function initSocket(server) {
                         if (!targetCombat) return;
 
                         // 處理治療效果 (HEAL)
-                        if (skill.effectType === 'HEAL') {
+                        if (skill.DamageType === 'heal') {
                             const statA = pRoomData.state.AdditionState[STAT_MAP[skill.DamageAStat]] || 0;
                             const statB = pRoomData.state.AdditionState[STAT_MAP[skill.DamageBStat]] || 0;
 
@@ -538,12 +553,34 @@ export default function initSocket(server) {
                         // }
 
                         // 處理 Buffs (Status)
-                        // if (skill.buffs && skill.buffs.length > 0) {
-                        //     targetCombat.activeBuffs = targetCombat.activeBuffs || [];
-                        //     skill.buffs.forEach(b => {
-                        //         targetCombat.activeBuffs.push({ name: b.name, type: b.type, value: b.value, duration: b.duration });
-                        //     });
-                        // }
+                        if (skill.skillType == 'buff') {
+                            const Statuses = await getStatus();
+
+                            const buff = Statuses.find(s => s.skillId == skill.id)
+
+                            tRoomData.forEach(m => {
+                                if(m.socketId == tId) {
+                                    m.state.Status.push(JSON.parse(JSON.stringify(buff)))
+
+                                    // 套用 STAT 效果
+                                    if (buff.effectType === 'STAT') {
+                                        const key = defaultStat.indexOf(buff.statKey);
+                                        
+                                        if (buff.valueType === 'Add') {
+                                            if (key != -1) {
+                                                m.state.AdditionState[key] = (m.state.AdditionState[key] || 0) + buff.value;
+                                            } else {
+                                                const key = additionMap[buff.statKey];
+
+                                                if (key) {
+                                                    m.state.AdditionAttribute[key] += buff.value;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            })
+                        }
                     }
                 });
 
@@ -986,7 +1023,7 @@ export default function initSocket(server) {
                     }
                     delete disconnectTimers[socket.id];
                 }, 0);
-                io.to(currentRoomId).emit('chat_message', { sender: '系統', text: `一名隊友暫時斷線 (保留位置 60 秒)...`, isSystem: true });
+                io.to(currentRoomId).emit('chat_message', { sender: '系統', text: `一名隊友斷線`, isSystem: true });
             }
         });
 
@@ -1054,6 +1091,7 @@ export default function initSocket(server) {
                     mp: combatState ? combatState.mp : (p.state.playerMp || 100),
                     
                     AdditionState: p.state.AdditionState || [0, 0, 0, 0],
+                    Status: p.state.Status || [],
                     Inventory: p.state.Inventory || [],
                     goldCollected: goldDelta, 
                     AdditionEXP: expDelta,
@@ -1141,6 +1179,20 @@ export default function initSocket(server) {
             }
         }
 
+        async function getStatus() {
+            try {
+                const response = await fetch('http://localhost:3000/holylegend/system/status')
+                const result = await response.json()
+
+                if (result.success) {
+                    const data = result.data;
+                    return data;
+                }
+            } catch (e) {
+                console.error('伺服器錯誤', e)
+            }
+        }
+
         async function processTurn(roomId) {
             const battle = battles[roomId];
             const room = rooms[roomId]
@@ -1219,6 +1271,30 @@ export default function initSocket(server) {
                     if (manaReflow > 0 && pState.mp < pState.maxMp) {
                         pState.mp = Math.min(pState.maxMp, pState.mp + manaReflow);
                     }
+
+
+                    if (p.state.Status && p.state.Status.length > 0) {
+                        for (let i = p.state.Status.length - 1; i >= 0; i--) {
+                            const buff = p.state.Status[i];
+                            if (buff.duration != null && buff.duration > 0) {
+                                buff.duration--;
+                                if (buff.duration <= 0) {
+                                    // 移除buff效果
+                                    let key = additionMap[buff.statKey]
+                                    if (buff.valueType === 'Add') {
+                                        if (key) {
+                                            p.state.AdditionAttribute[key] -= buff.value;
+                                    } else {
+                                        key = defaultStat.indexOf(buff.statKey)
+                                            p.state.AdditionState[key] -= buff.value;
+                                        }
+                                    }
+                                    p.state.Status.splice(i, 1);
+                                }
+                            }
+                            
+                        }
+                    }
                     
                     // 同步回永久狀態 (選用，視設計而定，通常戰鬥結束才同步，但這裡同步較保險)
                     p.state.playerHp = pState.hp;
@@ -1231,19 +1307,28 @@ export default function initSocket(server) {
             
             // 3. 準備回傳所有人的最新狀態
             const playersStatusUpdate = {}; 
+            const PlayerStatus = {};
+            const PlayerAdditionAttribute = {};
+
             Object.keys(battle.playerStates).forEach(sid => { 
                 playersStatusUpdate[sid] = { 
                     hp: battle.playerStates[sid].hp, 
                     mp: battle.playerStates[sid].mp,
                     maxHp: battle.playerStates[sid].maxHp, 
                     maxMp: battle.playerStates[sid].maxMp,
-                    isDead: battle.playerStates[sid].isDead 
+                    isDead: battle.playerStates[sid].isDead,
                 }; 
+
+                room.forEach(p => {
+                    if (p.socketId == sid) {
+                        PlayerStatus[sid] = p.state
+                    }
+                })
             });
 
             io.to(roomId).emit('turn_result', { 
                 damageDealt: totalDamage, targetSocketId, damageTaken, isEnemyDead, 
-                deadPlayerId, isAllDead, playersStatus: playersStatusUpdate 
+                deadPlayerId, isAllDead, playersStatus: playersStatusUpdate, playerBuff: PlayerStatus
             });
 
             // 4. 清理
