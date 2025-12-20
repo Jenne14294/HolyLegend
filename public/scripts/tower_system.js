@@ -571,6 +571,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 1. 觸發事件：顯示卡片
         socket.on('trigger_event', (eventData) => {
             if (state.playerHp > 0) {
+                window.Game.battleEvent = eventData;
                 createAndShowEventCard(eventData);
             }
         });
