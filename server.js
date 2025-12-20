@@ -1204,9 +1204,6 @@ export default function initSocket(server) {
 
             if (!battle || !room) return;
 
-            console.log(room[0].state.Status)
-
-
             battle.processingTurn = true; // 上鎖
 
             // 1. 計算總傷害
@@ -1328,8 +1325,6 @@ export default function initSocket(server) {
                 room.forEach(p => {
                     if (p.socketId == sid) {
                         PlayerStatus[sid] = p.state
-                        console.log(p.state.Status)
-                        console.log()
                     }
                 })
             });

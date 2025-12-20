@@ -2381,8 +2381,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function useItemSinglePlayer(item) {
         let used = false;
-
-        console.log(item)
         
         if (item.category === 'POTION') {
             if (item.effectType === 'HP') {
@@ -2497,8 +2495,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     let damageMultiply = 1 + Math.random() * 0.5
                     let AttackMultiply = 1 + (state.AdditionAttribute.skillBonus / 100)
-
-                    console.log(damage, damageMultiply, CritMultiply, AttackMultiply, additionDamage)
+                    
                     damage = Math.round(damage * damageMultiply * CritMultiply * AttackMultiply * additionDamage);
 
                     state.enemyHp -= damage;
@@ -2796,7 +2793,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function confirmSelection() {
-        if (!eventLayer.classList.contains('hidden') && window.Game.battleEvent.successRate >= 30) {
+        if (!eventLayer.classList.contains('hidden') && window.Game.battleEvent.successRate >= 30 && !window.Game.battleEvent.btn.innerHTML.includes('檢定中')) {
             handleTryEvent(window.Game.battleEvent, window.Game.battleEvent.successRate, window.Game.battleEvent.btn);
         }
     }
