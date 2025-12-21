@@ -2197,6 +2197,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        const state = window.Game.state;
+
         items.forEach(item => {
             const card = document.createElement('div');
             card.className = 'shop-item';
@@ -2205,30 +2207,41 @@ document.addEventListener('DOMContentLoaded', () => {
             const isDead = state.playerHp <= 0;
             const canAfford = state.goldCollected >= item.price;
 
+            // 檢查玩家是否已經擁有此技能 (ID > 51 且在 Skills 陣列中)
+            const alreadyOwned = item.id > 51 && state.Skills && state.Skills.some(s => Number(s.id) === Number(item.id));
+
+            // ★ 視覺狀態控制：如果無法購買，則添加對應的 Class 讓 CSS 變灰
             if (isSoldOut) card.classList.add('sold-out');
-            if (isDead) card.classList.add('player-dead'); // 可選：加樣式用
+            if (isDead) card.classList.add('player-dead');
+            if (alreadyOwned) card.classList.add('already-owned');
 
             const imgSrc = `/holylegend/images/items/${item.image}`;
-            const ClassName = item.requiredClassDetail ? `所需職業：${item.requiredClassDetail.nickname}` : ""
+            const ClassName = item.requiredClassDetail ? `所需職業：${item.requiredClassDetail.nickname}` : "";
+
+            // 決定按鈕顯示文字
+            let btnLabel = '購買';
+            if (isDead) btnLabel = '無法購買';
+            else if (alreadyOwned) btnLabel = '已擁有';
+            else if (isSoldOut) btnLabel = '售罄';
 
             card.innerHTML = `
                 <div class="item-img-box">
-                    <img src="${imgSrc}" onerror="this.style.display='none';">
+                    <img src="${imgSrc}" onerror="this.src='/holylegend/images/items/default.png';">
                     <div class="stock-badge">剩 ${item.currentStock}</div>
                 </div>
                 <div class="item-info">
                     <div class="item-name">${item.name}</div>
                     <div class="item-desc">${item.description}\n${ClassName}</div>
-                    <div class="item-price" style="color:${canAfford ? '#ffd700' : '#e74c3c'}">💰${item.price}</div>
+                    <div class="item-price" style="color:${canAfford && !isDead ? '#ffd700' : '#e74c3c'}">💰${item.price}</div>
                 </div>
-                <button class="btn-buy" ${isSoldOut || isDead ? 'disabled' : ''}>
-                    ${isDead ? '無法購買' : (isSoldOut ? '售罄' : '購買')}
+                <button class="btn-buy" ${isSoldOut || isDead || alreadyOwned ? 'disabled' : ''}>
+                    ${btnLabel}
                 </button>
             `;
 
             const btnBuy = card.querySelector('.btn-buy');
-
-            if (!isSoldOut && !isDead) {
+            // 只有在可購買的情況下綁定點擊事件
+            if (!isSoldOut && !isDead && !alreadyOwned) {
                 btnBuy.addEventListener('click', () => handleBuyItem(item));
             }
 

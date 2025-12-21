@@ -179,6 +179,7 @@
     cursor: pointer; flex: 0 0 auto;
 }
 .shop-item.sold-out { filter: grayscale(100%); opacity: 0.6; }
+.shop-item.already-owned { filter: grayscale(100%); opacity: 0.6; }
 
 /* 底部區域 */
 .shop-footer {
