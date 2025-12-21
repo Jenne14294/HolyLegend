@@ -184,6 +184,27 @@ input:checked + .slider:before {
 
 @media (max-width: 480px) {
     #keybind-section {
-        display: none;
+        display: none !important; /* 強制隱藏快捷鍵區塊 */
     }
+    
+    .shortcut-row {
+        display: none !important; /* 強制隱藏水平快捷鍵列 */
+    }
+
+    #btn-save-shortcuts {
+        display: none !important; /* 強制隱藏水平快捷鍵列 */
+    }
+
+    #btn-reset-shortcuts {
+        display: none !important;
+    }
+    
+    /* 可選：給手機用戶一個提示 */
+    .mobile-hint {
+        display: block;
+        color: #aaa;
+        font-size: 0.9rem;
+        text-align: center;
+        padding: 10px;
+    }    
 }
