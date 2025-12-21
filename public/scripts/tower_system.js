@@ -509,6 +509,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (result.playerBuff) {
                 // 同步自己的血量 (Server Authority 校正)
                 // 雖然本地有 playerTakeDamage，但用 Server 的值校正更準
+                
                 const myStates = result.playerBuff[socket.id];
 
                 if (myStates) {

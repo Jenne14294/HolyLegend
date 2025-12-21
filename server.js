@@ -556,6 +556,7 @@ export default function initSocket(server) {
                             tRoomData.forEach(m => {
                                 if(m.socketId == tId) {
                                     const existing = m.state.Status.find(s => s.id === buff.id);
+                                    const pState = battle.playerStates[m.socketId];
                                     if (existing) {
                                         existing.duration = buff.duration; // 重置回合數
                                     } else {
@@ -564,19 +565,7 @@ export default function initSocket(server) {
 
                                     // 套用 STAT 效果
                                     if (buff.effectType === 'STAT') {
-                                        const key = defaultStat.indexOf(buff.statKey);
-                                        
-                                        if (buff.valueType === 'Add') {
-                                            if (key != -1) {
-                                                m.state.AdditionState[key] = (m.state.AdditionState[key] || 0) + buff.value;
-                                            } else {
-                                                const key = additionMap[buff.statKey];
-
-                                                if (key) {
-                                                    m.state.AdditionAttribute[key] += buff.value;
-                                                }
-                                            }
-                                        }
+                                        updatePlayerAttribute(m.state, pState, buff.statKey, buff.value, false);
                                     }
                                 }
                             })
@@ -1125,8 +1114,18 @@ export default function initSocket(server) {
                 } else {
                     permState.AdditionState[idx] += val;
                 }
+            } else if (additionMap[type] != undefined) {
+                const key = additionMap[buff.statKey];
+                        
+                if (key) {
+                    m.state.AdditionAttribute[key] += buff.value;
+                }
             }
 
+            recalculatePlayerStatus(permState, combatState)
+        }
+
+        function recalculatePlayerStatus(permState, combatState) {
             // 2. 取得累計的屬性加成
             const [addStr, addDex, addCon, addInt] = permState.AdditionState || [0, 0, 0, 0];
             const attr = permState.AdditionAttribute || {}; 
@@ -1278,6 +1277,8 @@ export default function initSocket(server) {
 
 
                     if (p.state.Status && p.state.Status.length > 0) {
+                        const pState = battle.playerStates[p.socketId];
+
                         for (let i = p.state.Status.length - 1; i >= 0; i--) {
                             const buff = p.state.Status[i];
                             if (buff.duration != null && buff.duration > 0) {
@@ -1293,6 +1294,7 @@ export default function initSocket(server) {
                                             p.state.AdditionState[key] -= buff.value;
                                         }
                                     }
+                                    recalculatePlayerStatus(p.state, pState)
                                     p.state.Status.splice(i, 1);
                                 }
                             }
