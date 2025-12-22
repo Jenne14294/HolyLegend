@@ -46,6 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let shopSpendingAccumulator = 0;   // ★ 新增：商店消費累計 (用於防止雙重扣款)
     let pendingBuyItem = null; // 暫存正在購買的物品
     let isEnabledQuickItem = false;
+    let isEnabledQuickReward = false;
 
     // 獎勵圖示
     const REWARD_ICONS = {
@@ -721,13 +722,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const teamText = document.querySelector('.team-status-text');
             const isInTeam = teamText && teamText.innerText.includes('房號');
             btnReady.style.backgroundColor = ""; // 恢復原色
+            
+            isEnabledQuickItem = false;
+            isEnabledQuickReward = false;
 
             if (isInTeam) {
                 // --- 多人模式 ---
                 // 發送請求給 Server，Server 會廣播 init_ready_check 給全隊
                 teammatesContainer.classList.remove('hidden')
                 socket.emit('request_tower_start');
-                isEnabledQuickItem = false;
             } else {
                 teammatesContainer.classList.add('hidden')
                 // --- 單人模式 (保持原樣) ---
@@ -1425,10 +1428,21 @@ document.addEventListener('DOMContentLoaded', () => {
         //    只負責送出請求，不進行任何本地數值修改
         // =================================================
         if (isMultiplayerMode && socket) {
+            if (rewardData == 'clean') {
+                isEnabledQuickReward = false;
+                const cards = teammatesContainer.querySelectorAll('.tm-card');
+
+                cards.forEach(c => {
+                    c.removeEventListener('click', handleTeammateSelect);
+                    c.classList.remove('selectable');
+                });
+                return;
+            }
             
             // A-1. 特殊處理：復活 (REVIVE) 需要選目標
             if (rewardData.rewardType === 'REVIVE') {
                 rewardLayer.classList.add('hidden');
+                isEnabledQuickReward = true;
                 addBattleLog("請點擊一名 [死亡] 的隊友進行復活！", 'log-system');
                 alert("請點擊一名 [死亡] 的隊友頭像進行復活！\n(可以直接點擊隊友卡片)");
 
@@ -2270,6 +2284,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function buyItemSinglePlayer(item) {
+        if (item.id > 51 && state.Skills && state.Skills.some(s => Number(s.id) === Number(item.id))) {
+            showMessage("你已經擁有此符文！", '#e74c3c');
+            shakeShop();
+            return;
+        }
+
         state.goldCollected -= item.price;
         item.currentStock--;
         let msg = `購買了 ${item.name}`;
@@ -2851,11 +2871,24 @@ document.addEventListener('DOMContentLoaded', () => {
         handleUseItem('clean')        
     }
 
+    function handleReviveReward(index) {
+        const cards = teammatesContainer.querySelectorAll('.tm-card');
+        const targetId = cards[index - 1].dataset.id;
+
+        if (confirm("確定要復活這位隊友嗎？")) {
+            // 發送請求
+            socket.emit('player_selected_reward', { 
+                reward: rewardData,
+                targetSocketId: targetId
+            });
+        }
+        applyReward('clean')
+    }
 
     function quickSelection(number) {
-        if (!rewardLayer.classList.contains('hidden') && 1 <= number <= 3) {
+        if (!rewardLayer.classList.contains('hidden') && 1 <= number && number <= 3) {
             applyReward(window.Game.battleRewards[number - 1]);
-        } else if (!shopLayer.classList.contains('hidden') && 1 <= number <= 6) {
+        } else if (!shopLayer.classList.contains('hidden') && 1 <= number && number <= 6) {
             handleBuyItem(window.Game.currentShopItems[number - 1])
         } else if (!activeSkillLayer.classList.contains('hidden') && 1 <= number && number <= 4 && window.Game.battleSkill.length > 0) {
             handleUseSkill(window.Game.battleSkill[number - 1])
@@ -2864,6 +2897,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (isEnabledQuickItem && isMultiplayerMode) {
             if (number == 1) HandleSelfItem(window.Game.LatestItemUsed);
             else if (2 <= number && number <= 4) HandleTargetItem(window.Game.LatestItemUsed, number - 1);
+        } else if (isEnabledQuickReward && isMultiplayerMode) {
+            if (2 <= number && number <= 4) handleReviveReward(number - 1);
         }
     }
 
