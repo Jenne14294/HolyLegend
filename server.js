@@ -556,7 +556,6 @@ export default function initSocket(server) {
                             tRoomData.forEach(m => {
                                 if(m.socketId == tId) {
                                     const existing = m.state.Status.find(s => s.id === buff.id);
-                                    const pState = battle.playerStates[m.socketId];
                                     if (existing) {
                                         existing.duration = buff.duration; // 重置回合數
                                     } else {
@@ -565,7 +564,21 @@ export default function initSocket(server) {
 
                                     // 套用 STAT 效果
                                     if (buff.effectType === 'STAT') {
-                                        updatePlayerAttribute(m.state, pState, buff.statKey, buff.value, false);
+                                        const key = defaultStat.indexOf(buff.statKey);
+                                        
+                                        if (buff.valueType === 'Add') {
+                                            if (key != -1) {
+                                                m.state.AdditionState[key] = (m.state.AdditionState[key] || 0) + buff.value;
+                                            } else {
+                                                const key = additionMap[buff.statKey];
+
+                                                if (key) {
+                                                    m.state.AdditionAttribute[key] += buff.value;
+                                                }
+                                            }
+                                        }
+
+                                        recalculatePlayerStatus(m.state, battle.playerStates[m.socketId]);
                                     }
                                 }
                             })
@@ -1113,12 +1126,6 @@ export default function initSocket(server) {
                     permState.AdditionState[idx] = Math.max(0, permState.AdditionState[idx] - val);
                 } else {
                     permState.AdditionState[idx] += val;
-                }
-            } else if (additionMap[type] != undefined) {
-                const key = additionMap[buff.statKey];
-                        
-                if (key) {
-                    m.state.AdditionAttribute[key] += buff.value;
                 }
             }
 
