@@ -698,7 +698,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         socket.on('skill_cast_result', (res) => {
-            console.log("技能發動確認:", res);
             state.waitingForTurn = false; // 停止網路等待
 
             if (res.success) {
@@ -1259,7 +1258,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.processingLevelUp = false; 
 
         if (!isMultiplayerInit) {
-            state.enemyMaxHp = Math.round(100 + 10 * Math.pow(1.05, state.currentFloor));
+            state.enemyMaxHp = Math.round(100 + 5 * Math.pow(1.05, state.currentFloor));
             state.enemyHp = state.enemyMaxHp;
         }
         
@@ -1688,7 +1687,8 @@ document.addEventListener('DOMContentLoaded', () => {
         alert(
             `【${status.name}】\n` +
             `${status.description || '無描述'}\n` +
-            `剩餘回合：${status.duration}`
+            `剩餘回合：${status.duration}\n` +
+            `施放者：${status.castName || Game.InitData.nickname}`
         );
     }
 
@@ -2223,7 +2223,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const canAfford = state.goldCollected >= item.price;
 
             // 檢查玩家是否已經擁有此技能 (ID > 51 且在 Skills 陣列中)
-            const alreadyOwned = item.id > 51 && state.Skills && state.Skills.some(s => Number(s.id) === Number(item.id));
+            const alreadyOwned = item.id > 51 && (state.Skills && state.Skills.some(s => Number(s.id) === Number(item.id))) || (state.Inventory && state.Inventory.some(s => Number(s.id) === Number(item.id)));
 
             // ★ 視覺狀態控制：如果無法購買，則添加對應的 Class 讓 CSS 變灰
             if (isSoldOut) card.classList.add('sold-out');
@@ -2645,7 +2645,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     existing.duration = status.duration; // 重置回合數
                 } else {
                     buff = status
-                    state.Status.push(status);
+                    state.Status.push({...status, castName: Game.InitData.nickname});
 
                     // 套用 STAT 效果
                     if (buff.effectType === 'STAT') {

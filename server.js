@@ -555,31 +555,30 @@ export default function initSocket(server) {
 
                             tRoomData.forEach(m => {
                                 if(m.socketId == tId) {
-                                    const existing = m.state.Status.find(s => s.id === buff.id);
+                                    const existing = m.state.Status.find(s => s.id === buff.id && s.castId === socket.id);
                                     if (existing) {
                                         existing.duration = buff.duration; // 重置回合數
                                     } else {
-                                        m.state.Status.push(JSON.parse(JSON.stringify(buff)))
-                                    }
+                                        m.state.Status.push({...buff, castId: socket.id, castName: pRoomData.nickname  });
 
-                                    // 套用 STAT 效果
-                                    if (buff.effectType === 'STAT') {
-                                        const key = defaultStat.indexOf(buff.statKey);
-                                        
-                                        if (buff.valueType === 'Add') {
-                                            if (key != -1) {
-                                                m.state.AdditionState[key] = (m.state.AdditionState[key] || 0) + buff.value;
-                                            } else {
-                                                const key = additionMap[buff.statKey];
+                                        // 套用 STAT 效果
+                                        if (buff.effectType === 'STAT') {
+                                            const key = defaultStat.indexOf(buff.statKey);
+                                            
+                                            if (buff.valueType === 'Add') {
+                                                if (key != -1) {
+                                                    m.state.AdditionState[key] = (m.state.AdditionState[key] || 0) + buff.value;
+                                                } else {
+                                                    const key = additionMap[buff.statKey];
 
-                                                if (key) {
-                                                    m.state.AdditionAttribute[key] += buff.value;
+                                                    if (key) {
+                                                        m.state.AdditionAttribute[key] += buff.value;
+                                                    }
                                                 }
                                             }
                                         }
-
-                                        recalculatePlayerStatus(m.state, battle.playerStates[m.socketId]);
                                     }
+                                    recalculatePlayerStatus(m.state, battle.playerStates[m.socketId]);
                                 }
                             })
                         }
@@ -1041,7 +1040,7 @@ export default function initSocket(server) {
             const room = rooms[roomId]; if (!room) return;
 
             battle.floor++;
-            battle.enemyMaxHp = 100 + 10 * (battle.floor * room.length);
+            battle.enemyMaxHp = 100 + 5 * (Math.pow(1.05, battle.floor) * room.length);
             battle.enemyHp = Math.round(battle.enemyMaxHp);
             battle.processingTurn = false;
             battle.pendingActions = [];
@@ -1236,7 +1235,7 @@ export default function initSocket(server) {
                 targetSocketId = battle.alivePlayerIds[targetIndex];
                 const target = room.find(p => p.socketId == targetSocketId)
 
-                damageTaken = 5 + (2.5 * battle.alivePlayerIds.length * Math.pow(1.05, battle.floor)); 
+                damageTaken = 5 + (2.5 * battle.alivePlayerIds.length * Math.pow(1.025, battle.floor)); 
                 playerDefense = Math.round(target.state.AdditionState[1] / 7 + target.state.AdditionState[3] / 3)
                 damageTaken -= playerDefense
 
