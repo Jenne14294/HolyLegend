@@ -99,6 +99,7 @@ export default function initSocket(server) {
 
             // 3. 通知隊友更新隊伍列表
             io.to(currentRoomId).emit('team_update', rooms[currentRoomId]);
+            if (data.newRole == oldRole) return;
             io.to(currentRoomId).emit('chat_message', { 
                 sender: '系統', 
                 text: `${currentPlayer.nickname} 轉職成 [${data.newRole}]！`, 
