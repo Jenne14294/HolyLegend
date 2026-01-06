@@ -1561,7 +1561,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.playerMp += Math.round(state.playerMaxMp * 0.3);
 
                 if (state.playerHp > state.playerMaxHp) state.playerHp = state.playerMaxHp
-                if (state.plaMaxMp > state.playerMaxMp) state.plaMaxMp = state.playerMaxMp
+                if (state.playerMp > state.playerMaxMp) state.playerMp = state.playerMaxMp
                 break;
             default:
                 console.log("未知的獎勵類型:", rewardData);
