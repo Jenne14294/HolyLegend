@@ -77,7 +77,18 @@ npm install
 ```
 
 ### 3️⃣ 資料庫設定
-- 設定 database.js 內的連線資訊
+- 建立 .env 檔案
+- 內容如下：
+```
+DB_HOST=資料庫伺服器IP
+DB_NAME=holylegend(資料庫名稱)
+DB_USER=資料庫帳號
+DB_PASSWORD=資料庫密碼
+PORT=3000
+JWT_SECRET=JWT密鑰
+JWT_REFRESH_SECRET=JWT刷新Token密鑰
+```
+  
 
 ### 4️⃣ 啟動伺服器
 ```bash
