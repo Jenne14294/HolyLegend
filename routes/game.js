@@ -41,12 +41,17 @@ router.get('/', verifyToken, async (req, res, next) => {
         avatar: userData.avatar || '/holylegend/images/classes/' + userData.class.name + '_1.png'
     };
 
+    // 檢查是否有邀請連結房號 (優先順序: Query > Session)
+    const joinRoomId = req.query.join || req.session.joinRoomId || null;
+    if (req.session.joinRoomId) delete req.session.joinRoomId; // 清除一次性參數
+
     // 3. 傳輸資料進去渲染 (Render)
     // 第一個參數 'game_scene' 是你的 ejs 檔名 (不含 .ejs)
     // 第二個參數是用來傳資料的物件
     res.render('game', { 
         title: 'Holy Legend',
-        user: renderData // 這裡傳進去的 key 叫 'user'，EJS 裡就用 user.xxx
+        user: renderData, // 這裡傳進去的 key 叫 'user'，EJS 裡就用 user.xxx
+        joinRoomId: joinRoomId
     });
 
   } catch (err) {

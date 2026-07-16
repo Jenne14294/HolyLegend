@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 離開隊伍按鈕
     const btnLeave = document.getElementById('btn-leave-team');
+    const btnInvite = document.getElementById('btn-invite-team');
 
     // 列表與聊天
     const teamMembersList = document.getElementById('team-members-list');
@@ -29,6 +30,44 @@ document.addEventListener('DOMContentLoaded', () => {
     // 初始化：先渲染空的隊伍格子
     renderTeamMembers([]);
     updateButtonState('initial');
+
+    // 自動加入邏輯 (檢查 URL 參數 或 全域注入)
+    setTimeout(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const joinRoomId = window.JOIN_ROOM_ID || urlParams.get('join');
+        
+        if (joinRoomId && joinRoomId !== "null" && joinRoomId !== "undefined") {
+            // 如果在爬塔中，不自動加入
+            const towerLayer = document.getElementById('tower-layer');
+            if (towerLayer && !towerLayer.classList.contains('hidden')) return;
+            if (myRoomId) return;
+
+            // 強制切換 UI 到酒館介面
+            if (lobbyLayer) lobbyLayer.classList.add('hidden');
+            if (teamLayer) teamLayer.classList.remove('hidden');
+            
+            // 初始化監聽器
+            initSocketListeners();
+
+            // 執行加入邏輯
+            const socket = window.Game.socket;
+            if (socket) {
+                const myData = getMyPlayerData();
+                socket.emit('join_team', { roomId: joinRoomId, playerData: myData });
+                
+                myRoomId = joinRoomId;
+                isLeader = false;
+                isReady = false;
+                
+                updateButtonState('in_room');
+                
+                // 清除 URL 參數與全域變數，避免重整時重複加入
+                window.JOIN_ROOM_ID = null;
+                const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                window.history.replaceState({path:newUrl}, '', newUrl);
+            }
+        }
+    }, 1000); // 稍微延遲確保 socket 與資料已就緒
 
     // ===========================
     // 1. 初始化 Socket 監聽器
@@ -252,6 +291,25 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // 邀請按鈕邏輯
+    if (btnInvite) {
+        btnInvite.addEventListener('click', () => {
+            if (!myRoomId) return;
+            
+            // 生成連結：當前 URL + ?join=房號
+            const inviteUrl = window.location.origin + window.location.pathname + '?join=' + myRoomId;
+            
+            // 複製到剪貼簿
+            navigator.clipboard.writeText(inviteUrl).then(() => {
+                alert("邀請連結已複製到剪貼簿！快傳給好友吧！\n連結：" + inviteUrl);
+            }).catch(err => {
+                console.error('無法複製連結: ', err);
+                // 備援方案：顯示 prompt 讓玩家自己複製
+                prompt("複製下方的邀請連結傳給好友：", inviteUrl);
+            });
+        });
+    }
+
     // 發送聊天
     if (btnChatSend) {
         btnChatSend.addEventListener('click', () => {
@@ -280,12 +338,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if(btnJoin) { btnJoin.style.display = 'none'; btnJoin.disabled = false; }
             if(btnReady) btnReady.style.display = 'block';
             if(btnLeave) btnLeave.style.display = 'block';
+            if(btnInvite) btnInvite.style.display = 'block';
         } else {
             // initial
             if(btnCreate) { btnCreate.style.display = 'block'; btnCreate.disabled = false; }
             if(btnJoin) { btnJoin.style.display = 'block'; btnJoin.disabled = false; }
             if(btnReady) btnReady.style.display = 'none';
             if(btnLeave) btnLeave.style.display = 'none';
+            if(btnInvite) btnInvite.style.display = 'none';
         }
     }
 

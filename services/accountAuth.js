@@ -36,10 +36,18 @@ const createUser = async (userData) => {
 };
 
 const verifyToken = (req, res, next) => {
+    // 0. 如果有 join 參數，先存入 session (用於邀請連結登入後恢復)
+    if (req.query.join) {
+        req.session.joinRoomId = req.query.join;
+    }
+
     // 1. 從 cookie 拿 token
     const token = req.cookies.auth_token; 
 
     if (!token) {
+        if (req.method === 'GET' && !req.xhr && (!req.headers.accept || !req.headers.accept.includes('application/json'))) {
+            return res.redirect('/holylegend');
+        }
         return res.status(401).json({ success: false, msg: '請先登入' });
     }
 
@@ -53,6 +61,9 @@ const verifyToken = (req, res, next) => {
         
         next(); // 通行，繼續執行後面的路由
     } catch (err) {
+        if (req.method === 'GET' && !req.xhr && (!req.headers.accept || !req.headers.accept.includes('application/json'))) {
+            return res.redirect('/holylegend');
+        }
         return res.status(403).json({ success: false, msg: '登入過期或無效' });
     }
 };

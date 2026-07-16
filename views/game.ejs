@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Holy Legend - 冒險中</title>
+    <link rel="icon" type="image/png" href="/icon.png">
     <link rel="stylesheet" href="/holylegend/styles/game.css">
     <link rel="stylesheet" href="/holylegend/styles/tower.css"> <!-- 新增戰鬥專用樣式 -->
     <link rel="stylesheet" href="/holylegend/styles/team.css"> <!-- 新增戰鬥專用樣式 -->
@@ -325,6 +326,7 @@
 
             <!-- 底部準備按鈕 -->
             <div class="team-footer">
+                <button id="btn-invite-team" class="btn-pixel-wide" style="display:none; background-color: #3498db; margin-bottom: 10px;">邀請</button>
                 <button id="btn-leave-team" class="btn-pixel-wide btn-danger" style="display:none;">離開隊伍</button>
             </div>
 
@@ -576,6 +578,9 @@
     </div>
 
     <!-- 引入邏輯腳本 -->
+    <script>
+        window.JOIN_ROOM_ID = "<%= joinRoomId %>";
+    </script>
     <script src="/holylegend/scripts/game_core.js"></script>
     <script src="/holylegend/scripts/tower_system.js"></script>
     <script src="/holylegend/scripts/class_system.js"></script>
