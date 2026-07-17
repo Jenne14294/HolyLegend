@@ -345,16 +345,171 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="skill_level-badge">${item_level}</div>
                     `;
                     
-                    el.onclick = () => { 
+                    // ==========================================
+                    // ★ 新增：提示框 (Tooltip) 互動邏輯
+                    // ==========================================
+                    let touchTimer;
+                    let isLongPress = false;
+
+                    // [電腦端] 滑鼠懸停與移動
+                    el.addEventListener('mouseenter', (e) => showItemTooltip(e, item));
+                    el.addEventListener('mousemove', (e) => moveItemTooltip(e));
+                    el.addEventListener('mouseleave', hideItemTooltip);
+
+                    // [手機端] 觸控長按 (設定 400 毫秒觸發)
+                    el.addEventListener('touchstart', (e) => {
+                        isLongPress = false;
+                        touchTimer = setTimeout(() => {
+                            isLongPress = true;
+                            showItemTooltip(e.touches[0], item); // 傳入觸控座標
+                            
+                            // 觸發手機小震動回饋 (如果裝置支援)
+                            if (navigator.vibrate) navigator.vibrate(50);
+                        }, 400); 
+                    }, { passive: true });
+
+                    // 如果手指滑動了，代表不是長按，取消計時並隱藏
+                    el.addEventListener('touchmove', () => {
+                        clearTimeout(touchTimer);
+                        hideItemTooltip();
+                    }, { passive: true });
+
+                    // 手指離開時隱藏提示
+                    el.addEventListener('touchend', () => {
+                        clearTimeout(touchTimer);
+                        hideItemTooltip();
+                    });
+
+                    // [共用] 點擊觸發裝備/合成
+                    el.onclick = (e) => { 
+                        // 防呆：如果是長按引起的 touchend，阻止點擊事件發動
+                        if (isLongPress) {
+                            e.preventDefault();
+                            isLongPress = false;
+                            return; 
+                        }
+
                         if (currentMode === 'inventory') {
                             equipSkill(item); 
                         } else {
                             addToSynthesis(item);
                         }
                     };
+                    
                     invGrid.appendChild(el);
                 }
             });
+    }
+
+    // ==========================================
+    // ★ 新增：Tooltip 輔助函式 (放在 renderInventory 下方即可)
+    // ==========================================
+    function showItemTooltip(event, item) {
+        let tt = document.getElementById('global-item-tooltip');
+        
+        // 如果沒有提示框元素，動態建立一個
+        if (!tt) {
+            tt = document.createElement('div');
+            tt.id = 'global-item-tooltip';
+            tt.style.cssText = `
+                position: fixed; 
+                z-index: 9999; 
+                background: rgba(20, 20, 20, 0.95); 
+                border: 2px solid #f1c40f; 
+                border-radius: 6px;
+                padding: 10px; 
+                color: #fff; 
+                font-family: 'VT323', monospace; 
+                pointer-events: none; 
+                max-width: 220px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.8);
+                transform: translate(-50%, -110%);
+                display: none;
+            `;
+            document.body.appendChild(tt);
+        }
+
+        // 1. 建立職業 ID 與名稱的對照表 (可依據您的資料庫設定調整)
+        const CLASS_MAP = {
+            1: '戰士',
+            2: '法師',
+            3: '射手',
+            4: '騎士',
+            5: '遊俠',
+            6: '巫師',
+            7: '聖騎士',
+            8: '盜賊',
+            9: '牧師',
+        };
+
+        let classReqHtml = '';
+        
+        // 2. 判斷是否有職業限制 (可能是 item.requiredClass 或是 item.requiredClassId)
+        const reqClassValue = item.requiredClass || item.requiredClassId;
+
+        if (reqClassValue) {
+            // 嘗試從對照表取得名稱，如果找不到就顯示原本的值
+            const reqClassName = CLASS_MAP[reqClassValue] || reqClassValue;
+            
+            // 判斷玩家當前職業 (jobId) 是否等於該裝備的需求職業
+            const isEquipable = Number(reqClassValue) === Number(window.Game.state.jobId) || reqClassName === window.Game.state.role;
+
+            if (isEquipable) {
+                // 符合職業限制 -> 顯示綠色
+                classReqHtml = `
+                    <div style="color: #2ecc71; font-size: 0.85rem; margin-top: 6px; border-top: 1px dashed #555; padding-top: 4px;">
+                        ✅ 專屬職業：${reqClassName} (可裝備)
+                    </div>`;
+            } else {
+                // 不符合職業限制 -> 顯示紅色
+                classReqHtml = `
+                    <div style="color: #e74c3c; font-size: 0.85rem; margin-top: 6px; border-top: 1px dashed #555; padding-top: 4px;">
+                        ⚠️ 限定職業：${reqClassName} (無法裝備)
+                    </div>`;
+            }
+
+        } else if (item.category === 'GENERAL_SKILL' || !item.category?.includes('CLASS')) {
+            // 通用符文 -> 顯示綠色
+            classReqHtml = `
+                <div style="color: #2ecc71; font-size: 0.85rem; margin-top: 6px; border-top: 1px dashed #555; padding-top: 4px;">
+                    ✅ 通用符文 (可裝備)
+                </div>`;
+        }
+        
+        // 3. 填入資料
+        tt.innerHTML = `
+            <div style="color: #f1c40f; font-size: 1.2rem; border-bottom: 1px solid #555; padding-bottom: 4px; margin-bottom: 4px; text-shadow: 1px 1px 0 #000;">
+                ${item.name}
+            </div>
+            <div style="font-size: 0.9rem; color: #ccc; line-height: 1.2;">
+                ${item.description || '神秘的符文，蘊含未知的力量。'}
+            </div>
+            ${classReqHtml}
+        `;
+        
+        tt.style.display = 'block';
+        moveItemTooltip(event, tt);
+    }
+
+    function moveItemTooltip(event, tooltipEl) {
+        const tt = tooltipEl || document.getElementById('global-item-tooltip');
+        if (!tt || tt.style.display === 'none') return;
+        
+        let x = event.clientX;
+        let y = event.clientY;
+        
+        // 邊界防呆：防止提示框超出左右螢幕邊緣
+        const ttWidth = tt.offsetWidth || 150;
+        if (x < ttWidth / 2) x = ttWidth / 2;
+        if (x > window.innerWidth - (ttWidth / 2)) x = window.innerWidth - (ttWidth / 2);
+        
+        tt.style.left = `${x}px`;
+        tt.style.top = `${y - 10}px`;
+    }
+
+    function hideItemTooltip() {
+        const tt = document.getElementById('global-item-tooltip');
+        if (tt) tt.style.display = 'none';
     }
 
     function addToSynthesis(item) {

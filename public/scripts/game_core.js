@@ -41,8 +41,7 @@ window.Game = {
         playerMaxHp: 100,
         playerMp: 30,
         playerMaxMp: 30,
-        enemyHp: 100,
-        enemyMaxHp: 100,
+        enemies: [],
         level: 1,
         role: 'novice', // 記錄當前職業
         avatar: '',

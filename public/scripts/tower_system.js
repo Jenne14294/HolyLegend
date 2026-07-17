@@ -835,19 +835,22 @@ document.addEventListener('DOMContentLoaded', () => {
     // 單人攻擊邏輯 (封裝)
     function performLocalAttack() {
         const enemyImg = document.getElementById('enemy-img');
-        let damage = 0;
 
         if(enemyImg) {
             enemyImg.style.transform = 'scale(0.9)';
             setTimeout(() => enemyImg.style.transform = 'scale(1)', 100);
         }
 
-        state.AdditionState.forEach(value => {
-            for (let i = 0; i < state.AdditionState.length; i++)
-            {
-                damage += value * 0.25;
-            }
-        });
+        const str = state.AdditionState[0] || 0;
+        const dex = state.AdditionState[1] || 0;
+        const con = state.AdditionState[2] || 0;
+        const int = state.AdditionState[3] || 0;
+
+        let damage =
+            (str * 1.2) +
+            (dex * 0.8) +
+            (con * 0.3) +
+            (int * 0.5);
 
         const system_critRate = Math.random() * 100
         CritRate = state.AdditionAttribute.crit + state.AdditionState[1] * 0.25 + state.AdditionState[3] * 0.15
@@ -864,12 +867,12 @@ document.addEventListener('DOMContentLoaded', () => {
         damage = Math.round(damage * damageMultiply * CritMultiply * AttackMultiply);
         // 若有屬性加成...
         
-        state.enemyHp -= damage;
+        state.enemies[0].hp -= damage;
         addBattleLog(`你對怪物造成 ${damage} 點傷害`, 'log-player');
         showDamageNumber(damage);
         updateEnemyUI();
 
-        if (state.enemyHp <= 0) {
+        if (state.enemies[0].hp <= 0) {
             handleMonsterDeath();
         } else {
             setTimeout(enemyAttack, 100); // 單人怪物反擊
@@ -879,11 +882,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // 怪物死亡處理 (通用)
     function handleMonsterDeath() {
         state.processingLevelUp = true;
-        state.goldCollected += 50;
+        state.goldCollected += state.enemies[0].gold;
         updateTopBarUI();
         renderStatusUI();
         
-        addBattleLog(`怪物被擊敗！獲得 50 金幣`, 'log-system');
+        addBattleLog(`怪物被擊敗！獲得 ${state.enemies[0].gold} 金幣`, 'log-system');
         state.currentFloor++;
         const enemyImg = document.getElementById('enemy-img');
         if(enemyImg) enemyImg.style.opacity = '0';
@@ -1254,13 +1257,100 @@ document.addEventListener('DOMContentLoaded', () => {
         state.Status = [];
     }
 
-    function startNewFloor(isMultiplayerInit = false, specifiedMonster = null) {
+    async function startNewFloor(isMultiplayerInit = false, specifiedMonster = null) {
         state.processingLevelUp = false; 
 
+        let targetImage = null; // 用來記錄從資料庫抽到的圖片
+
+        // 這裡插入新的 API 抓取邏輯
         if (!isMultiplayerInit) {
+            try {
+                const response = await fetch('/holylegend/system/enemy');
+                const result = await response.json();
+
+                if (result.success && result.data && result.data.length > 0) {
+                    const allMonsters = result.data;
+                    let selectedMonsterDef = null;
+
+                    if (specifiedMonster) {
+                        selectedMonsterDef = allMonsters.find(m => m.name === specifiedMonster);
+                    }
+                    if (!selectedMonsterDef) {
+                        const currentFloor = state.currentFloor || 1;
+                        // --- ★ 改用機率決定怪物類型 ---
+                        let targetType = 'NORMAL';
+                        const roll = Math.random() * 100; // 產生 0 ~ 100 的隨機數
+
+                        if (currentFloor % 10 === 0) {
+                            // 💡 保留機制：每 10 層依然固定是 BOSS 關卡，確保爬塔有儀式感
+                            targetType = 'BOSS';
+                        } else {
+                            // 其他樓層用機率抽：
+                            if (roll < 3) {
+                                targetType = 'BOSS';   // 3% 機率：意外撞見 BOSS (大凶/大吉)
+                            } else if (roll < 23) {
+                                targetType = 'ELITE';  // 20% 機率：遇到菁英怪或寶箱怪
+                            } else {
+                                targetType = 'NORMAL'; // 77% 機率：普通怪
+                            }
+                        }
+
+                        let validMonsters = allMonsters.filter(m => 
+                            currentFloor >= m.minLayer && currentFloor <= m.maxLayer && m.type === targetType
+                        );
+                        if (validMonsters.length === 0) {
+                            validMonsters = allMonsters.filter(m => currentFloor >= m.minLayer && currentFloor <= m.maxLayer);
+                        }
+                        if (validMonsters.length > 0) {
+                            selectedMonsterDef = validMonsters[Math.floor(Math.random() * validMonsters.length)];
+                        } else {
+                            selectedMonsterDef = allMonsters[Math.floor(Math.random() * allMonsters.length)];
+                        }
+                    }
+
+                    const floorMultiplier = Math.pow(1.05, state.currentFloor - 1);
+                    const scaledHp = Math.round(selectedMonsterDef.HP * floorMultiplier);
+
+                    state.enemies = [{
+                        id: selectedMonsterDef.id,
+                        name: selectedMonsterDef.name,
+                        image: selectedMonsterDef.image,
+                        hp: scaledHp,
+                        maxHp: scaledHp,
+                        atk: Math.round(selectedMonsterDef.ATK * floorMultiplier),
+                        def: Math.round(selectedMonsterDef.DEF * floorMultiplier),
+                        mdef: Math.round(selectedMonsterDef.MDEF * floorMultiplier),
+                        exp: Math.round(selectedMonsterDef.EXP * floorMultiplier),
+                        gold: Math.round(selectedMonsterDef.Gold * floorMultiplier)
+                    }];
+                    state.targetEnemyId = selectedMonsterDef.id;
+                    targetImage = selectedMonsterDef.image; 
+
+                } else {
+                    fallbackInit();
+                }
+            } catch (e) {
+                console.error("獲取怪物失敗:", e);
+                fallbackInit();
+            }
+        }
+        
+        // 將你原本的計算邏輯包裝成防呆處理
+        function fallbackInit() {
             state.enemyMaxHp = Math.round(100 + 5 * Math.pow(1.05, state.currentFloor));
             state.enemyHp = state.enemyMaxHp;
+            
+            // 為了不讓新版普攻壞掉，順便塞入 enemies
+            state.enemies = [{
+                id: 1, name: '未知魔物', hp: state.enemyHp, maxHp: state.enemyMaxHp,
+                atk: 10, def: 5, mdef: 5, exp: 20, gold: 10
+            }];
+            state.targetEnemyId = 1;
         }
+
+        // ==========================================
+        // 以下完全保留你提供的基本邏輯 (解鎖、圖片與狀態更新)
+        // ==========================================
         
         // 確保沒死才能解鎖
         if (!state.isGameOver) {
@@ -1273,13 +1363,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if(enemyImg) {
             enemyImg.style.opacity = '1';
             let randomMonster = 'slime';
-            if (specifiedMonster) {
-                randomMonster = specifiedMonster;
+            
+            // 如果成功抓到 API 圖片就使用它，否則跑你原本的備用邏輯
+            if (targetImage) {
+                enemyImg.src = `/holylegend/images/enemies/${targetImage}`;
             } else {
-                const monsters = ['slime', 'bat', 'skeleton', 'orc']; 
-                randomMonster = monsters[Math.floor(Math.random() * monsters.length)];
+                if (specifiedMonster) {
+                    randomMonster = specifiedMonster;
+                } else {
+                    const monsters = ['slime', 'bat', 'skeleton', 'orc']; 
+                    randomMonster = monsters[Math.floor(Math.random() * monsters.length)];
+                }
+                enemyImg.src = `/holylegend/images/enemies/${randomMonster}.png`;
             }
-            enemyImg.src = `/holylegend/images/enemies/${randomMonster}.png`;
+            
             enemyImg.onerror = function() {
                 this.src = '/holylegend/images/enemies/slime.png'; 
             };
@@ -1305,7 +1402,6 @@ document.addEventListener('DOMContentLoaded', () => {
         updatePlayerUI();
     }
 
-    
 
     async function showRewards() {
         if (state.playerHp <= 0) {
@@ -1628,7 +1724,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateEnemyUI() {
-        const pct = (state.enemyHp / state.enemyMaxHp) * 100;
+        const pct = (state.enemies[0].hp / state.enemies[0].maxHp) * 100;
         const bar = document.getElementById('enemy-hp-fill');
         if(bar) bar.style.width = `${Math.max(0, pct)}%`;
     }
@@ -2572,7 +2668,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     damage = Math.round(damage * damageMultiply * CritMultiply * AttackMultiply * additionDamage);
 
-                    state.enemyHp -= damage;
+                    state.enemies[0].hp -= damage;
                     total_damage += damage;
                 }
 
@@ -2611,7 +2707,7 @@ document.addEventListener('DOMContentLoaded', () => {
             updateControlsState();
             updateEnemyUI();
 
-            if (state.enemyHp <= 0) {
+            if (state.enemies[0].hp <= 0) {
                 handleMonsterDeath();
             } else {
                 setTimeout(enemyAttack, 100); // 單人怪物反擊
