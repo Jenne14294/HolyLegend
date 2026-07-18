@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnCloseJob = document.getElementById('btn-close-job');
     // 抓取底部選單的第一個按鈕 (職業)
     const btnOpenJob = document.querySelector('.bottom-menu .menu-btn:first-child');
+    const jobTooltip = document.getElementById('job-tooltip');
 
 
     // ===========================
@@ -54,6 +55,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 生成卡片 HTML
+
+    function showJobTooltip(job) {
+        if (!jobTooltip) return;
+
+        jobTooltip.querySelector('.tooltip-title').textContent = job.nickname;
+
+        document.getElementById('tooltip-str').textContent = job.STR || 0;
+        document.getElementById('tooltip-dex').textContent = job.DEX || 0;
+        document.getElementById('tooltip-con').textContent = job.CON || 0;
+        document.getElementById('tooltip-int').textContent = job.INT || 0;
+
+        document.getElementById('tooltip-hp').textContent = job.maxHp || 0;
+        document.getElementById('tooltip-mp').textContent = job.maxMp || 0;
+
+        jobTooltip.classList.remove('hidden');
+    }
+
+    function hideJobTooltip() {
+        if (!jobTooltip) return;
+
+        jobTooltip.classList.add('hidden');
+    }
+
+
     function renderJobCards(classes, user) {
         const jobListContainer = document.getElementById('job-list-container');
         if (!jobListContainer) return;
@@ -114,6 +139,38 @@ document.addEventListener('DOMContentLoaded', () => {
             // 建立卡片 DOM
             const card = document.createElement('div');
             card.className = cardClass;
+
+            if (!isLocked) {
+
+                // PC 滑鼠移入
+                card.addEventListener('mouseenter', () => {
+                    showJobTooltip(job);
+                });
+
+                card.addEventListener('mouseleave', () => {
+                    hideJobTooltip();
+                });
+
+
+                // 手機長按
+                let pressTimer;
+
+                card.addEventListener('touchstart', () => {
+                    pressTimer = setTimeout(() => {
+                        showJobTooltip(job);
+                    }, 500);
+                });
+
+                card.addEventListener('touchend', () => {
+                    clearTimeout(pressTimer);
+                    hideJobTooltip();
+                });
+
+                card.addEventListener('touchmove', () => {
+                    clearTimeout(pressTimer);
+                    hideJobTooltip();
+                });
+            }
 
             // 如果鎖定，點擊卡片顯示詳細原因 (因為按鈕太小塞不下)
             if (isLocked) {

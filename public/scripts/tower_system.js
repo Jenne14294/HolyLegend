@@ -2486,14 +2486,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const isDead = state.playerHp <= 0;
             const canAfford = state.goldCollected >= item.price;
 
-            // 檢查玩家是否已經擁有此技能 (ID > 51 且在 Skills 陣列中)
+            // 檢查玩家是否已經擁有此技能 (加入防呆，避免遇到 null 導致當機)
             const alreadyOwned = item.requiredClass != null && (
-                (state.Skills && state.Skills.some(
-                    s => Number(s.id) === Number(item.id)
-                )) ||
-                (state.Equipment && state.Equipment.some(
-                    e => Number(e.id) === Number(item.id)
-                ))
+                (state.Skills && state.Skills.some(s => {
+                    if (s === null) return false; // 如果是空的，直接跳過
+                    return Number(s.id) === Number(item.id);
+                })) ||
+                (state.Equipment && state.Equipment.some(e => {
+                    if (e === null) return false; // 如果是空的，直接跳過
+                    return Number(e.id) === Number(item.id); // 裝備欄可能存物件
+                }))
             );
 
             // ★ 視覺狀態控制：如果無法購買，則添加對應的 Class 讓 CSS 變灰

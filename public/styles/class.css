@@ -108,3 +108,26 @@
     filter: grayscale(100%);
     opacity: 0.6;
 }
+
+#job-tooltip {
+    position: fixed;
+    right: 20px;
+    top: 120px;
+
+    min-width: 180px;
+
+    background: rgba(20,20,20,0.95);
+    border: 2px solid #ffd700;
+    color:white;
+
+    padding:15px;
+
+    z-index:9999;
+
+    font-size:16px;
+}
+
+#job-tooltip h3 {
+    margin-top:0;
+    color:#ffd700;
+}

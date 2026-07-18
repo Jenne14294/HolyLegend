@@ -266,16 +266,31 @@
         <!--  區塊 C: 職業切換 (Job Selection)           -->
         <!-- ========================================== -->
         <div id="job-layer" class="hidden">
-            
+
             <!-- 標題列 -->
             <div class="layer-header">
                 <h2 class="pixel-title">職業一覽</h2>
                 <button id="btn-close-job" class="btn-pixel-small">X</button>
             </div>
 
-            <!-- 職業列表容器 (內容由 JS 動態生成) -->
+            <!-- 職業列表容器 -->
             <div id="job-list-container" class="scrollable-content">
                 <div class="loading-text">載入中...</div>
+            </div>
+
+            <!-- 職業詳細資訊 -->
+            <div id="job-tooltip" class="hidden">
+                <h3 class="tooltip-title"></h3>
+
+                <div>力量：<span id="tooltip-str">0</span></div>
+                <div>敏捷：<span id="tooltip-dex">0</span></div>
+                <div>體質：<span id="tooltip-con">0</span></div>
+                <div>智力：<span id="tooltip-int">0</span></div>
+
+                <hr>
+
+                <div>生命：<span id="tooltip-hp">0</span></div>
+                <div>魔力：<span id="tooltip-mp">0</span></div>
             </div>
 
         </div>
