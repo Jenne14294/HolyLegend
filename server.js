@@ -1,4 +1,5 @@
 import { Server } from 'socket.io';
+import { getEnemies, getEvents } from './services/system.js';
 
 const rooms = {}; 
 const battles = {}; 
@@ -195,7 +196,7 @@ export default function initSocket(server) {
             io.to(currentRoomId).emit('init_ready_check', room);
         });
 
-        socket.on('respond_ready', (payload) => {
+        socket.on('respond_ready', async (payload) => {
              if (!currentRoomId) return;
              
              // 相容舊寫法 (如果 payload 是布林值)
@@ -233,7 +234,7 @@ export default function initSocket(server) {
              const room = rooms[currentRoomId]; 
              const allReady = room.every(p => p.isReady);
 
-             if (allReady) {
+            if (allReady) {
                  // 初始化第一層
                  const playersPublicInfo = room.map(p => {
                     // 再次確保狀態是滿的 (基於剛剛更新過的 state)
@@ -255,11 +256,39 @@ export default function initSocket(server) {
                      };
                  });
                 
-                // 初始化戰鬥
                 const floor = 1;
-                const enemyMaxHp = 100 + (10 * ((floor - 1) * room.length)); 
-                const monsters = ['slime', 'bat', 'skeleton', 'orc']; 
-                const randomMonster = monsters[Math.floor(Math.random() * monsters.length)];
+
+                // ==========================================
+                // ★ 從資料庫獲取第 1 層的怪物
+                // ==========================================
+                let selectedMonsterDef = null;
+                try {
+                    const allMonsters = await getEnemies();
+                    
+                    // 第 1 樓必定是普通怪
+                    let validMonsters = allMonsters.filter(m => 
+                        floor >= m.minLayer && floor <= m.maxLayer && m.type === 'NORMAL'
+                    );
+
+                    if (validMonsters.length === 0) validMonsters = allMonsters;
+                    if (validMonsters.length > 0) {
+                        selectedMonsterDef = validMonsters[Math.floor(Math.random() * validMonsters.length)];
+                    }
+
+                } catch (e) {
+                    console.error("多人遊戲初始化抓取怪物失敗:", e);
+                }
+
+                if (!selectedMonsterDef) {
+                    selectedMonsterDef = {
+                        id: 1, name: '未知史萊姆', image: 'slime_green.png',
+                        HP: 25, ATK: 8, DEF: 1, MDEF: 1, Gold: 5, EXP: 10
+                    };
+                }
+
+                // 計算多人模式血量：基礎血量 * (1 + 0.25 * (人數 - 1))
+                const playerMultiplier = 1 + (0.25 * (room.length - 1));
+                const enemyMaxHp = Math.round(selectedMonsterDef.HP * playerMultiplier);
 
                 // 初始化玩家血量狀態
                 const playerStates = {};
@@ -270,7 +299,6 @@ export default function initSocket(server) {
                         mp: p.state.playerMaxMp || 30,
                         maxMp: p.state.playerMaxMp || 30,
                         isDead: false
-                        
                     };
                 });
 
@@ -278,20 +306,35 @@ export default function initSocket(server) {
                     floor: floor,
                     enemyHp: enemyMaxHp,
                     enemyMaxHp: enemyMaxHp,
-                    monsterType: randomMonster,
+                    monsterType: selectedMonsterDef.image.split('.')[0], 
+
+                    // 把整隻怪物的資料包進去，供後續戰鬥使用
+                    enemy: {
+                        id: selectedMonsterDef.id,
+                        name: selectedMonsterDef.name,
+                        image: selectedMonsterDef.image,
+                        hp: enemyMaxHp,
+                        maxHp: enemyMaxHp,
+                        atk: selectedMonsterDef.ATK,
+                        def: selectedMonsterDef.DEF,
+                        mdef: selectedMonsterDef.MDEF,
+                        gold: selectedMonsterDef.Gold,
+                        exp: selectedMonsterDef.EXP
+                    },
+
                     pendingActions: [],
                     playerStates: playerStates,
                     alivePlayerIds: room.map(p => p.socketId),
-                    isEnding: false // 【新增】防止重複結算的旗標
-                    
+                    isEnding: false 
                 };
 
                 io.to(currentRoomId).emit('multiplayer_battle_start', {
+                    floor: floor,
                     enemyHp: enemyMaxHp,
                     enemyMaxHp: enemyMaxHp,
-                    floor: floor,
-                    monsterType: randomMonster,
-                    players: playersPublicInfo // ★ 傳送玩家列表
+                    monsterType: selectedMonsterDef.image.split('.')[0],
+                    enemy: battles[currentRoomId].enemy, // 傳送完整新版怪物資料
+                    players: playersPublicInfo 
                 });
             }
         });
@@ -1035,50 +1078,103 @@ export default function initSocket(server) {
         });
 
 
-        function startNextFloor(roomId) {
+        async function startNextFloor(roomId) {
             const battle = battles[roomId];
             if (!battle) return;
-            const room = rooms[roomId]; if (!room) return;
+
+            const room = rooms[roomId];
+            if (!room) return;
 
             battle.floor++;
-            battle.enemyMaxHp = 100 + 5 * (Math.pow(1.05, battle.floor) * room.length);
-            battle.enemyHp = Math.round(battle.enemyMaxHp);
             battle.processingTurn = false;
             battle.pendingActions = [];
             battle.rewardSelection = { isActive: false, selectedPlayers: [] };
 
-            const monsters = ['slime', 'bat', 'skeleton', 'orc']; 
-            const randomMonster = monsters[Math.floor(Math.random() * monsters.length)];
+            console.log({
+                processingTurn: battle.processingTurn,
+                pendingActions: battle.pendingActions.length,
+                reward: battle.rewardSelection,
+                event: battle.isEventActive,
+                shop: battle.isShopActive,
+                ending: battle.isEnding
+            });
 
-            // ★ 步驟 1: 強制重建 alivePlayerIds (校正存活名單)
-            // 只要血量 > 0，就算活著，防止之前的邏輯有漏洞
+            try {
+                const allMonsters = await getEnemies();
+                const floor = battle.floor;
+                let selectedMonster = null;
+
+                if (Math.random() * 100 < 2) {
+                    selectedMonster = allMonsters.find(m => m.name === '貪慾寶箱怪');
+                }
+
+                if (!selectedMonster) {
+                    let targetType = 'NORMAL';
+                    const roll = Math.random() * 100;
+
+                    if (floor % 10 === 0) targetType = 'BOSS';
+                    else if (roll < 3) targetType = 'BOSS';
+                    else if (roll < 23) targetType = 'ELITE';
+
+                    let validMonsters = allMonsters.filter(m =>
+                        floor >= m.minLayer &&
+                        floor <= m.maxLayer &&
+                        m.type === targetType &&
+                        m.name !== '貪慾寶箱怪'
+                    );
+
+                    if (validMonsters.length === 0) {
+                        validMonsters = allMonsters.filter(m =>
+                            floor >= m.minLayer &&
+                            floor <= m.maxLayer
+                        );
+                    }
+
+                    selectedMonster = validMonsters[Math.floor(Math.random() * validMonsters.length)];
+                }
+
+                const statMultiplier = Math.pow(1.025, floor - 1);
+                const playerMultiplier = 1 + (0.35 * (room.length - 1));
+
+                battle.enemy = {
+                    id: selectedMonster.id,
+                    name: selectedMonster.name,
+                    image: selectedMonster.image,
+                    hp: Math.round(selectedMonster.HP * statMultiplier * playerMultiplier),
+                    maxHp: Math.round(selectedMonster.HP * statMultiplier * playerMultiplier),
+                    atk: Math.round(selectedMonster.ATK * statMultiplier),
+                    def: Math.round(selectedMonster.DEF * statMultiplier),
+                    mdef: Math.round(selectedMonster.MDEF * statMultiplier),
+                    exp: Math.round(selectedMonster.EXP * statMultiplier),
+                    gold: Math.round(selectedMonster.Gold * Math.pow(1.01, floor - 1))
+                };
+
+                battle.enemyHp = battle.enemy.hp;
+                battle.enemyMaxHp = battle.enemy.maxHp;
+
+            } catch (err) {
+                console.error("多人生成怪物失敗:", err);
+                return;
+            }
+
             battle.alivePlayerIds = [];
 
-            // ★ 步驟 2: 準備發送給前端的數據
             const updatedPlayersInfo = room.map(p => {
                 const combatState = battle.playerStates[p.socketId];
 
-                // 再次同步，確保無誤
-                if (combatState) { 
-                    // ★ 雙重保險：如果 HP > 0，強制 isDead = false
+                if (combatState) {
                     if (combatState.hp > 0) combatState.isDead = false;
-                    
-                    // 如果還活著，加入名單
-                    if (!combatState.isDead) {
-                        battle.alivePlayerIds.push(p.socketId);
-                    }
+                    if (!combatState.isDead) battle.alivePlayerIds.push(p.socketId);
 
-                    p.state.playerHp = combatState.hp; 
+                    p.state.playerHp = combatState.hp;
                     p.state.playerMp = combatState.mp;
                     p.state.playerMaxHp = combatState.maxHp;
                     p.state.playerMaxMp = combatState.maxMp;
                 }
 
-                // 取出增量
                 const goldDelta = p.state.goldCollected || 0;
                 const expDelta = p.state.AdditionEXP || 0;
 
-                // 重置增量
                 p.state.goldCollected = 0;
                 p.state.AdditionEXP = 0;
 
@@ -1086,33 +1182,24 @@ export default function initSocket(server) {
                     socketId: p.socketId,
                     nickname: p.nickname,
                     role: p.state.role,
-                    
-                    // 戰鬥數值：優先使用 combatState
                     maxHp: combatState ? combatState.maxHp : 100,
                     maxMp: combatState ? combatState.maxMp : 100,
-                    
-                    // ★ 這裡很重要：如果 combatState 存在，一定要用它的 hp
-                    // 如果 combatState.hp 是 0，那前端就會顯示 0 (死掉)
-                    // 如果剛剛復活了，這裡應該要是 maxHp * 0.3
-                    hp: combatState ? combatState.hp : (p.state.playerHp || 100), 
+                    hp: combatState ? combatState.hp : (p.state.playerHp || 100),
                     mp: combatState ? combatState.mp : (p.state.playerMp || 100),
-                    
-                    AdditionState: p.state.AdditionState || [0, 0, 0, 0],
+                    AdditionState: p.state.AdditionState || [0,0,0,0],
                     Status: p.state.Status || [],
                     Inventory: p.state.Inventory || [],
-                    goldCollected: goldDelta, 
+                    goldCollected: goldDelta,
                     AdditionEXP: expDelta,
                     avatar: p.state.avatar
                 };
             });
 
-            // 如果有人復活，alivePlayerIds 應該已經更新了
-            // 廣播給前端
             io.to(roomId).emit('multiplayer_battle_start', {
-                enemyHp: battle.enemyMaxHp, 
-                enemyMaxHp: battle.enemyMaxHp, 
-                floor: battle.floor, 
-                monsterType: randomMonster, 
+                enemy: battle.enemy,
+                enemyHp: battle.enemyHp,
+                enemyMaxHp: battle.enemyMaxHp,
+                floor: battle.floor,
                 players: updatedPlayersInfo
             });
         }
@@ -1338,9 +1425,28 @@ export default function initSocket(server) {
                 })
             });
 
+            let targetNickname = "未知玩家";
+
+            if (targetSocketId && rooms[roomId]) {
+                const targetPlayer = rooms[roomId].find(
+                    p => p.socketId === targetSocketId
+                );
+
+                if (targetPlayer) {
+                    targetNickname = targetPlayer.nickname;
+                }
+            }
+
             io.to(roomId).emit('turn_result', { 
-                damageDealt: totalDamage, targetSocketId, damageTaken, isEnemyDead, 
-                deadPlayerId, isAllDead, playersStatus: playersStatusUpdate, playerBuff: PlayerStatus
+                damageDealt: totalDamage, 
+                targetSocketId, 
+                targetNickname,
+                damageTaken, 
+                isEnemyDead, 
+                deadPlayerId, 
+                isAllDead, 
+                playersStatus: playersStatusUpdate, 
+                playerBuff: PlayerStatus
             });
 
             // 4. 清理
@@ -1401,12 +1507,11 @@ export default function initSocket(server) {
                     else {
                         if (eventRate < 15) {
                             // --- 觸發事件流程 ---
-                            const response = await fetch('http://localhost:3000/holylegend/system/events');
-                            const result = await response.json();
+                            const allEvents = await getEvents();
+                            const eventId = Math.floor(Math.random() * allEvents.length);
+                            const event = allEvents[eventId];
 
-                            const allEvents = result.data; // 資料庫裡的所有獎勵
-                            const eventId = Math.floor(Math.random() * allEvents.length)
-                            const event = allEvents[eventId]
+                            console.log(allEvents);
 
                             if (!event) {
                                 socket.emit('player_confirm_event');

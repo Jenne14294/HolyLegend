@@ -468,7 +468,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 setTimeout(() => enemyImg.style.transform = 'scale(1)', 100);
             }
 
-            state.enemyHp = Math.max(0, state.enemyHp - result.damageDealt);
+            state.enemies[0].hp = Math.max(0, state.enemies[0].hp - result.damageDealt);
             showDamageNumber(result.damageDealt); 
             updateEnemyUI();
 
@@ -484,15 +484,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 顯示全隊傷害日誌
             addBattleLog(`隊伍合力造成 ${result.damageDealt} 點傷害`, 'log-team');
-
             if (result.damageTaken > 0 && result.targetSocketId) {
                 setTimeout(() => {
-                    if (result.targetSocketId === socket.id) {
-                        playerTakeDamageVisual(result.damageTaken); 
-                        // 日誌在 playerTakeDamage 裡處理
-                    } else {
-                        addBattleLog(`隊友受到了 ${result.damageTaken} 點傷害！`, 'log-enemy');
-                    }
+                    playerTakeDamageVisual(
+                        result.damageTaken,
+                        result.targetNickname
+                    );
                 }, 600);
             }
 
@@ -982,11 +979,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function playerTakeDamageVisual(amount) {
-        // 純視覺，不改 state.playerHp
+    function playerTakeDamageVisual(amount, targetName) {
         document.body.style.backgroundColor = '#500';
         setTimeout(() => document.body.style.backgroundColor = '', 100);
-        addBattleLog(`${state.enemies[0].name} 對 _???_ 造成 ${amount} 點傷害！`, 'log-enemy');
+
+        addBattleLog(
+            `${state.enemies[0].name} 對 ${targetName} 造成 ${amount} 點傷害！`,
+            'log-enemy'
+        );
     }
 
 
@@ -1330,6 +1330,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     if (specifiedMonster) {
                         selectedMonsterDef = allMonsters.find(m => m.name === specifiedMonster);
+
                     }
                     if (!selectedMonsterDef) {
                         const currentFloor = state.currentFloor || 1;
@@ -1363,9 +1364,19 @@ document.addEventListener('DOMContentLoaded', () => {
                             let validMonsters = allMonsters.filter(m =>
                                 currentFloor >= m.minLayer &&
                                 currentFloor <= m.maxLayer &&
-                                m.type === targetType &&
-                                m.name !== '貪慾寶箱怪'
+                                m.type === targetType
                             );
+
+                            if (validMonsters.length === 0) {
+                                validMonsters = allMonsters.filter(m =>
+                                    currentFloor >= m.minLayer &&
+                                    currentFloor <= m.maxLayer
+                                );
+                            }
+
+                            selectedMonsterDef = validMonsters[
+                                Math.floor(Math.random() * validMonsters.length)
+                            ];
 
                             if (validMonsters.length > 0) {
                                 selectedMonsterDef = validMonsters[
@@ -3178,7 +3189,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state.isTurnLocked && !isRewarded) return;
 
         const action = Game.keyBindings[e.key];
-        console.log()
         if (!action) return;
 
         if (towerLayer.classList.contains('hidden')) {
