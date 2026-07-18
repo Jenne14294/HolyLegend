@@ -1379,8 +1379,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     }
 
-                    const statMultiplier = Math.pow(1.05, state.currentFloor - 1);
-                    const goldMultiplier = Math.pow(1.02, state.currentFloor - 1);
+                    const statMultiplier = Math.pow(1.025, state.currentFloor - 1);
+                    const goldMultiplier = Math.pow(1.01, state.currentFloor - 1);
                     const scaledHp = Math.round(selectedMonsterDef.HP * statMultiplier);
 
                     state.enemies = [{
