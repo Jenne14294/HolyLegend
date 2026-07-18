@@ -1023,6 +1023,40 @@ document.addEventListener('DOMContentLoaded', () => {
        
 
         if (state.playerHp <= 0 && !isMultiplayerMode) {
+            const reviveItem = state.Inventory.find(
+                item => item.effectType === 'REVIVE' && item.count > 0
+            );
+
+            if (reviveItem) {
+                // 消耗復活道具
+                reviveItem.count--;
+
+                if (reviveItem.count <= 0) {
+                    state.Inventory = state.Inventory.filter(
+                        item => item !== reviveItem
+                    );
+                }
+
+                const hpRecover = Math.round(
+                    state.playerMaxHp * (reviveItem.effectValue / 100)
+                );
+
+                const mpRecover = Math.round(
+                    state.playerMaxMp * (reviveItem.effectValue / 100)
+                );
+
+                state.playerHp = hpRecover;
+                state.playerMp = mpRecover;
+
+                addBattleLog(
+                    `✨ ${reviveItem.name} 發動！恢復 ${hpRecover} HP / ${mpRecover} MP`,
+                    'log-player'
+                );
+
+                updatePlayerUI();
+                return;
+            }
+
             addBattleLog("你已倒下！戰鬥結束。", 'log-enemy');
             alert("你已倒下！");
             state.isGameOver = true;
