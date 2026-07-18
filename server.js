@@ -1,5 +1,5 @@
 import { Server } from 'socket.io';
-import { getEnemies, getEvents } from './services/system.js';
+import { getEnemies, getEvents, getStatus, getItems } from './services/system.js';
 
 const rooms = {}; 
 const battles = {}; 
@@ -1279,11 +1279,8 @@ export default function initSocket(server) {
 
         async function getStatus() {
             try {
-                const response = await fetch('http://localhost:3000/holylegend/system/status')
-                const result = await response.json()
-
                 if (result.success) {
-                    const data = result.data;
+                    const data = await getStatus();
                     return data;
                 }
             } catch (e) {
@@ -1468,37 +1465,30 @@ export default function initSocket(server) {
 
                     if (shopRate < 15) {
                         try {
-                            // 呼叫 API 獲取商品
-                            const response = await fetch('http://localhost:3000/holylegend/system/items');
-                            const result = await response.json();
-                            
-                            if (result.success && result.data && result.data.length > 0) {
-                                const pool = result.data;
+                            const pool = (await getItems()).map(item => item.toJSON());
 
-                                const itemCount = 6;
-                                const selectedItems = [];
+                            const itemCount = 6;
+                            const selectedItems = [];
 
-                                for (let i = 0; i < itemCount; i++) {
-                                    if (pool.length === 0) break;
+                            for (let i = 0; i < itemCount; i++) {
+                                if (pool.length === 0) break;
 
-                                    const idx = Math.floor(Math.random() * pool.length);
-                                    const itemTemplate = pool.splice(idx, 1)[0]; // 移除避免重複
+                                const idx = Math.floor(Math.random() * pool.length);
+                                const itemTemplate = pool.splice(idx, 1)[0];
 
-                                    selectedItems.push({
-                                        ...itemTemplate,
-                                        currentStock: Math.ceil(Math.random() * (itemTemplate.maxStock || 3))
-                                    });
-                                }
-
-                                // ★ 存入共享商店狀態
-                                battle.sharedShopItems = selectedItems;
-                                battle.isShopActive = true;
-                                battle.shopConfirmedPlayers = []; // 紀錄誰按了離開
-
-                                // 廣播給所有人
-                                io.to(currentRoomId).emit('trigger_shop', { items: selectedItems });
-                                return;
+                                selectedItems.push({
+                                    ...itemTemplate,
+                                    currentStock: Math.ceil(Math.random() * (itemTemplate.maxStock || 3))
+                                });
                             }
+
+                            battle.sharedShopItems = selectedItems;
+                            battle.isShopActive = true;
+                            battle.shopConfirmedPlayers = [];
+
+                            io.to(currentRoomId).emit('trigger_shop', { items: selectedItems });
+                            return;
+
                         } catch (e) {
                             console.error("商店生成失敗:", e);
                         }
