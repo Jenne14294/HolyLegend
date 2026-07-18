@@ -133,22 +133,28 @@
                 </div>
             </div>
             
-            <!-- 1. 頂部資訊列 (Top Info) -->
             <div class="tower-header">
                 <div class="tower-info">
                     <div class="info-item">FLOOR: <span id="tower-floor">1</span></div>
                     <div class="info-item text-gold">GOLD: <span id="tower-gold">0</span></div>
                 </div>
+
+                <!-- <button id="leave-tower-btn" class="leave-tower-btn">
+                    離開塔樓
+                </button> -->
             </div>
 
             <!-- 2. 中央舞台 (Main Stage) -->
             <div class="tower-stage">
                 <!-- 怪物或寶箱顯示區 -->
                 <div class="enemy-container">
-                    <div class="damage-text" id="damage-popup"></div> <!-- 傷害跳字 -->
+                    <div class="damage-text" id="damage-popup"></div>
+
                     <img id="enemy-img" src="/holylegend/images/enemies/slime.png" class="pixel-art enemy-anim">
+
                     <div class="enemy-hp-bar">
-                        <div class="enemy-hp-fill" id="enemy-hp-fill" style="width: 100%;"></div>
+                        <div class="enemy-hp-fill" id="enemy-hp-fill"></div>
+                        <div class="enemy-hp-text" id="enemy-hp-text"></div>
                     </div>
                 </div>
             </div>

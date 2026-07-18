@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const teamLayer = document.getElementById('team-layer');
     const jobLayer = document.getElementById('job-layer');
     const btnEnterTower = document.getElementById('btn-enter-tower');
-    const btnExitTower = document.getElementById('btn-tower-exit');
+    const btnExitTower = document.getElementById('leave-tower-btn');
     const btnAttack = document.getElementById('btn-attack');
     const teammatesContainer = document.getElementById('teammates-container'); // 新增這個
     
@@ -373,13 +373,28 @@ document.addEventListener('DOMContentLoaded', () => {
             readyCheckLayer.classList.add('hidden');
 
             state.currentFloor = initialData.floor;
-            state.enemyMaxHp = initialData.enemyMaxHp;
-            state.enemyHp = initialData.enemyHp;
             state.isGameOver = false;
             state.processingLevelUp = false;
             waitingForTurn = false;
             state.isTurnLocked = false;
-            rewardLayer.classList.add('hidden'); // ★ 確保這一行存在，不然下一層開始了獎勵視窗還在
+            rewardLayer.classList.add('hidden'); // ★ 確保下一層開始了獎勵視窗關閉
+
+            // ==========================================
+            // ★★★ 核心修改：接收後端傳來的完整怪物資料 ★★★
+            // ==========================================
+            if (initialData.enemy) {
+                // 將後端傳來的完整怪物資料（含防禦、金幣等）放入戰鬥陣列
+                state.enemies = [initialData.enemy];
+                state.targetEnemyId = initialData.enemy.id;
+                
+                // 相容舊版 UI 綁定
+                state.enemyMaxHp = initialData.enemy.maxHp;
+                state.enemyHp = initialData.enemy.hp;
+            } else {
+                // 防呆：萬一後端沒傳 enemy (舊邏輯)
+                state.enemyMaxHp = initialData.enemyMaxHp;
+                state.enemyHp = initialData.enemyHp;
+            }
 
             // 【新增】渲染隊友介面
             if (initialData.players) {
@@ -397,26 +412,29 @@ document.addEventListener('DOMContentLoaded', () => {
                     let serverGoldDelta = myInfo.goldCollected || 0;
                     let realGoldChange = serverGoldDelta + shopSpendingAccumulator;
 
-                    // 2. 金幣 (★ 累加：因為後端傳來的是事件獎勵的增量，不能覆蓋打怪賺的錢)
+                    // 金幣 (★ 累加：因為後端傳來的是事件獎勵的增量，不能覆蓋打怪賺的錢)
                      if (realGoldChange !== 0) {
                         state.goldCollected += realGoldChange;
                     }
                     
                     shopSpendingAccumulator = 0;
 
-                    // 3. 經驗 (★ 累加)
+                    // 經驗 (★ 累加)
                     if (myInfo.AdditionEXP) {
                         state.AdditionEXP += myInfo.AdditionEXP;
                     }
 
-                    // ★ 同步背包
+                    // ★ 同步背包與狀態
                     if (myInfo.Inventory) state.Inventory = myInfo.Inventory;
-
                     if (myInfo.Status) state.Status = myInfo.Status;
                 }
             }
             
-            startNewFloor(true, initialData.monsterType); 
+            // 決定要傳給 startNewFloor 的圖片名稱 (如果有完整資料就用 image 欄位)
+            let monsterImageName = initialData.enemy ? initialData.enemy.image.split('.')[0] : initialData.monsterType;
+            
+            // 告訴 startNewFloor 這是多人模式 (true)，並傳入怪物圖片名
+            startNewFloor(true, monsterImageName); 
             window.Game.playMusic('/holylegend/audio/tower_theme.ogg');
             
             addBattleLog(`=== 第 ${initialData.floor} 層戰鬥開始 ===`, 'log-system');
@@ -773,27 +791,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (btnDecline)
-
-    // ===========================
-    // 離開爬塔 (結算)
-    // ===========================
     if (btnExitTower) {
-        btnExitTower.addEventListener('click', async () => {
-            if (state.isGameOver || state.processingLevelUp) return;
-
-            const totalExp = calculateGameOver(); 
-
-            if (!confirm(`確定要離開嗎？\n目前獲得金幣: ${state.goldCollected}\n預計獲得經驗: ${totalExp}`)) return;
-
-            state.isGameOver = true;
-            
-            if (isMultiplayerMode) {
-                socket.emit('leave_battle'); // 通知 Server 離開
+        btnExitTower.addEventListener('click', () => {
+            if (confirm("確定離開塔樓？\n離開將減少30% EXP")) {
+                saveProgress(true).then(resetBattleToLobby);
             }
-
-            alert(`結算完成！\n獲得金幣: ${state.goldCollected}\n獲得經驗: ${totalExp}`);
-            resetBattle();
         });
     }
 
@@ -868,7 +870,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 若有屬性加成...
         
         state.enemies[0].hp -= damage;
-        addBattleLog(`你對怪物造成 ${damage} 點傷害`, 'log-player');
+        addBattleLog(`你對 ${state.enemies[0].name} 造成 ${damage} 點傷害`, 'log-player');
         showDamageNumber(damage);
         updateEnemyUI();
 
@@ -886,7 +888,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateTopBarUI();
         renderStatusUI();
         
-        addBattleLog(`怪物被擊敗！獲得 ${state.enemies[0].gold} 金幣`, 'log-system');
+        addBattleLog(`${state.enemies[0].name} 被擊敗！獲得 ${state.enemies[0].gold} 金幣`, 'log-system');
         state.currentFloor++;
         const enemyImg = document.getElementById('enemy-img');
         if(enemyImg) enemyImg.style.opacity = '0';
@@ -898,6 +900,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const rewardRate = Math.floor(Math.random() * 100);
                 const shopRate = Math.floor(Math.random() * 100);
                 // const shopRate = 0;
+                // const eventRate = 0; // 單人模式不觸發事件
+                // const rewardRate = 0; // 單人模式不觸發獎勵
 
                 if (shopRate < 15) {
                     tryTriggerSinglePlayerShop();
@@ -982,7 +986,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 純視覺，不改 state.playerHp
         document.body.style.backgroundColor = '#500';
         setTimeout(() => document.body.style.backgroundColor = '', 100);
-        addBattleLog(`你受到 ${amount} 點傷害！`, 'log-enemy');
+        addBattleLog(`${state.enemies[0].name} 對 _???_ 造成 ${amount} 點傷害！`, 'log-enemy');
     }
 
 
@@ -995,7 +999,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.style.backgroundColor = '#500';
         setTimeout(() => document.body.style.backgroundColor = '', 100);
         if (amount > 0) {
-            addBattleLog(`你受到 ${amount} 點傷害！`, 'log-enemy');
+            addBattleLog(`${state.enemies[0].name} 對你造成 ${amount} 點傷害！`, 'log-enemy');
         } else {
             addBattleLog(`你閃避了攻擊！`, 'log-enemy');
         }
@@ -1167,20 +1171,38 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function saveProgress() {
-        const expGained = calculateGameOver();
+    async function saveProgress(isManualLeave = false) {
+        let expGained = calculateGameOver();
+        let gold = state.goldCollected;
+
+        if (isManualLeave) {
+            expGained = Math.floor(expGained * 0.7);
+            gold = Math.floor(gold * 0.7);
+        }
+
         await saveSkillStone();
-        alert(`你已在 ${state.currentFloor} 層\n獲得點 ${expGained} 經驗值`)
+
+        alert(
+            `你已在 ${state.currentFloor} 層\n` +
+            `獲得 ${expGained} 經驗值\n`
+        );
+
         try {
             await fetch('/holylegend/game_lobby/save_status', { 
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify({
                     exp: expGained,
-                    gold: state.goldCollected
+                    gold: gold
                 })
             });
-            console.log(`存檔成功: EXP+${expGained}, Gold+${state.goldCollected}`);
+
+            console.log(
+                `存檔成功: EXP+${expGained}, Gold+${gold}`
+            );
+
         } catch (err) {
             console.error("結算失敗", err);
         }
@@ -1277,51 +1299,70 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     if (!selectedMonsterDef) {
                         const currentFloor = state.currentFloor || 1;
-                        // --- ★ 改用機率決定怪物類型 ---
-                        let targetType = 'NORMAL';
-                        const roll = Math.random() * 100; // 產生 0 ~ 100 的隨機數
 
-                        if (currentFloor % 10 === 0) {
-                            // 💡 保留機制：每 10 層依然固定是 BOSS 關卡，確保爬塔有儀式感
-                            targetType = 'BOSS';
-                        } else {
-                            // 其他樓層用機率抽：
-                            if (roll < 3) {
-                                targetType = 'BOSS';   // 3% 機率：意外撞見 BOSS (大凶/大吉)
-                            } else if (roll < 23) {
-                                targetType = 'ELITE';  // 20% 機率：遇到菁英怪或寶箱怪
+                        // ★ 2% 機率遇到貪慾寶箱怪
+                        const treasureRoll = Math.random() * 100;
+
+                        if (treasureRoll < 2) {
+                            selectedMonsterDef = allMonsters.find(
+                                m => m.name === '貪慾寶箱怪'
+                            );
+                        }
+
+                        // 沒遇到寶箱怪，才正常抽怪
+                        if (!selectedMonsterDef) {
+                            let targetType = 'NORMAL';
+                            const roll = Math.random() * 100;
+
+                            if (currentFloor % 10 === 0) {
+                                targetType = 'BOSS';
                             } else {
-                                targetType = 'NORMAL'; // 77% 機率：普通怪
+                                if (roll < 3) {
+                                    targetType = 'BOSS';
+                                } else if (roll < 23) {
+                                    targetType = 'ELITE';
+                                } else {
+                                    targetType = 'NORMAL';
+                                }
                             }
-                        }
 
-                        let validMonsters = allMonsters.filter(m => 
-                            currentFloor >= m.minLayer && currentFloor <= m.maxLayer && m.type === targetType
-                        );
-                        if (validMonsters.length === 0) {
-                            validMonsters = allMonsters.filter(m => currentFloor >= m.minLayer && currentFloor <= m.maxLayer);
-                        }
-                        if (validMonsters.length > 0) {
-                            selectedMonsterDef = validMonsters[Math.floor(Math.random() * validMonsters.length)];
-                        } else {
-                            selectedMonsterDef = allMonsters[Math.floor(Math.random() * allMonsters.length)];
+                            let validMonsters = allMonsters.filter(m =>
+                                currentFloor >= m.minLayer &&
+                                currentFloor <= m.maxLayer &&
+                                m.type === targetType &&
+                                m.name !== '貪慾寶箱怪'
+                            );
+
+                            if (validMonsters.length > 0) {
+                                selectedMonsterDef = validMonsters[
+                                    Math.floor(Math.random() * validMonsters.length)
+                                ];
+                            } else {
+                                selectedMonsterDef = allMonsters[
+                                    Math.floor(Math.random() * allMonsters.length)
+                                ];
+                            }
                         }
                     }
 
-                    const floorMultiplier = Math.pow(1.05, state.currentFloor - 1);
-                    const scaledHp = Math.round(selectedMonsterDef.HP * floorMultiplier);
+                    const statMultiplier = Math.pow(1.05, state.currentFloor - 1);
+                    const goldMultiplier = Math.pow(1.02, state.currentFloor - 1);
+                    const scaledHp = Math.round(selectedMonsterDef.HP * statMultiplier);
 
                     state.enemies = [{
                         id: selectedMonsterDef.id,
                         name: selectedMonsterDef.name,
                         image: selectedMonsterDef.image,
-                        hp: scaledHp,
-                        maxHp: scaledHp,
-                        atk: Math.round(selectedMonsterDef.ATK * floorMultiplier),
-                        def: Math.round(selectedMonsterDef.DEF * floorMultiplier),
-                        mdef: Math.round(selectedMonsterDef.MDEF * floorMultiplier),
-                        exp: Math.round(selectedMonsterDef.EXP * floorMultiplier),
-                        gold: Math.round(selectedMonsterDef.Gold * floorMultiplier)
+                        hp: Math.round(selectedMonsterDef.HP * statMultiplier),
+                        maxHp: Math.round(selectedMonsterDef.HP * statMultiplier),
+
+                        atk: Math.round(selectedMonsterDef.ATK * statMultiplier),
+                        def: Math.round(selectedMonsterDef.DEF * statMultiplier),
+                        mdef: Math.round(selectedMonsterDef.MDEF * statMultiplier),
+
+                        exp: Math.round(selectedMonsterDef.EXP * statMultiplier),
+
+                        gold: Math.round(selectedMonsterDef.Gold * goldMultiplier)
                     }];
                     state.targetEnemyId = selectedMonsterDef.id;
                     targetImage = selectedMonsterDef.image; 
@@ -1402,6 +1443,35 @@ document.addEventListener('DOMContentLoaded', () => {
         updatePlayerUI();
     }
 
+    function randomRewards(rewards, count = 3) {
+        const pool = [...rewards];
+        const result = [];
+
+        while (result.length < count && pool.length > 0) {
+            const index = Math.floor(Math.random() * pool.length);
+            result.push(pool.splice(index, 1)[0]);
+        }
+
+        return result;
+    }
+
+
+    function getRewardDesc(reward) {
+
+        if (reward.rewardType === 'GOLD') {
+            return `獲得 ${reward.rewardValue} 金幣`;
+        }
+
+        if (reward.rewardType === 'EXP') {
+            return `獲得 ${reward.rewardValue} 經驗`;
+        }
+
+        if (reward.rewardPercent > 0) {
+            return `恢復 ${reward.rewardPercent}% ${reward.rewardType}`;
+        }
+
+        return `${reward.rewardType} +${reward.rewardValue}`;
+    }
 
     async function showRewards() {
         if (state.playerHp <= 0) {
@@ -1414,25 +1484,19 @@ document.addEventListener('DOMContentLoaded', () => {
         rewardCardsContainer.innerHTML = '<div style="color: white; font-size: 1.5rem;">正在祈禱...</div>';
 
         try {
-            // 2. 從路由獲取資料 (API)
             const response = await fetch('/holylegend/system/rewards');
             const result = await response.json();
+            const allRewards = result.data;
+            const options = randomRewards(allRewards);
 
-            // if (!result.success) throw new Error(result.msg || '無法獲取獎勵');
+            const floor = state.currentFloor;
+            const multiplier = 1 + Math.floor(floor / 20) * 0.2;
 
-            const allRewards = result.data; // 資料庫裡的所有獎勵
-
-            // 3. 隨機抽取 3 個獎勵
-            const options = [];
-            // 複製一份陣列以免影響原資料
-            const pool = [...allRewards];
-
-            for(let i=0; i<3; i++) {
-                if (pool.length === 0) break;
-                const randIndex = Math.floor(Math.random() * pool.length);
-                options.push(pool[randIndex]);
-                pool.splice(randIndex, 1); // 取出後移除，避免重複
-            }
+            options.forEach(reward => {
+                if (reward.rewardValue > 0) {
+                    reward.rewardValue = Math.round(reward.rewardValue * multiplier);
+                }
+            });
 
             // 清空載入文字
             rewardCardsContainer.innerHTML = '';
@@ -1613,52 +1677,64 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (rewardData.rewardPercent > 0) {
                     const heal = Math.floor(state.playerMaxHp * (rewardData.rewardPercent / 100));
                     state.playerHp = Math.min(state.playerMaxHp, state.playerHp + heal);
-                    addBattleLog(`恢復了 ${heal} 點生命！`, 'log-player');
+                    addBattleLog(`✨ 獲得 ${rewardData.name}，恢復 ${heal} 點生命！`, 'log-player');
                 } else {
                     state.playerHp = Math.min(state.playerMaxHp, state.playerHp + rewardData.rewardValue);
-                    addBattleLog(`恢復了 ${rewardData.rewardValue} 點生命！`, 'log-player');
+                    addBattleLog(`✨ 獲得 ${rewardData.name}，恢復 ${rewardData.rewardValue} 點生命！`, 'log-player');
                 }
                 break;
+
             case 'MP': 
                 if (rewardData.rewardPercent > 0) {
                     const mana = Math.floor(state.playerMaxMp * (rewardData.rewardPercent / 100));
                     state.playerMp = Math.min(state.playerMaxMp, state.playerMp + mana);
-                    addBattleLog(`恢復了 ${mana} 點魔力！`, 'log-player');
+                    addBattleLog(`✨ 獲得 ${rewardData.name}，恢復 ${mana} 點魔力！`, 'log-player');
                 } else {
                     state.playerMp = Math.min(state.playerMaxMp, state.playerMp + rewardData.rewardValue);
-                    addBattleLog(`恢復了 ${rewardData.rewardValue} 點魔力！`, 'log-player');
+                    addBattleLog(`✨ 獲得 ${rewardData.name}，恢復 ${rewardData.rewardValue} 點魔力！`, 'log-player');
                 }
                 break;
+
             case 'GOLD':
                 state.goldCollected += rewardData.rewardValue;
+                addBattleLog(`✨ 獲得 ${rewardData.rewardValue} 金幣！`, 'log-player');
                 break;
+
             case 'EXP':
                 state.AdditionEXP += rewardData.rewardValue;
-                alert(`獲得 ${rewardData.rewardValue} 經驗值 (將於結算時發放)`);
+                addBattleLog(`✨ 獲得 ${rewardData.rewardValue} 經驗值（結算時發放）`, 'log-player');
                 break;
+
             case 'STR':
                 state.AdditionState[0] += rewardData.rewardValue;
-                alert(`${rewardData.name} 生效！(本次冒險屬性提升)`);
+                addBattleLog(`✨ ${rewardData.name} 生效！STR +${rewardData.rewardValue}`, 'log-player');
                 break;
+
             case 'DEX':
                 state.AdditionState[1] += rewardData.rewardValue;
-                alert(`${rewardData.name} 生效！(本次冒險屬性提升)`);
+                addBattleLog(`✨ ${rewardData.name} 生效！DEX +${rewardData.rewardValue}`, 'log-player');
                 break;
+
             case 'CON':
                 state.AdditionState[2] += rewardData.rewardValue;
-                alert(`${rewardData.name} 生效！(本次冒險屬性提升)`);
+                addBattleLog(`✨ ${rewardData.name} 生效！CON +${rewardData.rewardValue}`, 'log-player');
                 break;
+
             case 'INT':
                 state.AdditionState[3] += rewardData.rewardValue;
-                alert(`${rewardData.name} 生效！(本次冒險屬性提升)`);
+                addBattleLog(`✨ ${rewardData.name} 生效！INT +${rewardData.rewardValue}`, 'log-player');
                 break;
-            case 'REVIVE':
-                state.playerHp += Math.round(state.playerMaxHp * 0.3);
-                state.playerMp += Math.round(state.playerMaxMp * 0.3);
 
-                if (state.playerHp > state.playerMaxHp) state.playerHp = state.playerMaxHp
-                if (state.playerMp > state.playerMaxMp) state.playerMp = state.playerMaxMp
+            case 'REVIVE':
+                const healHp = Math.round(state.playerMaxHp * 0.3);
+                const healMp = Math.round(state.playerMaxMp * 0.3);
+
+                state.playerHp = Math.min(state.playerMaxHp, state.playerHp + healHp);
+                state.playerMp = Math.min(state.playerMaxMp, state.playerMp + healMp);
+
+                addBattleLog(`✨ 復活效果！恢復 ${healHp} HP / ${healMp} MP`, 'log-player');
                 break;
+
             default:
                 console.log("未知的獎勵類型:", rewardData);
         }
@@ -1724,9 +1800,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateEnemyUI() {
-        const pct = (state.enemies[0].hp / state.enemies[0].maxHp) * 100;
+        const enemy = state.enemies[0];
+
+        const pct = (enemy.hp / enemy.maxHp) * 100;
+
         const bar = document.getElementById('enemy-hp-fill');
-        if(bar) bar.style.width = `${Math.max(0, pct)}%`;
+        if (bar) bar.style.width = `${Math.max(0, pct)}%`;
+
+        const hpText = document.getElementById('enemy-hp-text');
+        if (hpText) {
+            hpText.innerText = `${Math.max(0, enemy.hp)} / ${enemy.maxHp}`;
+        }
     }
 
     function updatePlayerUI() {
@@ -1985,7 +2069,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // 事件系統
+    // 倍率調整(更好的爬塔系統)
+    function getEventValue(value, floor, type) {
+        let scale = 1;
 
+        if (type === "requirement")
+            scale = 1 + floor * 0.01;
+        else if (type === "reward")
+            scale = 1 + floor * 0.05;
+        else if (type === "punish")
+            scale = 1 + floor * 0.01;
+
+        return Math.floor(value * scale);
+    }
     // ==========================================
     //  核心：動態生成事件卡片 (Dynamic Render)
     // ==========================================
@@ -2008,7 +2104,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const playerStats = window.Game.state.AdditionState || [0, 0, 0, 0];
         const reqIndex = defaultStat.indexOf(eventData.requirementType);
         const myValue = playerStats[reqIndex];
-        const reqValue = eventData.requirementValue;
+        const reqValue = getEventValue(
+            eventData.requirementValue,
+            window.Game.state.currentFloor,
+            "requirement"
+        );
 
         // 計算機率 (基礎 50% + 差距*10%)
         let successRate = 0;
@@ -2017,7 +2117,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (myValue >= reqValue) {
             canTry = true;
             const diff = myValue - reqValue;
-            successRate = Math.min(100, 30 + (diff * 10));
+            successRate = Math.min(100, 50 + (diff * 5));
         }
 
         // 決定機率顏色
@@ -2200,6 +2300,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function resolveSinglePlayerEvent(isSuccess, eventData) {
         closeEventLayer();
+        const floor = window.Game.state.currentFloor;
+
+        const rewardValue = getEventValue(
+            eventData.rewardValue,
+            floor,
+            "reward"
+        );
+
+        const punishValue = getEventValue(
+            eventData.punishValue,
+            floor,
+            "punish"
+        );
+
         const ReqType = eventData.requirementType;
         const RewardType = eventData.rewardType;
         const PunishType = eventData.punishType;
@@ -2209,63 +2323,72 @@ document.addEventListener('DOMContentLoaded', () => {
         const punishIndex = defaultStat.indexOf(PunishType)
         
         if (isSuccess) {
+            let resultText = "✨ 檢定成功！";
+
             if (defaultStat.includes(RewardType)) {
-                alert(`✨ 檢定成功！\n${STAT_CONFIG[statIndex].label} 獲得提升！`);
-                // 實際給予獎勵
-                window.Game.state.AdditionState[rewardIndex] += eventData.rewardValue;
+                resultText += `\n${STAT_CONFIG[rewardIndex].label} +${rewardValue}`;
+                window.Game.state.AdditionState[rewardIndex] += rewardValue;
             }
 
             else if (RewardType == 'GOLD') {
-                alert(`✨ 檢定成功！\n獲得額外金幣！`);
-                window.Game.state.goldCollected += eventData.rewardValue;
-
+                resultText += `\n獲得金幣 +${rewardValue}`;
+                window.Game.state.goldCollected += rewardValue;
             }
 
             else if (['HP', 'MP'].includes(RewardType)) {
-                alert(`✨ 檢定成功！\n${RewardType} 恢復！`);
+                resultText += `\n${RewardType} 恢復 +${rewardValue}`;
 
                 if (RewardType == 'HP') {
-                    window.Game.state.playerHp += eventData.rewardValue;
-                    window.Game.state.playerHp = Math.min(window.Game.state.playerHp, window.Game.state.playerMaxHp)
+                    window.Game.state.playerHp += rewardValue;
+                    window.Game.state.playerHp = Math.min(
+                        window.Game.state.playerHp,
+                        window.Game.state.playerMaxHp
+                    );
                 }
-                
                 else {
-                    window.Game.state.playerMp += eventData.rewardValue;
-                    window.Game.state.playerMp = Math.min(window.Game.state.playerMp, window.Game.state.playerMaxMp)
+                    window.Game.state.playerMp += rewardValue;
+                    window.Game.state.playerMp = Math.min(
+                        window.Game.state.playerMp,
+                        window.Game.state.playerMaxMp
+                    );
                 }
             }
 
             else if (RewardType == 'EXP') {
-                alert(`✨ 檢定成功！\n獲得額外經驗值！`);
-                window.Game.state.AdditionEXP += eventData.rewardValue;
+                resultText += `\n獲得經驗值 +${rewardValue}`;
+                window.Game.state.AdditionEXP += rewardValue;
             }
 
-            recalculateDerivedStats()
+            alert(resultText);
 
-            
+            recalculateDerivedStats();
         } else {
-            alert("💨 檢定失敗，你好像損失了什麼...。");
+            let resultText = "💨 檢定失敗！";
 
             if (defaultStat.includes(PunishType)) {
-                // 實際給予獎勵
-                window.Game.state.AdditionState[punishIndex] -= eventData.punishValue;
+                resultText += `\n${STAT_CONFIG[punishIndex].label} -${punishValue}`;
+                window.Game.state.AdditionState[punishIndex] -= punishValue;
             }
 
             else if (PunishType == 'GOLD') {
-                window.Game.state.goldCollected -= eventData.punishValue;
+                resultText += `\n損失金幣 -${punishValue}`;
+                window.Game.state.goldCollected -= punishValue;
+                window.Game.state.goldCollected = Math.max(window.Game.state.goldCollected, 0);
             }
 
             else if (['HP', 'MP'].includes(PunishType)) {
+                resultText += `\n${PunishType} -${punishValue}`;
+
                 if (PunishType == 'HP') {
-                    window.Game.state.playerHp -= eventData.punishValue;
-                    window.Game.state.playerHp = Math.max(window.Game.state.playerHp, 0)
-                }
-                
-                else {
-                    window.Game.state.playerMp -= eventData.punishValue;
-                    window.Game.state.playerMp = Math.max(window.Game.state.playerMp, 0)
+                    window.Game.state.playerHp -= punishValue;
+                    window.Game.state.playerHp = Math.max(window.Game.state.playerHp, 1);
+                } else {
+                    window.Game.state.playerMp -= punishValue;
+                    window.Game.state.playerMp = Math.max(window.Game.state.playerMp, 0);
                 }
             }
+
+            alert(resultText);
         }
 
         if (window.Game.updateLobbyUI) window.Game.updateLobbyUI(window.Game);
@@ -2319,7 +2442,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const canAfford = state.goldCollected >= item.price;
 
             // 檢查玩家是否已經擁有此技能 (ID > 51 且在 Skills 陣列中)
-            const alreadyOwned = item.id > 51 && (state.Skills && state.Skills.some(s => Number(s.id) === Number(item.id))) || (state.Inventory && state.Inventory.some(s => Number(s.id) === Number(item.id)));
+            const alreadyOwned = item.requiredClass != null && (
+                (state.Skills && state.Skills.some(
+                    s => Number(s.id) === Number(item.id)
+                )) ||
+                (state.Equipment && state.Equipment.some(
+                    e => Number(e.id) === Number(item.id)
+                ))
+            );
 
             // ★ 視覺狀態控制：如果無法購買，則添加對應的 Class 讓 CSS 變灰
             if (isSoldOut) card.classList.add('sold-out');
