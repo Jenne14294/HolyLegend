@@ -59,15 +59,27 @@ document.addEventListener('DOMContentLoaded', () => {
     function showJobTooltip(job) {
         if (!jobTooltip) return;
 
-        jobTooltip.querySelector('.tooltip-title').textContent = job.nickname;
+        const level = job.level || 1;
 
-        document.getElementById('tooltip-str').textContent = job.STR || 0;
-        document.getElementById('tooltip-dex').textContent = job.DEX || 0;
-        document.getElementById('tooltip-con').textContent = job.CON || 0;
-        document.getElementById('tooltip-int').textContent = job.INT || 0;
+        const hp = Math.round(
+            job.HP +
+            ((level - 1) * (job.STR * 0.3 + job.CON * 0.7))
+        );
 
-        document.getElementById('tooltip-hp').textContent = job.maxHp || 0;
-        document.getElementById('tooltip-mp').textContent = job.maxMp || 0;
+        const mp = Math.round(
+            job.MP +
+            (Math.sqrt((level - 1) * 10) * (job.INT * 0.75))
+        );
+
+        jobTooltip.innerHTML = `
+            <h3>${job.nickname} Lv.${level}</h3>
+            <div>❤️ HP: ${hp}</div>
+            <div>💧 MP: ${mp}</div>
+            <div>⚔ STR: ${job.STR}</div>
+            <div>🏹 DEX: ${job.DEX}</div>
+            <div>🛡 CON: ${job.CON}</div>
+            <div>🔮 INT: ${job.INT}</div>
+        `;
 
         jobTooltip.classList.remove('hidden');
     }
@@ -140,11 +152,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const card = document.createElement('div');
             card.className = cardClass;
 
+            const displayJob = {
+                ...job,
+                level: level,
+                STR: Math.round(job.STR * (1 + (level - 1) * 0.005)),
+                DEX: Math.round(job.DEX * (1 + (level - 1) * 0.005)),
+                CON: Math.round(job.CON * (1 + (level - 1) * 0.005)),
+                INT: Math.round(job.INT * (1 + (level - 1) * 0.005))
+            };
+
             if (!isLocked) {
 
-                // PC 滑鼠移入
                 card.addEventListener('mouseenter', () => {
-                    showJobTooltip(job);
+                    showJobTooltip(displayJob);
                 });
 
                 card.addEventListener('mouseleave', () => {

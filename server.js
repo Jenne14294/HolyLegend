@@ -1513,15 +1513,17 @@ export default function initSocket(server) {
                                 socket.emit('player_confirm_event');
                             } else {
                                 const rawEvent = event.toJSON();
-                                const multiplier = Math.pow(1.025, battle.floor - 1);
+                                const floor = battle.floor;
                                 const scaledEvent = {
                                     ...rawEvent,
-                                    requirementValue: Math.round(rawEvent.requirementValue * multiplier),
-                                    rewardValue: ['GOLD', 'EXP', 'HP', 'MP'].includes(rawEvent.rewardType)
-                                        ? Math.round(rawEvent.rewardValue * multiplier)
+                                    requirementValue: Math.floor(
+                                        rawEvent.requirementValue * (1 + floor * 0.01)
+                                    ),
+                                    rewardValue: ['GOLD', 'EXP', 'HP', 'MP', 'STR', 'DEX', 'CON', 'INT'].includes(rawEvent.rewardType)
+                                        ? Math.floor(rawEvent.rewardValue * (1 + floor * 0.05))
                                         : rawEvent.rewardValue,
                                     punishValue: ['GOLD', 'HP', 'MP'].includes(rawEvent.punishType)
-                                        ? Math.round(rawEvent.punishValue * multiplier)
+                                        ? Math.floor(rawEvent.punishValue * (1 + floor * 0.01))
                                         : rawEvent.punishValue
                                 };
 
