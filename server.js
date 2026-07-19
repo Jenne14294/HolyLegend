@@ -603,36 +603,56 @@ export default function initSocket(server) {
                         if (skill.skillType == 'buff') {
                             const Statuses = await getStatus();
 
-                            const buff = Statuses.find(s => s.skillId == skill.id)
+                            const buff = Statuses.find(s => s.skillId == skill.id);
+
+                            if (!buff) {
+                                console.error("找不到 Buff Status:", skill.id);
+                                return;
+                            }
+
+                            const buffData = buff.toJSON();
+                            delete buffData.skill; // 移除 include 的 Skill 關聯，避免循環引用
 
                             tRoomData.forEach(m => {
-                                if(m.socketId == tId) {
-                                    const existing = m.state.Status.find(s => s.id === buff.id && s.castId === socket.id);
+                                if (m.socketId == tId) {
+                                    const existing = m.state.Status.find(
+                                        s => s.id === buffData.id && s.castId === socket.id
+                                    );
+
                                     if (existing) {
-                                        existing.duration = buff.duration; // 重置回合數
+                                        existing.duration = buffData.duration; // 重置回合數
                                     } else {
-                                        m.state.Status.push({...buff, castId: socket.id, castName: pRoomData.nickname  });
+                                        m.state.Status.push({
+                                            ...buffData,
+                                            castId: socket.id,
+                                            castName: pRoomData.nickname
+                                        });
 
                                         // 套用 STAT 效果
-                                        if (buff.effectType === 'STAT') {
-                                            const key = defaultStat.indexOf(buff.statKey);
-                                            
-                                            if (buff.valueType === 'Add') {
-                                                if (key != -1) {
-                                                    m.state.AdditionState[key] = (m.state.AdditionState[key] || 0) + buff.value;
-                                                } else {
-                                                    const key = additionMap[buff.statKey];
+                                        if (buffData.effectType === 'STAT') {
+                                            const key = defaultStat.indexOf(buffData.statKey);
 
-                                                    if (key) {
-                                                        m.state.AdditionAttribute[key] += buff.value;
+                                            if (buffData.valueType === 'Add') {
+                                                if (key != -1) {
+                                                    m.state.AdditionState[key] =
+                                                        (m.state.AdditionState[key] || 0) + buffData.value;
+                                                } else {
+                                                    const attrKey = additionMap[buffData.statKey];
+
+                                                    if (attrKey) {
+                                                        m.state.AdditionAttribute[attrKey] += buffData.value;
                                                     }
                                                 }
                                             }
                                         }
                                     }
-                                    recalculatePlayerStatus(m.state, battle.playerStates[m.socketId]);
+
+                                    recalculatePlayerStatus(
+                                        m.state,
+                                        battle.playerStates[m.socketId]
+                                    );
                                 }
-                            })
+                            });
                         }
                     }
                 });
@@ -1284,17 +1304,6 @@ export default function initSocket(server) {
             }
         }
 
-        async function getStatus() {
-            try {
-                if (result.success) {
-                    const data = await getStatus();
-                    return data;
-                }
-            } catch (e) {
-                console.error('伺服器錯誤', e)
-            }
-        }
-
         async function processTurn(roomId) {
             const battle = battles[roomId];
             const room = rooms[roomId]
@@ -1381,24 +1390,36 @@ export default function initSocket(server) {
 
                         for (let i = p.state.Status.length - 1; i >= 0; i--) {
                             const buff = p.state.Status[i];
+
                             if (buff.duration != null && buff.duration > 0) {
                                 buff.duration--;
+
                                 if (buff.duration <= 0) {
-                                    // 移除buff效果
-                                    let key = additionMap[buff.statKey]
+
                                     if (buff.valueType === 'Add') {
-                                        if (key) {
-                                            p.state.AdditionAttribute[key] -= buff.value;
-                                    } else {
-                                        key = defaultStat.indexOf(buff.statKey)
-                                            p.state.AdditionState[key] -= buff.value;
+                                        const attrKey = additionMap[buff.statKey];
+
+                                        if (attrKey) {
+                                            p.state.AdditionAttribute[attrKey] -= buff.value;
+                                        } else {
+                                            const statKey = defaultStat.indexOf(buff.statKey);
+
+                                            if (statKey !== -1) {
+                                                p.state.AdditionState[statKey] -= buff.value;
+                                            }
                                         }
                                     }
-                                    recalculatePlayerStatus(p.state, pState)
+
+                                    console.log("移除BUFF:", buff);
+
+                                    recalculatePlayerStatus(
+                                        p.state,
+                                        pState
+                                    );
+
                                     p.state.Status.splice(i, 1);
                                 }
                             }
-                            
                         }
                     }
                     
