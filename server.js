@@ -1366,12 +1366,14 @@ export default function initSocket(server) {
 
                     // 再生 (HP Regen)
                     if (regen > 0 && pState.hp < pState.maxHp) {
-                        pState.hp = Math.min(pState.maxHp, pState.hp + regen);
+                        const heal = Math.round(pState.maxHp * (regen / 100));
+                        pState.hp = Math.min(pState.maxHp, pState.hp + heal);
                     }
 
                     // 回魔 (Mana Reflow)
                     if (manaReflow > 0 && pState.mp < pState.maxMp) {
-                        pState.mp = Math.min(pState.maxMp, pState.mp + manaReflow);
+                        const mana = Math.round(pState.maxMp * (manaReflow / 100));
+                        pState.mp = Math.min(pState.maxMp, pState.mp + mana);
                     }
 
 

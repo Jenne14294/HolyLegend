@@ -1004,21 +1004,16 @@ document.addEventListener('DOMContentLoaded', () => {
             addBattleLog(`你閃避了攻擊！`, 'log-enemy');
         }
 
-        // 額外回血回魔
+        // 額外回血 (%)
         if (state.AdditionAttribute.regen && state.playerHp > 0) {
-            state.playerHp += state.AdditionAttribute.regen
-
-            if (state.playerHp > state.playerMaxHp) {
-                state.playerHp = state.playerMaxHp
-            }
+            const heal = Math.round(state.playerMaxHp * (state.AdditionAttribute.regen / 100));
+            state.playerHp = Math.min(state.playerHp + heal, state.playerMaxHp);
         }
 
+        // 額外回魔 (%)
         if (state.AdditionAttribute.manaReflow) {
-            state.playerMp += state.AdditionAttribute.manaReflow
-
-            if (state.playerMp > state.playerMaxMp) {
-                state.playerMp = state.playerMaxMp
-            }
+            const mana = Math.round(state.playerMaxMp * (state.AdditionAttribute.manaReflow / 100));
+            state.playerMp = Math.min(state.playerMp + mana, state.playerMaxMp);
         }
        
 
@@ -1041,9 +1036,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     state.playerMaxHp * (reviveItem.effectValue / 100)
                 );
 
-                const mpRecover = Math.round(
+                // 復活後最低保證 50% 魔力
+                const targetMp = Math.round(
                     state.playerMaxMp * (reviveItem.effectValue / 100)
                 );
+
+                if (state.playerMp < targetMp) {
+                    state.playerMp = targetMp;
+                }
 
                 state.playerHp = hpRecover;
                 state.playerMp = mpRecover;
