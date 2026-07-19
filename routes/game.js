@@ -77,31 +77,72 @@ router.get('/status', verifyToken, async (req, res, next) => {
     );
     
     // 計算屬性
+    const classInfo = classData[0].dataValues;
+
     const level = currentClass.level || 1;
-    const hp = Math.round(classData[0].dataValues.HP + ((level - 1) * (classData[0].dataValues.STR * 0.3 + classData[0].dataValues.CON * 0.7)))
-    const mp = Math.round(classData[0].dataValues.MP + (Math.sqrt((level - 1) * 10) * (classData[0].dataValues.INT * 0.75)))
+
+    // 等級倍率
+    const levelRate = 1 + ((level - 1) * 0.005);
+    // Lv1 = 1倍
+    // Lv10 = 1.45倍
+    // Lv100 = 5.95倍
+
+    const STR = Math.round(classInfo.STR * levelRate);
+    const DEX = Math.round(classInfo.DEX * levelRate);
+    const CON = Math.round(classInfo.CON * levelRate);
+    const INT = Math.round(classInfo.INT * levelRate);
+
+
+    const maxHp = Math.round(
+        classInfo.HP +
+        ((level - 1) * (STR * 0.3 + CON * 0.7))
+    );
+
+    const maxMp = Math.round(
+        classInfo.MP +
+        (Math.sqrt((level - 1) * 10) * INT * 0.75)
+    );
+
 
     const renderData = {
         id: userData.id,
         nickname: userData.nickName,
+
         classId: userData.jobId,
         role: userData.class.nickname,
-        level: level,
+
+        level,
+
         exp: currentClass.currentEXP || 0,
         needEXP: 50 + (level - 1) * 20,
-        hp: hp,
-        maxHp: hp,
-        mp: mp,
-        maxMp: mp,
+
+        stats: {
+            STR,
+            DEX,
+            CON,
+            INT,
+            HP: maxHp,
+            MP: maxMp
+        },
+
+        hp: maxHp,
+        maxHp,
+
+        mp: maxMp,
+        maxMp,
+
         currentFloor: 1,
         gold: 0,
+
         AdditionState: [
-          classData[0].dataValues.STR,
-          classData[0].dataValues.DEX,
-          classData[0].dataValues.CON,
-          classData[0].dataValues.INT
+            STR,
+            DEX,
+            CON,
+            INT
         ],
-        avatar: userData.avatar || `/holylegend/images/classes/${classData[0].dataValues.name}_1.png`
+
+        avatar: userData.avatar ||
+            `/holylegend/images/classes/${classInfo.name}_1.png`
     };
 
     res.json({

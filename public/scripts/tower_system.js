@@ -2538,6 +2538,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function handleBuyItem(item) {
+        if (!item) {
+            console.error("商品不存在", item);
+            return;
+        }
+
+        if (item.currentStock <= 0) {
+            showMessage("商品已售罄！", '#e74c3c');
+            shakeShop();
+            return;
+        }
+
         if (state.goldCollected < item.price) {
             showMessage("金幣不足！", '#e74c3c');
             shakeShop();

@@ -287,7 +287,7 @@ export default function initSocket(server) {
                 }
 
                 // 計算多人模式血量：基礎血量 * (1 + 0.25 * (人數 - 1))
-                const playerMultiplier = 1 + (0.25 * (room.length - 1));
+                const playerMultiplier = 1 + (0.5 * (room.length - 1));
                 const enemyMaxHp = Math.round(selectedMonsterDef.HP * playerMultiplier);
 
                 // 初始化玩家血量狀態
