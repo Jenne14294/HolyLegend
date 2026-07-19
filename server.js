@@ -1329,7 +1329,7 @@ export default function initSocket(server) {
                 const target = room.find(p => p.socketId == targetSocketId)
 
                 damageTaken = 5 + (2.5 * battle.alivePlayerIds.length * Math.pow(1.025, battle.floor)); 
-                playerDefense = Math.round(target.state.AdditionState[1] / 7 + target.state.AdditionState[3] / 3)
+                playerDefense = Math.round(target.state.AdditionState[0] / 5 + target.state.AdditionState[2] / 2)
                 damageTaken -= playerDefense
 
                 // 減傷

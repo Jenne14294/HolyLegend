@@ -42,12 +42,12 @@ const Item = sequelize.define(
       // 建議值: 'HP', 'MP', 'REVIVE', 'STR', 'DEX', 'CON', 'INT', 'SKILL_UNLOCK'
     },
     effectValue: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.FLOAT,
       allowNull: false,
       defaultValue: 0,
-      // 若是藥水/強化: 代表數值 (如 30, 2)
+      // 若是藥水/強化: 代表數值 (如 30, 2.5)
       // 若是技能石: 代表技能 ID
-    },
+  },
     isPercentage: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
