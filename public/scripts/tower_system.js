@@ -441,8 +441,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         socket.on('player_revived', (data) => {
-            console.log("收到復活通知:", data);
-            
             // 1. 更新數值
             state.playerHp = data.hp;
             state.playerMp = data.mp;
@@ -863,7 +861,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let damageMultiply = 0.8 + Math.random() * 0.4
         let AttackMultiply = 1 + (state.AdditionAttribute.atkBonus / 100)
 
-        damage = Math.round(damage * damageMultiply * CritMultiply * AttackMultiply);
+        damage = Math.max(1, Math.round(damage * damageMultiply * CritMultiply * AttackMultiply) - state.enemies[0].def);
         // 若有屬性加成...
         
         state.enemies[0].hp -= damage;

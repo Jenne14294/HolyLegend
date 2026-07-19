@@ -369,7 +369,7 @@ export default function initSocket(server) {
             
             let atkBonus =  1 + (action.AdditionAttribute.atkBonus / 100)
             let damageMultiply = 0.8 + Math.random() * 0.4
-            damage = Math.round(damage * damageMultiply * CritMultiply * atkBonus);
+            damage = Math.max(1, Math.round(damage * damageMultiply * CritMultiply * atkBonus) - battle.enemy.def);
 
             const hasActed = battle.pendingActions.find(a => a.socketId === socket.id);
             if (!hasActed) {
@@ -565,7 +565,15 @@ export default function initSocket(server) {
                             let skillBonus =  1 + (pRoomData.state.AdditionAttribute.skillBonus / 100)
                             let damageMultiply = 1 + Math.random() * 0.5
 
-                            totalSkillDamage += Math.round(baseDmg * skillBonus * damageMultiply * CritMultiply)
+                            let finalDamage = Math.round(baseDmg * skillBonus * damageMultiply * CritMultiply);
+
+                            if (skill.DamageType === 'PHYSICAL') {
+                                finalDamage -= battle.enemy.def;
+                            } else if (skill.DamageType === 'MAGIC') {
+                                finalDamage -= battle.enemy.mdef;
+                            }
+
+                            totalSkillDamage += Math.max(1, finalDamage);
                         }
                         
                     } else {
@@ -1089,15 +1097,6 @@ export default function initSocket(server) {
             battle.processingTurn = false;
             battle.pendingActions = [];
             battle.rewardSelection = { isActive: false, selectedPlayers: [] };
-
-            console.log({
-                processingTurn: battle.processingTurn,
-                pendingActions: battle.pendingActions.length,
-                reward: battle.rewardSelection,
-                event: battle.isEventActive,
-                shop: battle.isShopActive,
-                ending: battle.isEnding
-            });
 
             try {
                 const allMonsters = await getEnemies();
