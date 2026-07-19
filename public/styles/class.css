@@ -1,3 +1,10 @@
+#job-layer {
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh; /* 確保整個彈出視窗不會超出螢幕 */
+    overflow: hidden; /* 隱藏最外層的捲軸，把滑動權力交給裡面的 job-list-container */
+}
+
 #job-list-container {
     display: grid;
     /* ★ 關鍵：縮小最小寬度 (140px -> 100px)，讓手機版可以一排 3 個或更緊湊 */
@@ -109,22 +116,22 @@
     opacity: 0.6;
 }
 
-#job-tooltip {
-    position: fixed;
-    right: 20px;
-    top: 120px;
+@media (max-width:768px) {
+    #job-tooltip {
+        position: fixed;
 
-    min-width: 180px;
+        left: 10px;
+        right: 10px;
+        bottom: 10px;
+        top: auto;
 
-    background: rgba(20,20,20,0.95);
-    border: 2px solid #ffd700;
-    color:white;
+        min-width: auto;
+        max-width: none;
 
-    padding:15px;
+        z-index: 9999;
 
-    z-index:9999;
-
-    font-size:16px;
+        pointer-events: none;
+    }
 }
 
 #job-tooltip h3 {
