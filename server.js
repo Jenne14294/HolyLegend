@@ -1104,6 +1104,7 @@ export default function initSocket(server) {
                 const floor = battle.floor;
                 let selectedMonster = null;
 
+                // 2% 貪慾寶箱怪
                 if (Math.random() * 100 < 2) {
                     selectedMonster = allMonsters.find(m => m.name === '貪慾寶箱怪');
                 }
@@ -1112,15 +1113,18 @@ export default function initSocket(server) {
                     let targetType = 'NORMAL';
                     const roll = Math.random() * 100;
 
-                    if (floor % 10 === 0) targetType = 'BOSS';
-                    else if (roll < 3) targetType = 'BOSS';
-                    else if (roll < 23) targetType = 'ELITE';
+                    if (floor % 10 === 0) {
+                        targetType = 'BOSS';
+                    } else if (roll < 3) {
+                        targetType = 'BOSS';
+                    } else if (roll < 23) {
+                        targetType = 'ELITE';
+                    }
 
                     let validMonsters = allMonsters.filter(m =>
                         floor >= m.minLayer &&
                         floor <= m.maxLayer &&
-                        m.type === targetType &&
-                        m.name !== '貪慾寶箱怪'
+                        m.type === targetType
                     );
 
                     if (validMonsters.length === 0) {
@@ -1130,10 +1134,15 @@ export default function initSocket(server) {
                         );
                     }
 
-                    selectedMonster = validMonsters[Math.floor(Math.random() * validMonsters.length)];
+                    if (validMonsters.length > 0) {
+                        selectedMonster = validMonsters[Math.floor(Math.random() * validMonsters.length)];
+                    } else {
+                        console.error(`第 ${floor} 層沒有符合條件的怪物`);
+                        selectedMonster = allMonsters[Math.floor(Math.random() * allMonsters.length)];
+                    }
                 }
 
-                const statMultiplier = Math.pow(1.025, floor - 1);
+                const statMultiplier = Math.pow(1.05, floor - 1);
                 const playerMultiplier = 1 + (0.35 * (room.length - 1));
 
                 battle.enemy = {
@@ -1146,7 +1155,7 @@ export default function initSocket(server) {
                     def: Math.round(selectedMonster.DEF * statMultiplier),
                     mdef: Math.round(selectedMonster.MDEF * statMultiplier),
                     exp: Math.round(selectedMonster.EXP * statMultiplier),
-                    gold: Math.round(selectedMonster.Gold * Math.pow(1.01, floor - 1))
+                    gold: Math.round(selectedMonster.Gold * Math.pow(1.001, floor - 1))
                 };
 
                 battle.enemyHp = battle.enemy.hp;
@@ -1154,7 +1163,6 @@ export default function initSocket(server) {
 
             } catch (err) {
                 console.error("多人生成怪物失敗:", err);
-                return;
             }
 
             battle.alivePlayerIds = [];
@@ -1501,14 +1509,24 @@ export default function initSocket(server) {
                             const eventId = Math.floor(Math.random() * allEvents.length);
                             const event = allEvents[eventId];
 
-                            console.log(allEvents);
-
                             if (!event) {
                                 socket.emit('player_confirm_event');
-                            }
+                            } else {
+                                const rawEvent = event.toJSON();
+                                const multiplier = Math.pow(1.025, battle.floor - 1);
+                                const scaledEvent = {
+                                    ...rawEvent,
+                                    requirementValue: Math.round(rawEvent.requirementValue * multiplier),
+                                    rewardValue: ['GOLD', 'EXP', 'HP', 'MP'].includes(rawEvent.rewardType)
+                                        ? Math.round(rawEvent.rewardValue * multiplier)
+                                        : rawEvent.rewardValue,
+                                    punishValue: ['GOLD', 'HP', 'MP'].includes(rawEvent.punishType)
+                                        ? Math.round(rawEvent.punishValue * multiplier)
+                                        : rawEvent.punishValue
+                                };
 
-                            else {
-                                io.to(currentRoomId).emit('trigger_event', event);
+                                battle.currentEventData = scaledEvent;
+                                io.to(currentRoomId).emit('trigger_event', scaledEvent);
                             }
 
 
