@@ -1328,6 +1328,245 @@ export default function initSocket(server) {
             }
         }
 
+        function updatePlayerEffects(p, battle) {
+            const pState = battle.playerStates[p.socketId];
+
+            if (!pState || pState.isDead) return;
+
+            const stats = p.state.AdditionAttribute || {};
+
+            // HP 再生
+            const regen = stats.regen || 0;
+            if (regen > 0 && pState.hp < pState.maxHp) {
+                const heal = Math.round(pState.maxHp * (regen / 100));
+                pState.hp = Math.min(pState.maxHp, pState.hp + heal);
+            }
+
+            // MP 回復
+            const manaReflow = stats.manaReflow || 0;
+            if (manaReflow > 0 && pState.mp < pState.maxMp) {
+                const mana = Math.round(pState.maxMp * (manaReflow / 100));
+                pState.mp = Math.min(pState.maxMp, pState.mp + mana);
+            }
+
+            console.log(regen, manaReflow, pState.hp, pState.mp);
+
+
+            // Buff 回合處理
+            if (p.state.Status && p.state.Status.length > 0) {
+
+                for (let i = p.state.Status.length - 1; i >= 0; i--) {
+                    const buff = p.state.Status[i];
+
+                    if (buff.duration != null && buff.duration > 0) {
+                        buff.duration--;
+
+                        if (buff.duration <= 0) {
+
+                            if (buff.valueType === 'Add') {
+
+                                const attrKey = additionMap[buff.statKey];
+
+                                if (attrKey) {
+                                    p.state.AdditionAttribute[attrKey] -= buff.value;
+                                } else {
+                                    const statKey = defaultStat.indexOf(buff.statKey);
+
+                                    if (statKey !== -1) {
+                                        p.state.AdditionState[statKey] -= buff.value;
+                                    }
+                                }
+                            }
+
+                            console.log("移除BUFF:", buff);
+
+                            p.state.Status.splice(i, 1);
+                        }
+                    }
+                }
+
+                recalculatePlayerStatus(
+                    p.state,
+                    pState
+                );
+            }
+
+
+            // 同步戰鬥狀態
+            p.state.playerHp = pState.hp;
+            p.state.playerMp = pState.mp;
+        }
+
+        async function calculateEnemyDamage(roomId) {
+            const battle = battles[roomId];
+            const room = rooms[roomId];
+
+            let targetSocketId = null;
+            let damageTaken = 0;
+            let deadPlayerId = null;
+
+            if (battle.alivePlayerIds.length === 0) {
+                return {
+                    targetSocketId,
+                    damageTaken,
+                    deadPlayerId
+                };
+            }
+
+            const targetIndex = Math.floor(
+                Math.random() * battle.alivePlayerIds.length
+            );
+
+            targetSocketId = battle.alivePlayerIds[targetIndex];
+
+            const target = room.find(
+                p => p.socketId === targetSocketId
+            );
+
+            damageTaken = 5 + (2.5 * battle.alivePlayerIds.length * Math.pow(1.025, battle.floor));
+
+            const playerDefense = Math.round(target.state.AdditionState[0] / 5 + target.state.AdditionState[2] / 2);
+
+            damageTaken -= playerDefense;
+            let damageReduce =
+                target.state.AdditionAttribute.dmgReduce || 0;
+
+            damageReduce = Math.max(0.2, 1 - damageReduce / 100);
+
+            damageTaken = Math.max(Math.round(damageTaken * damageReduce),1);
+
+            const dodgeRate = Math.min(target.state.AdditionAttribute.dodge + target.state.AdditionState[1] * 0.5 + target.state.AdditionState[3] * 0.2, 90);
+
+            if (Math.random() * 100 < dodgeRate) {
+                damageTaken = 0;
+            }
+
+            const playerState = battle.playerStates[targetSocketId];
+
+            playerState.hp -= damageTaken;
+
+            if (playerState.hp <= 0) {
+                playerState.hp = 0;
+                playerState.isDead = true;
+
+                deadPlayerId = targetSocketId;
+
+                battle.alivePlayerIds = battle.alivePlayerIds.filter(id => id !== targetSocketId);
+            }
+
+
+            return {
+                targetSocketId,
+                damageTaken,
+                deadPlayerId
+            };
+        }
+
+        async function handleBattleReward(roomId) {
+            const battle = battles[roomId];
+            if (!battle) return;
+
+            const eventRate = Math.floor(Math.random() * 100);
+            const rewardRate = Math.floor(Math.random() * 100);
+            const shopRate = Math.floor(Math.random() * 100);
+
+            if (shopRate < 15) {
+                try {
+                    const pool = (await getItems()).map(item => item.toJSON());
+
+                    const itemCount = 6;
+                    const selectedItems = [];
+
+                    for (let i = 0; i < itemCount; i++) {
+                        if (pool.length === 0) break;
+
+                        const idx = Math.floor(Math.random() * pool.length);
+                        const itemTemplate = pool.splice(idx, 1)[0];
+
+                        selectedItems.push({
+                            ...itemTemplate,
+                            currentStock: Math.ceil(Math.random() * (itemTemplate.maxStock || 3))
+                        });
+                    }
+
+                    battle.sharedShopItems = selectedItems;
+                    battle.isShopActive = true;
+                    battle.shopConfirmedPlayers = [];
+
+                    io.to(roomId).emit('trigger_shop', { items: selectedItems });
+                    return;
+
+                } catch (e) {
+                    console.error("商店生成失敗:", e);
+                }
+            } else {
+                if (eventRate < 15) {
+                    const allEvents = await getEvents();
+                    const eventId = Math.floor(Math.random() * allEvents.length);
+                    const event = allEvents[eventId];
+
+                    if (!event) {
+                        io.to(roomId).emit('player_confirm_event');
+                    } else {
+                        const rawEvent = event.toJSON();
+                        const floor = battle.floor;
+
+                        const scaledEvent = {
+                            ...rawEvent,
+                            requirementValue: Math.floor(
+                                rawEvent.requirementValue * (1 + floor * 0.01)
+                            ),
+                            rewardValue: [
+                                'GOLD',
+                                'EXP',
+                                'HP',
+                                'MP',
+                                'STR',
+                                'DEX',
+                                'CON',
+                                'INT'
+                            ].includes(rawEvent.rewardType)
+                                ? Math.floor(rawEvent.rewardValue * (1 + floor * 0.05))
+                                : rawEvent.rewardValue,
+                            punishValue: [
+                                'GOLD',
+                                'HP',
+                                'MP'
+                            ].includes(rawEvent.punishType)
+                                ? Math.floor(rawEvent.punishValue * (1 + floor * 0.01))
+                                : rawEvent.punishValue
+                        };
+
+                        battle.currentEventData = scaledEvent;
+                        io.to(roomId).emit('trigger_event', scaledEvent);
+                    }
+
+                    battle.isEventActive = true;
+                    battle.eventLock = null;
+                    battle.eventConfirmedPlayers = [];
+                    battle.pendingEventResult = null;
+                    battle.currentEventData = event;
+
+                    return;
+                } else {
+                    battle.rewardSelection = {
+                        isActive: false,
+                        selectedPlayers: []
+                    };
+
+                    if (rewardRate < 15) {
+                        setTimeout(() => {
+                            io.to(roomId).emit('multiplayer_show_rewards');
+                        }, 100);
+                    } else {
+                        setTimeout(() => {
+                            startNextFloor(roomId);
+                        }, 500);
+                    }
+                }
+            }
+        }
+
         async function processTurn(roomId) {
             const battle = battles[roomId];
             const room = rooms[roomId]
@@ -1349,109 +1588,20 @@ export default function initSocket(server) {
             
             let targetSocketId = null; 
             let damageTaken = 0; 
-            let damageReduce = 0;
-            let playerDefense = 0;
-            let dodgeRate = 0;
             let deadPlayerId = null;
 
             // 2. 怪物反擊
             if (!isEnemyDead && battle.alivePlayerIds.length > 0) {
-                const targetIndex = Math.floor(Math.random() * battle.alivePlayerIds.length); 
-                targetSocketId = battle.alivePlayerIds[targetIndex];
-                const target = room.find(p => p.socketId == targetSocketId)
 
-                damageTaken = 5 + (2.5 * battle.alivePlayerIds.length * Math.pow(1.025, battle.floor)); 
-                playerDefense = Math.round(target.state.AdditionState[0] / 5 + target.state.AdditionState[2] / 2)
-                damageTaken -= playerDefense
+                const result = await calculateEnemyDamage(roomId);
 
-                // 減傷
-                damageReduce = target.state.AdditionAttribute.dmgReduce
-                damageReduce = Math.max(0.2, 1 - (damageReduce / 100))
-                damageTaken = Math.max(Math.round(damageTaken * damageReduce), 1)
-
-                // 閃避
-                const SystemDodge = Math.random() * 100
-                dodgeRate = Math.min(target.state.AdditionAttribute.dodge + target.state.AdditionState[1] * 0.5 + target.state.AdditionState[3] * 0.2, 90)
-
-                if (dodgeRate > SystemDodge) {
-                    damageTaken = 0
-                }
-                
-                // 簡單計算防禦 (這裡先不讀取 action，直接扣)
-                if (battle.playerStates[targetSocketId]) {
-                    battle.playerStates[targetSocketId].hp -= damageTaken;
-                    if (battle.playerStates[targetSocketId].hp <= 0) { 
-                        battle.playerStates[targetSocketId].hp = 0; 
-                        battle.playerStates[targetSocketId].isDead = true; 
-                        deadPlayerId = targetSocketId; 
-                        battle.alivePlayerIds = battle.alivePlayerIds.filter(id => id !== targetSocketId); 
-                    }
-                }
+                targetSocketId = result.targetSocketId;
+                damageTaken = result.damageTaken;
+                deadPlayerId = result.deadPlayerId;
 
                 room.forEach(p => {
-                const pState = battle.playerStates[p.socketId];
-                // 確保玩家還在戰鬥中且活著
-                if (pState && !pState.isDead) {
-                    const stats = p.state.AdditionAttribute || {};
-                    const regen = stats.regen || 0;
-                    const manaReflow = stats.manaReflow || 0; // 確保前端傳來的是這個變數名 (注意大小寫)
-
-                    // 再生 (HP Regen)
-                    if (regen > 0 && pState.hp < pState.maxHp) {
-                        const heal = Math.round(pState.maxHp * (regen / 100));
-                        pState.hp = Math.min(pState.maxHp, pState.hp + heal);
-                    }
-
-                    // 回魔 (Mana Reflow)
-                    if (manaReflow > 0 && pState.mp < pState.maxMp) {
-                        const mana = Math.round(pState.maxMp * (manaReflow / 100));
-                        pState.mp = Math.min(pState.maxMp, pState.mp + mana);
-                    }
-
-
-                    if (p.state.Status && p.state.Status.length > 0) {
-                        const pState = battle.playerStates[p.socketId];
-
-                        for (let i = p.state.Status.length - 1; i >= 0; i--) {
-                            const buff = p.state.Status[i];
-
-                            if (buff.duration != null && buff.duration > 0) {
-                                buff.duration--;
-
-                                if (buff.duration <= 0) {
-
-                                    if (buff.valueType === 'Add') {
-                                        const attrKey = additionMap[buff.statKey];
-
-                                        if (attrKey) {
-                                            p.state.AdditionAttribute[attrKey] -= buff.value;
-                                        } else {
-                                            const statKey = defaultStat.indexOf(buff.statKey);
-
-                                            if (statKey !== -1) {
-                                                p.state.AdditionState[statKey] -= buff.value;
-                                            }
-                                        }
-                                    }
-
-                                    console.log("移除BUFF:", buff);
-
-                                    recalculatePlayerStatus(
-                                        p.state,
-                                        pState
-                                    );
-
-                                    p.state.Status.splice(i, 1);
-                                }
-                            }
-                        }
-                    }
-                    
-                    // 同步回永久狀態 (選用，視設計而定，通常戰鬥結束才同步，但這裡同步較保險)
-                    p.state.playerHp = pState.hp;
-                    p.state.playerMp = pState.mp;
-                }
-            });
+                    updatePlayerEffects(p, battle);
+                });
             }
 
             const isAllDead = battle.alivePlayerIds.length === 0;
@@ -1509,106 +1659,8 @@ export default function initSocket(server) {
 
             // 5. 戰鬥結束處理
             if (isEnemyDead) {
-                // 伺服器端決定是否給獎勵 (15% 機率)
-                    const eventRate = Math.floor(Math.random() * 100);
-                    const rewardRate = Math.floor(Math.random() * 100);
-                    const shopRate = Math.floor(Math.random() * 100);
-                    // const rewardRate = 0 
-                    // const eventRate = 100
-                    // const shopRate = 100
-
-                    if (shopRate < 15) {
-                        try {
-                            const pool = (await getItems()).map(item => item.toJSON());
-
-                            const itemCount = 6;
-                            const selectedItems = [];
-
-                            for (let i = 0; i < itemCount; i++) {
-                                if (pool.length === 0) break;
-
-                                const idx = Math.floor(Math.random() * pool.length);
-                                const itemTemplate = pool.splice(idx, 1)[0];
-
-                                selectedItems.push({
-                                    ...itemTemplate,
-                                    currentStock: Math.ceil(Math.random() * (itemTemplate.maxStock || 3))
-                                });
-                            }
-
-                            battle.sharedShopItems = selectedItems;
-                            battle.isShopActive = true;
-                            battle.shopConfirmedPlayers = [];
-
-                            io.to(currentRoomId).emit('trigger_shop', { items: selectedItems });
-                            return;
-
-                        } catch (e) {
-                            console.error("商店生成失敗:", e);
-                        }
-                    }
-
-                    else {
-                        if (eventRate < 15) {
-                            // --- 觸發事件流程 ---
-                            const allEvents = await getEvents();
-                            const eventId = Math.floor(Math.random() * allEvents.length);
-                            const event = allEvents[eventId];
-
-                            if (!event) {
-                                socket.emit('player_confirm_event');
-                            } else {
-                                const rawEvent = event.toJSON();
-                                const floor = battle.floor;
-                                const scaledEvent = {
-                                    ...rawEvent,
-                                    requirementValue: Math.floor(
-                                        rawEvent.requirementValue * (1 + floor * 0.01)
-                                    ),
-                                    rewardValue: ['GOLD', 'EXP', 'HP', 'MP', 'STR', 'DEX', 'CON', 'INT'].includes(rawEvent.rewardType)
-                                        ? Math.floor(rawEvent.rewardValue * (1 + floor * 0.05))
-                                        : rawEvent.rewardValue,
-                                    punishValue: ['GOLD', 'HP', 'MP'].includes(rawEvent.punishType)
-                                        ? Math.floor(rawEvent.punishValue * (1 + floor * 0.01))
-                                        : rawEvent.punishValue
-                                };
-
-                                battle.currentEventData = scaledEvent;
-                                io.to(currentRoomId).emit('trigger_event', scaledEvent);
-                            }
-
-
-                            // 初始化事件狀態
-                            battle.isEventActive = true;
-                            battle.eventLock = null; // 誰正在嘗試
-                            battle.eventConfirmedPlayers = []; // 誰按了確認/離開
-                            battle.pendingEventResult = null; // 暫存結果
-                            battle.currentEventData = event; // 存起來備用
-
-                            // ★ return，不執行獎勵或下一層，等待事件交互
-                            return;
-                        }
-                        else {
-                            // 初始化獎勵選擇狀態
-                            battle.rewardSelection = {
-                                isActive: false,
-                                selectedPlayers: [] // 紀錄誰已經選好了
-                            };
-
-                            if (rewardRate < 15) {
-                                setTimeout(() => {
-                                    io.to(currentRoomId).emit('multiplayer_show_rewards')
-                                }, 100); 
-
-                            } else {
-                                // --- 沒有獎勵，直接進下一層 (維持原樣) ---
-                                setTimeout(() => {
-                                    startNextFloor(currentRoomId);
-                                }, 500); 
-                            } 
-                        }
-                    }
-                }
+                await handleBattleReward(roomId);
+            }
             
             if (isAllDead) {
                   battle.isEnding = true;
@@ -1619,6 +1671,8 @@ export default function initSocket(server) {
                   }, 1000);
             }
         }
+
+        
     });
 
     return io;
