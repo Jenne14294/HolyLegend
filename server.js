@@ -1185,7 +1185,10 @@ export default function initSocket(server) {
                     }
                 }
 
-                const statMultiplier = Math.pow(1.05, floor - 1);
+                const playerCount = battle.alivePlayerIds.length;
+
+                const growthRate = 1.025 + (playerCount - 1) * 0.0025;
+                const statMultiplier = Math.pow(growthRate, floor - 1);
                 const playerMultiplier = 1 + (0.35 * (room.length - 1));
 
                 battle.enemy = {
