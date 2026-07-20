@@ -287,7 +287,7 @@ export default function initSocket(server) {
                 }
 
                 // 計算多人模式血量：基礎血量 * (1 + 0.25 * (人數 - 1))
-                const playerMultiplier = 1 + (0.5 * (room.length - 1));
+                const playerMultiplier = 1 + (0.25 * (room.length - 1));
                 const enemyMaxHp = Math.round(selectedMonsterDef.HP * playerMultiplier);
 
                 // 初始化玩家血量狀態
@@ -336,6 +336,30 @@ export default function initSocket(server) {
                     enemy: battles[currentRoomId].enemy, // 傳送完整新版怪物資料
                     players: playersPublicInfo 
                 });
+            }
+        });
+
+        socket.on('leave_tower', () => {
+            const battle = battles[currentRoomId];
+
+            if (!battle) return;
+
+            delete battle.playerStates[socket.id];
+
+            battle.alivePlayerIds =
+                battle.alivePlayerIds.filter(id => id !== socket.id);
+
+            socket.emit('leave_tower_success');
+
+            io.to(currentRoomId).emit('chat_message', {
+                sender: '系統',
+                text: '玩家離開塔樓。',
+                isSystem: true
+            });
+
+            // 沒人了才刪除戰鬥
+            if (battle.alivePlayerIds.length === 0) {
+                delete battles[currentRoomId];
             }
         });
 
@@ -1589,7 +1613,7 @@ export default function initSocket(server) {
             if (isAllDead) {
                   battle.isEnding = true;
                   setTimeout(() => { 
-                      io.to(roomId).emit('game_over_all', { floor: battle.floor }); 
+                      io.to(roomId).emit('game_over_all', { floor: battle.floor, msg: "所有玩家都已死亡，遊戲結束。" }); 
                       delete battles[roomId]; 
                       if(rooms[roomId]) rooms[roomId].forEach(p => p.isReady = false); 
                   }, 1000);

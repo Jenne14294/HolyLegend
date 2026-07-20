@@ -369,6 +369,13 @@ document.addEventListener('DOMContentLoaded', () => {
             window.Game.playMusic('/holylegend/audio/game_lobby.ogg');
         });
 
+        socket.on('leave_tower_success', () => {
+            saveProgress(true).then(() => {
+                socket.emit('leave_tower');
+                resetBattleToLobby();
+            });
+        });
+
         socket.on('multiplayer_battle_start', (initialData) => {
             readyCheckLayer.classList.add('hidden');
 
@@ -576,7 +583,8 @@ document.addEventListener('DOMContentLoaded', () => {
              state.isEndingProcessing = true;
 
              state.currentFloor = data.floor;
-             alert(`全隊覆沒！止步於第 ${state.currentFloor} 層`);
+             msg = data.msg
+             alert(`${msg}！止步於第 ${state.currentFloor} 層`);
              
              await saveProgress();
              resetBattle();
@@ -788,7 +796,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (btnExitTower) {
         btnExitTower.addEventListener('click', () => {
-            if (confirm("確定離開塔樓？\n離開將減少30% EXP")) {
+            if (!confirm("確定離開塔樓？\n離開將減少30% EXP")) return;
+
+            if (window.Game.state.isMultiplayer) {
+                // 多人離開
+                window.Game.socket.emit('leave_tower');
+            } else {
+                // 單人離開
                 saveProgress(true).then(resetBattleToLobby);
             }
         });
