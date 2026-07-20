@@ -432,8 +432,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // 1. 建立職業 ID 與名稱的對照表 (可依據您的資料庫設定調整)
         const CLASS_MAP = {
             1: '戰士',
-            2: '法師',
-            3: '射手',
+            2: '射手',
+            3: '法師',
             4: '騎士',
             5: '遊俠',
             6: '巫師',
