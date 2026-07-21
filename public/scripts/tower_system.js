@@ -504,7 +504,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     state.playerHp = 0;
                     updatePlayerUI();
                     addBattleLog("你已倒下！進入觀戰模式...", 'log-enemy');
-                    alert("你已倒下！進入觀戰模式...");
                     updateControlsState(); 
                 } else {
                     addBattleLog("一名隊友倒下了！", 'log-enemy');
@@ -618,12 +617,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 3. 收到檢定結果
         socket.on('event_result', (result) => {
-            // 這裡可以做 Alert 或是更新卡片文字
-            alert(result.msg);
-            
-            // 更新描述文字，讓玩家知道結果
+            addBattleLog(result.msg, 'log-player');
+
             const desc = document.querySelector('.event-desc');
-            if (desc) desc.innerHTML += `<br><br><span style="color:${result.success ? '#2ecc71':'#e74c3c'}">${result.msg}</span>`;
+            if (desc) {
+                desc.innerHTML += `<br><br><span style="color:${result.success ? '#2ecc71' : '#e74c3c'}">${result.msg}</span>`;
+            }
+
+            // 告知 Server 已經完成事件
+            socket.emit('player_confirm_event');
         });
 
         // 4. 關閉事件視窗 (Server 通知所有人都確認完了)
