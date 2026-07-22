@@ -2853,7 +2853,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (skill.id == 43 && state.Status.find(s => s.id == 16))
                 {
-                    additionDamage = 1.5
+                    additionDamage = additionDamage * (1 + state.Status.find(s => s.id == 16).value / 100)
                 }
 
                 for (let i = 0; i < skill.DamageTime; i++) {
