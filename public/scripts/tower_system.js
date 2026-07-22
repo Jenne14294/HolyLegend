@@ -47,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let pendingBuyItem = null; // 暫存正在購買的物品
     let isEnabledQuickItem = false;
     let isEnabledQuickReward = false;
+    let rewardSelected = false;
     
 
     // 獎勵圖示
@@ -384,6 +385,7 @@ document.addEventListener('DOMContentLoaded', () => {
             state.isGameOver = false;
             state.processingLevelUp = false;
             waitingForTurn = false;
+            rewardSelected = false;
             state.isTurnLocked = false;
             rewardLayer.classList.add('hidden'); // ★ 確保下一層開始了獎勵視窗關閉
 
@@ -1330,6 +1332,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function startNewFloor(isMultiplayerInit = false, specifiedMonster = null) {
         state.processingLevelUp = false; 
+        rewardSelected = false;
 
         let targetImage = null; // 用來記錄從資料庫抽到的圖片
 
@@ -1646,6 +1649,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // 🛑 路徑 A：多人模式 (Multiplayer)
         //    只負責送出請求，不進行任何本地數值修改
         // =================================================
+        if (rewardSelected) return;
+        rewardSelected = true;
+
         if (isMultiplayerMode && socket) {
             if (rewardData == 'clean') {
                 isEnabledQuickReward = false;
