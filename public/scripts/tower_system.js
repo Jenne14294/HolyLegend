@@ -47,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let pendingBuyItem = null; // 暫存正在購買的物品
     let isEnabledQuickItem = false;
     let isEnabledQuickReward = false;
+    
 
     // 獎勵圖示
     const REWARD_ICONS = {
@@ -1051,12 +1052,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 );
 
                 // 復活後最低保證 50% 魔力
-                const targetMp = Math.round(
+                const mpRecover = Math.round(
                     state.playerMaxMp * (reviveItem.effectValue / 100)
                 );
 
-                if (state.playerMp < targetMp) {
-                    state.playerMp = targetMp;
+                if (state.playerMp < mpRecover) {
+                    state.playerMp = mpRecover;
                 }
 
                 state.playerHp = hpRecover;
