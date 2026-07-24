@@ -312,9 +312,23 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const items = state.Skills || [];
         // 只顯示技能石
-        const skillStones = items.filter(i => 
-            (i.category.includes('SKILL') || i.category === 'GENERAL_SKILL') 
+        const skillStones = items.filter(item => {
+        const available = (item.quantity || item.count) - (item.equipped || 0);
+
+        // 一般背包
+        if (currentMode !== 'synthesis') {
+            return item.category.includes('SKILL') || item.category === 'GENERAL_SKILL';
+        }
+
+        // 只允許 I、II
+        const level = item.name.split(' ').pop();
+
+        return (
+            available >= 3 &&
+            item.requiredClass == null &&
+            (level === 'I' || level === 'II')
         );
+    });
 
         if (skillStones.length === 0) {
             invGrid.innerHTML = '<div class="empty-msg">沒有可用的技能石</div>';
@@ -339,6 +353,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (!item_level) item_level = ""
                     const el = document.createElement('div');
                     el.className = 'inv-item';
+                    if (currentMode === 'inventory') {
+                        const canEquip =
+                            item.requiredClass == null ||
+                            item.requiredClass === state.jobId;
+
+                        el.classList.add(canEquip ? 'can-equip' : 'cannot-equip');
+                    }
+
                     el.innerHTML = `
                         <img src="/holylegend/images/items/${item.image}">
                         <div class="count-badge">${available}</div>

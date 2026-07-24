@@ -233,7 +233,264 @@
     gap: 8px;
     padding-bottom: 20px; /* 底部留白，避免被遮擋 */
 }
-.inv-item { width: 50px; height: 50px; background-color: #333; border: 2px solid #555; border-radius: 4px; position: relative; cursor: pointer; }
+/* =========================================
+   區塊 K: 技能工坊 (垂直堆疊版)
+   ========================================= */
+
+#skill-layer {
+    position: absolute; 
+    top: 0; 
+    left: 0;
+    width: 100%; 
+    height: 100%;
+    z-index: 400; /* 最上層 */
+    
+    background-color: #212529; /* 深色背景 */
+    
+    /* 背景紋理 */
+    background-image: 
+        radial-gradient(circle at 50% 50%, rgba(255,255,255,0.03) 0%, transparent 10%),
+        repeating-linear-gradient(45deg, #2b2b2b 0, #2b2b2b 10px, #262626 10px, #262626 20px);
+    
+    /* 彈性佈局：垂直排列 Header - Body - Footer */
+    display: flex; 
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#skill-layer.hidden { display: none !important; }
+
+/* 1. Header (固定高度) */
+.skill-header {
+    flex: 0 0 60px;
+    background-color: #1a1a1a;
+    padding: 0 15px;
+    border-bottom: 4px solid #000;
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center;
+}
+
+.forge-title {
+    color: #ffd700; 
+    font-size: 1.5rem; 
+    font-weight: bold;
+    font-family: 'VT323', monospace; 
+    text-shadow: 2px 2px 0 #000; 
+}
+
+.header-controls {
+    display: flex; 
+    gap: 10px;
+}
+
+.btn-pixel-icon {
+    width: 36px; height: 36px;
+    color: #fff; 
+    border: 2px solid #fff; 
+    border-radius: 4px;
+    font-family: 'VT323', monospace; 
+    font-size: 1.2rem;
+    cursor: pointer; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center;
+    box-shadow: 2px 2px 0 rgba(0,0,0,0.5);
+    transition: transform 0.1s;
+}
+.btn-pixel-icon:active { transform: translate(2px, 2px); box-shadow: none; }
+.btn-close { background-color: #c0392b; }
+.btn-refresh { background-color: #27ae60; }
+.rotating { animation: spin 0.8s linear infinite; pointer-events: none; opacity: 0.7; }
+@keyframes spin { 100% { transform: rotate(360deg); } }
+
+/* 2. 中間滾動區 (Flex Column) */
+.skill-content-wrapper {
+    flex: 1; /* 自動填滿剩餘高度 */
+    display: flex;
+    flex-direction: column;
+    
+    /* 禁止外層滾動，讓捲軸出現在背包區 */
+    overflow: hidden; 
+    min-height: 0; /* ★ 關鍵：允許 Flex 容器縮小 */
+}
+
+/* 讓圖鑑區塊和背包一樣可以滾動 */
+.view-handbook {
+    flex: 1 1 0;        /* ★ 占用剩餘空間，可縮放 */
+    overflow-y: auto;   /* ★ 啟用垂直捲軸 */
+    display: flex;
+    flex-direction: column;
+    background-color: #222; /* 可選，與背包統一風格 */
+}
+
+/* 內部容器也可保持 padding 與佈局 */
+.handbook-container {
+    flex: 1;
+    padding: 15px;
+}
+
+
+/* 視圖區塊 (View Sections) */
+.view-section {
+    width: 100%;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* --- 上半部：裝備盤 (置頂) --- */
+.forge-stage {
+    flex: 0 0 auto; /* 固定高度，不被壓縮 */
+    width: 100%;
+    min-height: 220px; 
+    display: flex; 
+    flex-direction: column; 
+    justify-content: center; 
+    align-items: center;
+    background: radial-gradient(circle, #3a3a3a 0%, #1a1a1a 80%);
+    border-bottom: 4px solid #000;
+    position: relative;
+    padding: 15px 0;
+}
+
+.forge-pedestal {
+    width: 160px; height: 160px;
+    border: 3px dashed #555; 
+    border-radius: 50%;
+    position: relative; 
+    margin-bottom: 5px;
+}
+.soul-fire {
+    font-size: 2.5rem; position: absolute; top: 50%; left: 50%; 
+    transform: translate(-50%, -50%); filter: drop-shadow(0 0 8px #e67e22);
+}
+.skill-slot {
+    width: 40px; height: 40px;
+    position: absolute; top: 50%; left: 50%; margin-top: -20px; margin-left: -20px;
+    background-color: #111; border: 2px solid #666; border-radius: 6px;
+    display: flex; justify-content: center; align-items: center;
+    cursor: pointer; box-shadow: inset 0 0 5px #000;
+}
+.skill-slot.filled { border-color: #3498db; background-color: #222; }
+.skill-slot img { width: 100%; height: 100%; object-fit: cover; border-radius: 4px; }
+.forge-info { position: absolute; bottom: 5px; right: 10px; color: #888; font-size: 0.8rem; font-family: 'VT323', monospace; }
+
+/* 圓形座標 (r=70px) */
+.slot-1 { transform: translate(0px, -70px); }
+.slot-2 { transform: translate(50px, -50px); }
+.slot-3 { transform: translate(70px, 0px); }
+.slot-4 { transform: translate(50px, 50px); }
+.slot-5 { transform: translate(0px, 70px); }
+.slot-6 { transform: translate(-50px, 50px); }
+.slot-7 { transform: translate(-70px, 0px); }
+.slot-8 { transform: translate(-50px, -50px); }
+
+
+/* --- 屬性面板 (在圓盤下方) --- */
+.stats-area {
+    flex: 0 0 auto; /* 固定高度，不被壓縮 */
+    width: 100%;
+    background-color: #2b2b2b;
+    padding: 10px;
+    border-bottom: 4px solid #000;
+}
+
+.stats-grid {
+    display: grid;
+    /* 手機版：2 欄 (共 5 列) */
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 10px;
+}
+
+.stat-item {
+    display: flex; justify-content: space-between; align-items: center;
+    background-color: #333; padding: 4px 8px;
+    border-radius: 4px; border: 1px solid #444;
+    font-family: 'VT323', monospace; font-size: 0.9rem;
+    white-space: nowrap; overflow: hidden;
+}
+.s-label { color: #aaa; margin-right: auto; margin-left: 5px; }
+.s-val { color: #f1c40f; font-weight: bold; }
+
+
+/* --- 冶煉介面 --- */
+.synthesis-container {
+    width: 100%;
+    flex: 1; /* 自動填滿 */
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: radial-gradient(circle, #2c2c2c 0%, #1a1a1a 80%);
+    padding: 20px 0; border-bottom: 4px solid #000;
+    min-height: 240px;
+}
+.syn-slots-row { display: flex; gap: 15px; margin-bottom: 20px; }
+.syn-slot { width: 60px; height: 60px; background-color: #111; border: 3px solid #666; border-radius: 8px; display: flex; justify-content: center; align-items: center; cursor: pointer; box-shadow: inset 0 0 5px #000; }
+.syn-slot.filled { border-color: #e67e22; }
+.syn-slot img { width: 100%; height: 100%; object-fit: cover; }
+.syn-plus { color: #555; font-size: 2rem; font-weight: bold; align-self: center; }
+.anvil-section { display: flex; align-items: center; gap: 20px; background-color: rgba(0,0,0,0.3); padding: 10px 20px; border-radius: 8px; border: 1px solid #444; }
+.anvil-img { width: 48px; height: 48px; filter: drop-shadow(0 2px 2px #000); }
+.btn-do-synthesis { font-family: 'VT323', monospace; font-size: 1.4rem; padding: 5px 20px; background-color: #e74c3c; color: #fff; border: 2px solid #c0392b; border-radius: 4px; cursor: pointer; }
+.btn-do-synthesis:disabled { background-color: #555; border-color: #333; cursor: not-allowed; }
+
+/* --- 圖鑑視圖 --- */
+.view-section.full-height {
+    flex: 1;
+    overflow-y: auto;
+    display: flex; flex-direction: column;
+}
+.handbook-container { padding: 15px; flex: 1; }
+.handbook-item.locked { filter: grayscale(100%) brightness(0.5); }
+.hb-filter-row { display: flex; gap: 10px; justify-content: center; margin-bottom: 15px; }
+
+
+/* --- 背包 (最下方，可滑動) --- */
+.inventory-area {
+    width: 100%;
+    
+    /* ★★★ 關鍵修正 ★★★ */
+    /* flex: 1 1 0 代表：放大權重1，縮小權重1，基礎大小0 */
+    /* 這會強制瀏覽器忽略內容高度，只分配剩餘空間，溢出時就會出現捲軸 */
+    flex: 1 1 0; 
+    
+    overflow-y: auto;  /* 允許內部滾動 */
+    
+    background-color: #222;
+    padding: 10px;
+    -webkit-overflow-scrolling: touch;
+}
+
+.inventory-label { color: #666; text-align: center; font-size: 0.9rem; margin-bottom: 10px; font-family: 'VT323', monospace; letter-spacing: 1px; border-bottom: 1px dashed #444; padding-bottom: 5px; }
+
+.inventory-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+    gap: 8px;
+    padding-bottom: 20px; /* 底部留白，避免被遮擋 */
+}
+.inv-item {
+    position: relative;
+    overflow: hidden;
+}
+
+.inv-item.can-equip::before,
+.inv-item.cannot-equip::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+}
+
+.inv-item.can-equip::before {
+    background: rgba(46, 204, 113, 0.18);   /* 綠色 */
+    border: 2px solid rgba(46, 204, 113, 0.8);
+}
+
+.inv-item.cannot-equip::before {
+    background: rgba(231, 76, 60, 0.18);    /* 紅色 */
+    border: 2px solid rgba(231, 76, 60, 0.8);
+}
 .inv-item:hover { border-color: #f1c40f; }
 .inv-item img { width: 100%; height: 100%; object-fit: cover; }
 .skill_level-badge { position: absolute; bottom: 0; right: 0; background: rgba(0,0,0,0.8); color: #ffb300; font-size: 0.7rem; padding: 0 4px; font-family: 'VT323', monospace; border-top-left-radius: 4px; }
