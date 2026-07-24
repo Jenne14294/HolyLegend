@@ -1553,7 +1553,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const options = randomRewards(allRewards);
 
             const floor = state.currentFloor;
-            const multiplier = 1 + Math.floor(floor / 20) * 0.2;
+            const multiplier = 1 + floor * 0.02; 
 
             options.forEach(reward => {
                 if (reward.rewardValue > 0) {
@@ -2140,11 +2140,19 @@ document.addEventListener('DOMContentLoaded', () => {
         let scale = 1;
 
         if (type === "requirement")
-            scale = 1 + floor * 0.01;
+            // 【門檻】：極低成長率 (+0.5%/層)
+            // 確保法師到了 50 層，也能硬骰過力量檢定。維持「有一絲希望」的刺激感。
+            scale = 1 + floor * 0.005; 
+
         else if (type === "reward")
-            scale = 1 + floor * 0.05;
+            // 【獎勵】：高成長率 (+4%/層)
+            // 因為是黑箱，開出來的驚喜必須夠大！成長速度要是打怪的兩倍。
+            scale = 1 + floor * 0.04; 
+
         else if (type === "punish")
-            scale = 1 + floor * 0.01;
+            // 【懲罰】：低成長率 (+1.5%/層)
+            // 懲罰太痛會讓玩家產生陰影。讓它有感，但不至於讓滿血玩家直接暴斃。
+            scale = 1 + floor * 0.015; 
 
         return Math.floor(value * scale);
     }

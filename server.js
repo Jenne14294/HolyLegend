@@ -1565,14 +1565,17 @@ export default function initSocket(server) {
                                 const floor = battle.floor;
                                 const scaledEvent = {
                                     ...rawEvent,
+                                    // 【門檻】：極低成長率 (+0.5%/層)
                                     requirementValue: Math.floor(
-                                        rawEvent.requirementValue * (1 + floor * 0.01)
+                                        rawEvent.requirementValue * (1 + floor * 0.005)
                                     ),
+                                    // 【獎勵】：高成長率 (+4%/層)
                                     rewardValue: ['GOLD', 'EXP', 'HP', 'MP', 'STR', 'DEX', 'CON', 'INT'].includes(rawEvent.rewardType)
-                                        ? Math.floor(rawEvent.rewardValue * (1 + floor * 0.05))
+                                        ? Math.floor(rawEvent.rewardValue * (1 + floor * 0.04))
                                         : rawEvent.rewardValue,
+                                    // 【懲罰】：低成長率 (+1.5%/層)
                                     punishValue: ['GOLD', 'HP', 'MP'].includes(rawEvent.punishType)
-                                        ? Math.floor(rawEvent.punishValue * (1 + floor * 0.01))
+                                        ? Math.floor(rawEvent.punishValue * (1 + floor * 0.015))
                                         : rawEvent.punishValue
                                 };
 
