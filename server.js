@@ -1368,7 +1368,7 @@ export default function initSocket(server) {
                 damageTaken -= playerDefense
 
                 // 減傷
-                damageReduce = target.state.AdditionAttribute.dmgReduce
+                damageReduce = target.state.AdditionAttribute.dmgReduce + target.state.AdditionState[0] * 0.15 + target.state.AdditionState[2] * 0.25
                 damageReduce = Math.max(0.2, 1 - (damageReduce / 100))
                 damageTaken = Math.max(Math.round(damageTaken * damageReduce), 1)
 
