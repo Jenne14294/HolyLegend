@@ -1410,7 +1410,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     const statMultiplier = Math.pow(1.025, state.currentFloor - 1);
                     const goldMultiplier = Math.pow(1.001, state.currentFloor - 1);
-                    const EXPMultiplier = Math.pow(1.001, state.currentFloor - 1);
+                    const EXPMultiplier = 1 + (state.currentFloor - 1) * 0.004;
 
                     state.enemies = [{
                         id: selectedMonsterDef.id,

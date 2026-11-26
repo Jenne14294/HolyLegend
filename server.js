@@ -1200,7 +1200,7 @@ export default function initSocket(server) {
                     atk: Math.round(selectedMonster.ATK * statMultiplier),
                     def: Math.round(selectedMonster.DEF * statMultiplier),
                     mdef: Math.round(selectedMonster.MDEF * statMultiplier),
-                    exp: Math.round(selectedMonster.EXP * statMultiplier),
+                    exp: Math.round(selectedMonster.EXP * (1 + (battle.floor - 1) * 0.004)),
                     gold: Math.round(selectedMonster.Gold * Math.pow(1.001, floor - 1))
                 };
 
