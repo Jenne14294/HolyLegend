@@ -1187,7 +1187,7 @@ export default function initSocket(server) {
 
                 const playerCount = battle.alivePlayerIds.length;
 
-                const growthRate = 1.025 + (playerCount - 1) * 0.0025;
+                const growthRate = 1.015 + (playerCount - 1) * 0.005;
                 const statMultiplier = Math.pow(growthRate, floor - 1);
                 const playerMultiplier = 1 + (0.35 * (room.length - 1));
 
