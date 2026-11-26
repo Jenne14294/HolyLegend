@@ -1410,7 +1410,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     const statMultiplier = Math.pow(1.025, state.currentFloor - 1);
                     const goldMultiplier = Math.pow(1.001, state.currentFloor - 1);
-                    const scaledHp = Math.round(selectedMonsterDef.HP * statMultiplier);
+                    const EXPMultiplier = Math.pow(1.001, state.currentFloor - 1);
 
                     state.enemies = [{
                         id: selectedMonsterDef.id,
@@ -1423,11 +1423,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         def: Math.round(selectedMonsterDef.DEF * statMultiplier),
                         mdef: Math.round(selectedMonsterDef.MDEF * statMultiplier),
 
-                        exp: Math.round(selectedMonsterDef.EXP * statMultiplier),
+                        exp: Math.round(selectedMonsterDef.EXP * EXPMultiplier),
 
                         gold: Math.round(selectedMonsterDef.Gold * goldMultiplier)
                     }];
                     state.targetEnemyId = selectedMonsterDef.id;
+                    state.AdditionEXP += Math.round(selectedMonsterDef.EXP * EXPMultiplier);
                     targetImage = selectedMonsterDef.image; 
 
                 } else {

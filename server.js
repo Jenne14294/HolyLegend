@@ -1512,6 +1512,12 @@ export default function initSocket(server) {
 
             // 5. 戰鬥結束處理
             if (isEnemyDead) {
+
+                // 累計本層怪物擊殺獎勵
+                for (const p of room) {
+                    p.state.goldCollected = (p.state.goldCollected || 0) + battle.enemy.gold;
+                    p.state.AdditionEXP = (p.state.AdditionEXP || 0) + battle.enemy.exp;
+                }
                 // 伺服器端決定是否給獎勵 (15% 機率)
                     const eventRate = Math.floor(Math.random() * 100);
                     const rewardRate = Math.floor(Math.random() * 100);
