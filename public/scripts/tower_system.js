@@ -899,6 +899,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleMonsterDeath() {
         state.processingLevelUp = true;
         state.goldCollected += state.enemies[0].gold;
+        state.AdditionEXP += state.enemies[0].exp;
         updateTopBarUI();
         renderStatusUI();
         
@@ -1428,7 +1429,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         gold: Math.round(selectedMonsterDef.Gold * goldMultiplier)
                     }];
                     state.targetEnemyId = selectedMonsterDef.id;
-                    state.AdditionEXP += Math.round(selectedMonsterDef.EXP * EXPMultiplier);
                     targetImage = selectedMonsterDef.image; 
 
                 } else {

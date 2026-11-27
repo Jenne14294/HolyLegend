@@ -26,6 +26,29 @@ const additionMap = {
 const disconnectTimers = {}; // ★ 你的錯誤就是少了這一行
 const requestTimers = {};
 
+// 事件系統
+// 倍率調整(更好的爬塔系統)
+function getEventValue(value, floor, type) {
+    let scale = 1;
+
+    if (type === "requirement")
+        // 【門檻】：極低成長率 (+0.5%/層)
+        // 確保法師到了 50 層，也能硬骰過力量檢定。維持「有一絲希望」的刺激感。
+        scale = 1 + floor * 0.005; 
+
+    else if (type === "reward")
+        // 【獎勵】：高成長率 (+4%/層)
+        // 因為是黑箱，開出來的驚喜必須夠大！成長速度要是打怪的兩倍。
+        scale = 1 + floor * 0.04; 
+
+    else if (type === "punish")
+        // 【懲罰】：低成長率 (+1.5%/層)
+        // 懲罰太痛會讓玩家產生陰影。讓它有感，但不至於讓滿血玩家直接暴斃。
+        scale = 1 + floor * 0.015; 
+
+    return Math.floor(value * scale);
+}
+
 export default function initSocket(server) {
     const io = new Server(server, {
       path: '/holylegend/socket.io' // <--- 這一行不能少
@@ -713,6 +736,7 @@ export default function initSocket(server) {
         socket.on('try_event_action', ({ eventId, isSuccess }) => {
             if (!currentRoomId || !battles[currentRoomId]) return;
             const battle = battles[currentRoomId];
+            const floor = battle.floor;
             
             // 檢查鎖定：如果已經有人在檢定，拒絕
             if (battle.eventLock) return; 
@@ -726,7 +750,10 @@ export default function initSocket(server) {
 
             // 這裡簡單信任前端傳來的 isSuccess，嚴謹的話後端要再算一次
             const eventData = battle.currentEventData;
-            
+
+            eventData.rewardValue = getEventValue(eventData.rewardValue, floor, "reward");
+            eventData.punishValue = getEventValue(eventData.punishValue, floor, "punish");
+
             setTimeout(() => {
                 // 暫存結果，不立即發放
                 battle.pendingEventResult = {
@@ -977,10 +1004,14 @@ export default function initSocket(server) {
             const playerRoomData = rooms[currentRoomId].find(p => p.socketId === socket.id);
             if (!playerRoomData) return;
 
+
             // 1. 驗證商品
             const shopItem = battle.sharedShopItems.find(i => i.id === itemId);
             if (!shopItem) return socket.emit('shop_buy_result', { success: false, msg: "商品不存在" });
             if (shopItem.currentStock <= 0) return socket.emit('shop_buy_result', { success: false, msg: "已售罄" });
+            if (playerRoomData.state.Skills?.some(skill => skill.id === shopItem.id && skill.id >= 52 && skill.id <= 105)) {
+                return socket.emit('shop_buy_result', { success: false, msg: "你已擁有此符文" });
+            }
 
             // 2. 驗證金幣 (假設金幣已同步到後端，或是允許負數由前端扣)
             // 這裡我們直接扣 p.state.goldCollected，這會變成負數增量傳回前端
@@ -1201,7 +1232,7 @@ export default function initSocket(server) {
                     def: Math.round(selectedMonster.DEF * statMultiplier),
                     mdef: Math.round(selectedMonster.MDEF * statMultiplier),
                     exp: Math.round(selectedMonster.EXP * (1 + (battle.floor - 1) * 0.004)),
-                    gold: Math.round(selectedMonster.Gold * Math.pow(1.001, floor - 1))
+                    gold: Math.round(selectedMonster.Gold * (1 + (battle.floor - 1) * 0.004))
                 };
 
                 battle.enemyHp = battle.enemy.hp;
