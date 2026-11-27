@@ -1232,7 +1232,7 @@ export default function initSocket(server) {
                     def: Math.round(selectedMonster.DEF * statMultiplier),
                     mdef: Math.round(selectedMonster.MDEF * statMultiplier),
                     exp: Math.round(selectedMonster.EXP * (1 + (battle.floor - 1) * 0.004)),
-                    gold: Math.round(selectedMonster.Gold * (1 + (battle.floor - 1) * 0.004))
+                    gold: Math.round(selectedMonster.Gold * (1 + (battle.floor - 1) * 0.001))
                 };
 
                 battle.enemyHp = battle.enemy.hp;
@@ -1443,6 +1443,7 @@ export default function initSocket(server) {
                     }
 
 
+                    // buff 回合檢查
                     if (p.state.Status && p.state.Status.length > 0) {
                         const pState = battle.playerStates[p.socketId];
 
@@ -1543,12 +1544,6 @@ export default function initSocket(server) {
 
             // 5. 戰鬥結束處理
             if (isEnemyDead) {
-
-                // 累計本層怪物擊殺獎勵
-                for (const p of room) {
-                    p.state.goldCollected = (p.state.goldCollected || 0) + battle.enemy.gold;
-                    p.state.AdditionEXP = (p.state.AdditionEXP || 0) + battle.enemy.exp;
-                }
                 // 伺服器端決定是否給獎勵 (15% 機率)
                     const eventRate = Math.floor(Math.random() * 100);
                     const rewardRate = Math.floor(Math.random() * 100);
@@ -1564,17 +1559,61 @@ export default function initSocket(server) {
                             const itemCount = 6;
                             const selectedItems = [];
 
+                            // 洗牌函式
+                            const shuffle = (arr) => {
+                                for (let i = arr.length - 1; i > 0; i--) {
+                                    const j = Math.floor(Math.random() * (i + 1));
+                                    [arr[i], arr[j]] = [arr[j], arr[i]];
+                                }
+                                return arr;
+                            };
+
+                            // 正常隨機抽取 6 個商品
+                            const shuffledPool = shuffle([...pool]);
+
                             for (let i = 0; i < itemCount; i++) {
-                                if (pool.length === 0) break;
+                                if (shuffledPool.length === 0) break;
 
-                                const idx = Math.floor(Math.random() * pool.length);
-                                const itemTemplate = pool.splice(idx, 1)[0];
-
-                                selectedItems.push({
-                                    ...itemTemplate,
-                                    currentStock: Math.ceil(Math.random() * (itemTemplate.maxStock || 3))
-                                });
+                                selectedItems.push(shuffledPool[i]);
                             }
+
+                            // 保底最低 2 個 POTION
+                            const potionCount = selectedItems.filter(item => item.category === 'POTION').length;
+
+                            if (potionCount < 2) {
+                                const needed = 2 - potionCount;
+
+                                // 可替換的技能符文
+                                const replaceableItems = shuffle(
+                                    selectedItems.filter(item =>
+                                        ['GENERAL_SKILL', 'CLASS_SKILL'].includes(item.category)
+                                    )
+                                );
+
+                                // 尚未被抽入商店的 POTION
+                                const potionPool = shuffle(
+                                    pool.filter(item =>
+                                        item.category === 'POTION' &&
+                                        !selectedItems.some(selected => selected.id === item.id)
+                                    )
+                                );
+
+                                // 替換符文補足 POTION
+                                for (let i = 0; i < needed; i++) {
+                                    if (i >= replaceableItems.length || i >= potionPool.length) break;
+
+                                    const itemToReplace = replaceableItems[i];
+                                    const potion = potionPool[i];
+
+                                    const index = selectedItems.findIndex(item => item.id === itemToReplace.id);
+                                    selectedItems[index] = potion;
+                                }
+                            }
+
+                            // 隨機庫存
+                            selectedItems.forEach(item => {
+                                item.currentStock = Math.ceil(Math.random() * (item.maxStock || 3));
+                            });
 
                             battle.sharedShopItems = selectedItems;
                             battle.isShopActive = true;

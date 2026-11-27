@@ -966,25 +966,64 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch('/holylegend/system/items');
             const result = await response.json();
-            
+
             if (result.success && result.data && result.data.length > 0) {
                 const pool = result.data;
-                // 洗牌
-                for (let i = pool.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [pool[i], pool[j]] = [pool[j], pool[i]];
+
+                // 洗牌函式
+                const shuffle = (arr) => {
+                    for (let i = arr.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [arr[i], arr[j]] = [arr[j], arr[i]];
+                    }
+                    return arr;
+                };
+
+                // 先正常隨機抽 6 個
+                const selectedItems = shuffle([...pool]).slice(0, 6);
+
+                // 計算目前 POTION 數量
+                const potionCount = selectedItems.filter(item => item.category === 'POTION').length;
+
+                // 若 POTION 不足 2 個，優先替換技能符文
+                if (potionCount < 2) {
+                    const needed = 2 - potionCount;
+
+                    // 從商店中挑選可被替換的符文
+                    const replaceableItems = shuffle(
+                        selectedItems.filter(item =>
+                            ['GENERAL_SKILL', 'CLASS_SKILL'].includes(item.category)
+                        )
+                    );
+
+                    // 從商品池抽取尚未出現在商店的藥水
+                    const potionPool = shuffle(
+                        pool.filter(item =>
+                            item.category === 'POTION' &&
+                            !selectedItems.some(selected => selected.id === item.id)
+                        )
+                    );
+
+                    for (let i = 0; i < needed; i++) {
+                        if (i >= replaceableItems.length || i >= potionPool.length) break;
+
+                        const itemToReplace = replaceableItems[i];
+                        const potion = potionPool[i];
+
+                        const index = selectedItems.findIndex(item => item.id === itemToReplace.id);
+                        selectedItems[index] = potion;
+                    }
                 }
-                // 選4個
-                const selectedItems = pool.slice(0, 6);
+
                 // 隨機庫存
                 selectedItems.forEach(item => {
-                    const max = item.maxStock || 5; 
+                    const max = item.maxStock || 5;
                     item.currentStock = Math.ceil(Math.random() * max);
                 });
 
                 // 暫存以便購買時扣庫存
                 window.Game.currentShopItems = selectedItems;
-                
+
                 renderShopItems(selectedItems);
                 openShopLayer("旅行商人：只有這些了，要買要快。");
             } else {
@@ -1345,26 +1384,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (result.success && result.data && result.data.length > 0) {
                     const allMonsters = result.data;
-                    let selectedMonsterDef = null;
+                    let selectedMonster = null;
 
                     if (specifiedMonster) {
-                        selectedMonsterDef = allMonsters.find(m => m.name === specifiedMonster);
+                        selectedMonster = allMonsters.find(m => m.name === specifiedMonster);
 
                     }
-                    if (!selectedMonsterDef) {
+                    if (!selectedMonster) {
                         const currentFloor = state.currentFloor || 1;
 
                         // ★ 2% 機率遇到貪慾寶箱怪
                         const treasureRoll = Math.random() * 100;
 
                         if (treasureRoll < 2) {
-                            selectedMonsterDef = allMonsters.find(
+                            selectedMonster = allMonsters.find(
                                 m => m.name === '貪慾寶箱怪'
                             );
                         }
 
                         // 沒遇到寶箱怪，才正常抽怪
-                        if (!selectedMonsterDef) {
+                        if (!selectedMonster) {
                             let targetType = 'NORMAL';
                             const roll = Math.random() * 100;
 
@@ -1393,16 +1432,16 @@ document.addEventListener('DOMContentLoaded', () => {
                                 );
                             }
 
-                            selectedMonsterDef = validMonsters[
+                            selectedMonster = validMonsters[
                                 Math.floor(Math.random() * validMonsters.length)
                             ];
 
                             if (validMonsters.length > 0) {
-                                selectedMonsterDef = validMonsters[
+                                selectedMonster = validMonsters[
                                     Math.floor(Math.random() * validMonsters.length)
                                 ];
                             } else {
-                                selectedMonsterDef = allMonsters[
+                                selectedMonster = allMonsters[
                                     Math.floor(Math.random() * allMonsters.length)
                                 ];
                             }
@@ -1410,26 +1449,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     const statMultiplier = Math.pow(1.025, state.currentFloor - 1);
-                    const goldMultiplier = Math.pow(1.001, state.currentFloor - 1);
+                    const goldMultiplier = 1 + (state.currentFloor - 1) * 0.001;
                     const EXPMultiplier = 1 + (state.currentFloor - 1) * 0.004;
 
                     state.enemies = [{
-                        id: selectedMonsterDef.id,
-                        name: selectedMonsterDef.name,
-                        image: selectedMonsterDef.image,
-                        hp: Math.round(selectedMonsterDef.HP * statMultiplier),
-                        maxHp: Math.round(selectedMonsterDef.HP * statMultiplier),
+                        id: selectedMonster.id,
+                        name: selectedMonster.name,
+                        image: selectedMonster.image,
+                        hp: Math.round(selectedMonster.HP * statMultiplier),
+                        maxHp: Math.round(selectedMonster.HP * statMultiplier),
 
-                        atk: Math.round(selectedMonsterDef.ATK * statMultiplier),
-                        def: Math.round(selectedMonsterDef.DEF * statMultiplier),
-                        mdef: Math.round(selectedMonsterDef.MDEF * statMultiplier),
+                        atk: Math.round(selectedMonster.ATK * statMultiplier),
+                        def: Math.round(selectedMonster.DEF * statMultiplier),
+                        mdef: Math.round(selectedMonster.MDEF * statMultiplier),
 
-                        exp: Math.round(selectedMonsterDef.EXP * EXPMultiplier),
+                        exp: Math.round(selectedMonster.EXP * EXPMultiplier),
 
-                        gold: Math.round(selectedMonsterDef.Gold * goldMultiplier)
+                        gold: Math.round(selectedMonster.Gold * goldMultiplier)
                     }];
-                    state.targetEnemyId = selectedMonsterDef.id;
-                    targetImage = selectedMonsterDef.image; 
+                    state.targetEnemyId = selectedMonster.id;
+                    targetImage = selectedMonster.image; 
 
                 } else {
                     fallbackInit();
@@ -2528,6 +2567,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 }))
             );
 
+            // 計算 GENERAL_SKILL 持有數量（包含背包與裝備）
+            const generalSkillCount = item.category === 'GENERAL_SKILL'
+                ? [
+                    ...(state.Inventory || []),
+                    ...(state.Skills || []),
+                    ...(state.Equipment || [])
+                ].filter(i => i && Number(i.id) === Number(item.id)).reduce((count, i) => count + (i.count || 1), 0)
+                : 0;
+
             // ★ 視覺狀態控制：如果無法購買，則添加對應的 Class 讓 CSS 變灰
             if (isSoldOut) card.classList.add('sold-out');
             if (isDead) card.classList.add('player-dead');
@@ -2549,7 +2597,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div class="item-info">
                     <div class="item-name">${item.name}</div>
-                    <div class="item-desc">${item.description}\n${ClassName}</div>
+                    <div class="item-desc">
+                        ${item.description}\n${ClassName}
+                        ${item.category === 'GENERAL_SKILL' ? `<div>持有數量：${generalSkillCount}</div>` : ''}
+                    </div>
                     <div class="item-price" style="color:${canAfford && !isDead ? '#ffd700' : '#e74c3c'}">💰${item.price}</div>
                 </div>
                 <button class="btn-buy" ${isSoldOut || isDead || alreadyOwned ? 'disabled' : ''}>
