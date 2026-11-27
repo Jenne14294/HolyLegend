@@ -457,6 +457,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // 2. 解除死亡狀態
             state.isGameOver = false;
+            state.isTurnLocked = false;
             
             // 3. 更新 UI
             updatePlayerUI();

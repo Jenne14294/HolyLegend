@@ -787,6 +787,8 @@ export default function initSocket(server) {
                 // --- 全員確認完畢，執行結算 ---
                 
                 const result = battle.pendingEventResult;
+                console.log(result)
+
                 // 防呆：如果結果不存在，跳過結算
                 if (!result) {
                     io.to(currentRoomId).emit('close_event_window');
@@ -797,9 +799,11 @@ export default function initSocket(server) {
                 const room = rooms[currentRoomId];
 
                 // 判斷是獎勵還是懲罰
-                const type = result.isSuccess ? result.rewardType : result.punishType;
-                const val = result.isSuccess ? result.rewardValue : result.punishValue;
+                const type = result.isSuccess ? result.dataValues.rewardType : result.dataValues.punishType;
+                const val = result.isSuccess ? result.dataValues.rewardValue : result.dataValues.punishValue;
                 const isPunish = !result.isSuccess;
+
+                console.log(type, val, isPunish);
 
                 // ★★★ 關鍵更新邏輯：同步寫入 Server 端記憶體 ★★★
                 room.forEach(p => {
