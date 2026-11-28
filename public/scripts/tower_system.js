@@ -48,6 +48,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let isEnabledQuickItem = false;
     let isEnabledQuickReward = false;
     let rewardSelected = false;
+    let currentTargetHandler = null;
+    let currentSelfHandler = null;
     
 
     // 獎勵圖示
@@ -721,6 +723,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 setTimeout(() => p.remove(), 1000);
             } else {
                 alert(result.msg);
+
+                waitingForTurn = false;
+                updateControlsState();
+
+                cleanupItemTargetSelection();
             }
         });
 
@@ -2711,11 +2718,6 @@ document.addEventListener('DOMContentLoaded', () => {
              return;
         }
 
-        if (item == 'clean') {
-            cleanup();
-            return
-        }
-
         // 1. 關閉背包
         if (inventoryLayer) inventoryLayer.classList.add('hidden');
 
@@ -2740,58 +2742,41 @@ document.addEventListener('DOMContentLoaded', () => {
             const cards = teammatesContainer.querySelectorAll('.tm-card');
             const selfArea = document.querySelector('.tower-player-status'); // 自己的區域
 
-            // 清理函式
-            const cleanup = () => {
-                cards.forEach(c => {
-                    c.removeEventListener('click', handleTargetSelect);
-                    c.classList.remove('selectable');
-                });
-                if (selfArea) {
-                    selfArea.removeEventListener('click', handleSelfSelect);
-                    selfArea.classList.remove('selectable');
-                }
-            };
-
-            const handleTargetSelect = (e) => {
+            currentTargetHandler = (e) => {
                 const targetId = e.currentTarget.dataset.id;
+
                 if (confirm(`確定對隊友使用 ${item.name} 嗎？`)) {
-                    // ★ 1. 鎖定回合狀態 (防止重複行動)
                     waitingForTurn = true;
-                    updateControlsState(); // 讓攻擊按鈕變灰
-                    
-                    // ★ 2. 發送請求
-                    socket.emit('player_use_item', { 
+                    updateControlsState();
+
+                    socket.emit('player_use_item', {
                         itemId: item.id,
                         targetSocketId: targetId
                     });
-                    cleanup();
                 }
             };
 
-            const handleSelfSelect = () => {
+            currentSelfHandler = () => {
                 if (confirm(`確定對自己使用 ${item.name} 嗎？`)) {
-                    // ★ 1. 鎖定回合狀態
                     waitingForTurn = true;
                     updateControlsState();
-                    
-                    // ★ 2. 發送請求
-                    socket.emit('player_use_item', { 
+
+                    socket.emit('player_use_item', {
                         itemId: item.id,
-                        targetSocketId: socket.id 
+                        targetSocketId: socket.id
                     });
-                    cleanup();
                 }
             };
 
             // 綁定事件 & 樣式
             cards.forEach(c => {
                 c.classList.add('selectable');
-                c.addEventListener('click', handleTargetSelect);
+                c.addEventListener('click', currentTargetHandler);
             });
 
             if (selfArea) {
                 selfArea.classList.add('selectable');
-                selfArea.addEventListener('click', handleSelfSelect);
+                selfArea.addEventListener('click', currentSelfHandler);
             }
         }
     }
@@ -3215,7 +3200,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 itemId: item.id,
                 targetSocketId: socket.id 
             });
-            handleUseItem('clean')
+            cleanupItemTargetSelection();
         }
     }
 
@@ -3234,8 +3219,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 targetSocketId: targetId
             });
         }
-        handleUseItem('clean')        
+        cleanupItemTargetSelection();     
     }
+
+
+    function cleanupItemTargetSelection() {
+        const cards = teammatesContainer.querySelectorAll('.tm-card');
+        const selfArea = document.querySelector('.tower-player-status');
+
+        cards.forEach(c => {
+            if (currentTargetHandler) {
+                c.removeEventListener('click', currentTargetHandler);
+            }
+            c.classList.remove('selectable');
+        });
+
+        if (selfArea) {
+            if (currentSelfHandler) {
+                selfArea.removeEventListener('click', currentSelfHandler);
+            }
+            selfArea.classList.remove('selectable');
+        }
+
+        currentTargetHandler = null;
+        currentSelfHandler = null;
+
+        isEnabledQuickItem = false;
+    }
+
 
     function handleReviveReward(index) {
         const cards = teammatesContainer.querySelectorAll('.tm-card');

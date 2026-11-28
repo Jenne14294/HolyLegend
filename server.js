@@ -490,35 +490,64 @@ export default function initSocket(server) {
                     used = true;
                 }
 
+                
                 else if (item.effectType === 'REVIVE') {
-                    // 檢查：只有死人才能被復活
+
+                    // 只有死亡玩家才能復活
                     if (!targetState.isDead) {
-                        return socket.emit('item_use_result', { success: false, msg: "目標尚未死亡，無法使用復活" });
+                        return socket.emit('item_use_result', {
+                            success: false,
+                            msg: "目標尚未死亡，無法使用復活"
+                        });
                     }
 
-                    const heal = item.isPercentage ? Math.round(targetState.maxHp * (item.effectValue/100)) : item.effectValue;
-                    const recover = item.isPercentage ? Math.round(targetState.maxMp * (item.effectValue/100)) : item.effectValue;
+                    // HP：恢復最大 HP 的指定比例
+                    const hpRecover = item.isPercentage
+                        ? Math.round(targetState.maxHp * item.effectValue / 100)
+                        : item.effectValue;
 
-                    // 復活：血量設為恢復量 (不是 +heal，因為原本是 0)
-                    targetState.hp = Math.min(targetState.maxHp, heal); 
-                    targetState.mp = Math.min(targetState.maxMp, targetState.mp + recover);
+                    // MP：增加最大 MP 的指定比例
+                    const mpRecover = item.isPercentage
+                        ? Math.round(targetState.maxMp * item.effectValue / 100)
+                        : item.effectValue;
+
+                    // 復活後 HP 直接設定恢復量
+                    targetState.hp = Math.min(targetState.maxHp, hpRecover);
+
+                    // MP 在原本數值上增加
+                    targetState.mp = Math.min(
+                        targetState.maxMp,
+                        targetState.mp + mpRecover
+                    );
+
+                    // 更新死亡狀態
                     targetState.isDead = false;
 
-                    // 同步回房間狀態
+                    // 同步房間玩家狀態
                     if (targetRoomData) {
                         targetRoomData.state.playerHp = targetState.hp;
                         targetRoomData.state.playerMp = targetState.mp;
+
+                        // 如果房間狀態也有死亡欄位，一併更新
+                        if ('isDead' in targetRoomData.state) {
+                            targetRoomData.state.isDead = false;
+                        }
                     }
-                    
-                    // ★★★ 關鍵：加回存活名單，這樣 processTurn 才會算他一份 ★★★
+
+                    // 加回存活名單
                     if (!battle.alivePlayerIds.includes(finalTargetId)) {
                         battle.alivePlayerIds.push(finalTargetId);
                     }
 
-                    io.to(finalTargetId).emit('player_revived', { hp: targetState.hp, mp: targetState.mp });
+                    // 通知復活玩家
+                    io.to(finalTargetId).emit('player_revived', {
+                        hp: targetState.hp,
+                        mp: targetState.mp
+                    });
 
                     used = true;
                 }
+
             }
 
             if (used) {
@@ -787,7 +816,6 @@ export default function initSocket(server) {
                 // --- 全員確認完畢，執行結算 ---
                 
                 const result = battle.pendingEventResult;
-                console.log(result)
 
                 // 防呆：如果結果不存在，跳過結算
                 if (!result) {
@@ -802,8 +830,6 @@ export default function initSocket(server) {
                 const type = result.isSuccess ? result.dataValues.rewardType : result.dataValues.punishType;
                 const val = result.isSuccess ? result.dataValues.rewardValue : result.dataValues.punishValue;
                 const isPunish = !result.isSuccess;
-
-                console.log(type, val, isPunish);
 
                 // ★★★ 關鍵更新邏輯：同步寫入 Server 端記憶體 ★★★
                 room.forEach(p => {
